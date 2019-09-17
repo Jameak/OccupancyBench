@@ -1,0 +1,16 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Benchmark:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Benchmark_jar</output-path>
+    <root id="archive" name="Benchmark.jar">
+      <element id="module-output" name="Benchmark" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/influxdb/influxdb-java/2.15/influxdb-java-2.15.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/squareup/retrofit2/retrofit/2.5.0/retrofit-2.5.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/squareup/retrofit2/converter-moshi/2.5.0/converter-moshi-2.5.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/squareup/moshi/moshi/1.5.0/moshi-1.5.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/msgpack/msgpack-core/0.8.16/msgpack-core-0.8.16.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/squareup/okhttp3/okhttp/3.13.1/okhttp-3.13.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/squareup/okio/okio/1.17.2/okio-1.17.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/squareup/okhttp3/logging-interceptor/3.13.1/logging-interceptor-3.13.1.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

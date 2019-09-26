@@ -1,19 +1,18 @@
 package Benchmark.Generator;
 
+import Benchmark.Generator.Targets.ITarget;
+
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
 
 public class DataGenerator {
-    public static List<GeneratedEntry> Generate(int interval, int loadedInterval, Floor[] generatedFloors, MapData data, LocalDate startDate, LocalDate endDate, double scale, Random rng){
+    public static void Generate(int interval, int loadedInterval, Floor[] generatedFloors, MapData data, LocalDate startDate, LocalDate endDate, double scale, Random rng, ITarget outputTarget) throws IOException {
         boolean timeMatch = interval == loadedInterval;
         // These things assume timeMatch is true for now.
         assert timeMatch; //TODO: Handle the case where timeMatch isn't true.
-
-        List<GeneratedEntry> generatedEntries = new LinkedList<>();
 
         LocalDate[] sortedEntryKeys = data.getDateEntries().keySet().toArray(new LocalDate[0]);
         Arrays.sort(sortedEntryKeys);
@@ -39,7 +38,8 @@ public class DataGenerator {
                 int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
                 LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
 
-                generatedEntries.add(new GeneratedEntry(startDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int)Math.ceil(firstEntry.getTotal() * scale * probability)));
+                GeneratedEntry genEntry = new GeneratedEntry(startDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int)Math.ceil(firstEntry.getTotal() * scale * probability));
+                outputTarget.add(genEntry);
                 previousReadingTime = readingTime;
             }
         }
@@ -63,7 +63,8 @@ public class DataGenerator {
                         int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
                         LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
 
-                        generatedEntries.add(new GeneratedEntry(nextDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int)Math.ceil(entryOnDay.getTotal() * scale * probability)));
+                        GeneratedEntry genEntry = new GeneratedEntry(nextDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int)Math.ceil(entryOnDay.getTotal() * scale * probability));
+                        outputTarget.add(genEntry);
                         previousReadingTime = readingTime;
                     }
                 }
@@ -78,7 +79,7 @@ public class DataGenerator {
         }
 
 
-        return generatedEntries;
+
     }
 
     public static class GeneratedEntry{

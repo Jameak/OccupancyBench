@@ -1,17 +1,18 @@
-package Generator;
+package Benchmark.Generator;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 public class MapData {
     private final IdMap idMap;
-    private final Map<String, Entry[]> loadedEntries;
+    private final Map<LocalDate, Entry[]> loadedEntries;
 
-    public MapData(IdMap idMap, Map<String, Entry[]> loadedEntries){
+    public MapData(IdMap idMap, Map<LocalDate, Entry[]> loadedDateEntries){
         this.idMap = idMap;
-        this.loadedEntries = loadedEntries;
+        this.loadedEntries = loadedDateEntries;
     }
 
-    public Map<String, Entry[]> getLoadedEntries() {
+    public Map<LocalDate, Entry[]> getDateEntries() {
         return loadedEntries;
     }
 

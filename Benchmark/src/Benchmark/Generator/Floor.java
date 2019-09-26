@@ -1,4 +1,4 @@
-package Generator;
+package Benchmark.Generator;
 
 import java.util.Map;
 

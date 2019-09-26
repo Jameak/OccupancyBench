@@ -1,19 +1,20 @@
-package Generator;
+package Benchmark.Generator;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 public class Entry{
-    private final String time;
+    private final LocalDateTime time;
     private final int total;
     private final Map<Integer, Double> probabilities;
 
-    public Entry(String time, int total, Map<Integer, Double> probabilities){
+    public Entry(LocalDateTime time, int total, Map<Integer, Double> probabilities){
         this.time = time;
         this.total = total;
         this.probabilities = probabilities == null || probabilities.isEmpty() ? null : probabilities;
     }
 
-    public String getTime() {
+    public LocalDateTime getTime() {
         return time;
     }
 

@@ -42,6 +42,7 @@ public class Generator {
                         throw new RuntimeException("Failed matching AP with ID after assignment reset. Aborting"); // TODO: Replace with something that can be caught at a higher level.
                     }
 
+                    assert assignedIDs.get(AP.getLocation()) != null : "Failed to find match for AP for which no match can ever exist. Must be caused by mismatch between floor-generation and data-loading";
                     // We exhausted all valid matches from the given location in the source data, so reset them and try again.
                     // Only going to happen if the generated floorplan is bigger than the source data
                     assignedIDs.get(AP.getLocation()).clear();
@@ -64,6 +65,8 @@ public class Generator {
 
             // Sum up all the probabilities of used APs at a specific timestamp entry.
             for(Entry entry : entriesAtSpecificTime){
+                if(!entry.hasData()) continue;
+
                 for(Integer APid : entry.getProbabilities().keySet()){
                     if(assignedAPidsAndAmountOfTimesAssigned.containsKey(APid)){
                         double probability = entry.getProbabilities().get(APid);
@@ -89,6 +92,8 @@ public class Generator {
             // Update probabilities of each used AP at the entry by dividing with the total.
             // This normalizes the total probability to 1 (100%).
             for(Entry entry : entriesAtSpecificTime){
+                if(!entry.hasData()) continue;
+
                 for(Integer APid : entry.getProbabilities().keySet()){
                     if(assignedAPidsAndAmountOfTimesAssigned.containsKey(APid)){
                         double probability = entry.getProbabilities().get(APid);
@@ -116,7 +121,14 @@ public class Generator {
             if (IsAssigned(assignedIDs, AP.getLocation(), candidate)) continue;
 
             Integer[] mapPartners = idMap.getPartnerMap().get(candidate);
-            if (mapPartners.length == AP.getPartners().length) {
+            if(mapPartners == null || mapPartners.length == 0){
+                //Candidate doesn't have partners but AP does, so no match.
+                if(AP.hasPartners()) continue;
+
+                AP.setMapID(candidate);
+                Assign(assignedIDs, AP.getLocation(), candidate);
+                return true;
+            } else if (AP.hasPartners() && mapPartners.length == AP.getPartners().length) {
                 AP.setMapID(candidate);
                 Assign(assignedIDs, AP.getLocation(), candidate);
                 for (int k = 0; k < mapPartners.length; k++) {

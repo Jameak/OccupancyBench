@@ -21,6 +21,10 @@ public class AccessPoint {
         this.partners = partners;
     }
 
+    public boolean hasPartners(){
+        return this.partners != null && partners.length != 0;
+    }
+
     public APLocation getLocation() {
         return location;
     }

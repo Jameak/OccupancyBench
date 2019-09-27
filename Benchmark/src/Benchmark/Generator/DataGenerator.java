@@ -25,32 +25,38 @@ public class DataGenerator {
 
         int startSecond = rng.nextInt(10) + 1;
         // Generate initial distribution
-        Entry firstEntry = data.getDateEntries().get(sortedEntryKeys[0])[0];
+        {
+            Entry firstEntry = data.getDateEntries().get(sortedEntryKeys[0])[0];
 
-        LocalTime startReadingTime = LocalTime.of(0,0,startSecond,0);
-        LocalTime previousReadingTime = startReadingTime;
-        for(Floor floor : generatedFloors){
-            AccessPoint[] APs = floor.getAPs();
-            for(AccessPoint AP : APs){
-                int APid = AP.getMapID();
-                double probability = firstEntry.hasData() ? firstEntry.getProbabilities().get(APid) : 0.0;
+            LocalTime previousReadingTime = LocalTime.of(0,0,startSecond,0);
+            for(Floor floor : generatedFloors){
+                AccessPoint[] APs = floor.getAPs();
+                for(AccessPoint AP : APs){
+                    int APid = AP.getMapID();
 
-                int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
-                LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
+                    if(!firstEntry.hasData()) continue; // Entry has no data, so generate nothing rather than zeros.
+                    if(firstEntry.getProbabilities().get(APid) == null) continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
+                    double probability = firstEntry.getProbabilities().get(APid);
 
-                GeneratedEntry genEntry = new GeneratedEntry(startDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int)Math.ceil(firstEntry.getTotal() * scale * probability));
-                outputTarget.add(genEntry);
-                previousReadingTime = readingTime;
+                    int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
+                    LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
+
+                    GeneratedEntry genEntry = new GeneratedEntry(startDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int)Math.ceil(firstEntry.getTotal() * scale * probability));
+                    outputTarget.add(genEntry);
+                    previousReadingTime = readingTime;
+                }
             }
         }
 
+
         // Every timestep, do...
-        startReadingTime = startReadingTime.plusSeconds(interval);
+        LocalTime previousReadingTime;
         LocalDate nextDate = startDate;
         for(int i = 1; i < sortedEntryKeys.length; i++){
-            previousReadingTime = startReadingTime;
+            LocalTime startTime = LocalTime.of(0,0,startSecond,0).plusSeconds(interval);
             Entry[] entriesOnDate = data.getDateEntries().get(sortedEntryKeys[i]);
             for(Entry entryOnDay : entriesOnDate){
+                previousReadingTime = startTime;
                 for(Floor floor : generatedFloors){
                     AccessPoint[] APs = floor.getAPs();
                     for(AccessPoint AP : APs){
@@ -58,7 +64,9 @@ public class DataGenerator {
                         //  So it completely ignores AP-adjacency, partners, etc. Add the random walk here to introduce more randomness.
 
                         int APid = AP.getMapID();
-                        double probability = entryOnDay.hasData() ? entryOnDay.getProbabilities().get(APid) : 0.0;
+                        if(!entryOnDay.hasData()) continue; // Entry has no data, so generate nothing rather than zeros.
+                        if(entryOnDay.getProbabilities().get(APid) == null) continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
+                        double probability = entryOnDay.getProbabilities().get(APid);
 
                         int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
                         LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
@@ -68,6 +76,7 @@ public class DataGenerator {
                         previousReadingTime = readingTime;
                     }
                 }
+                startTime = startTime.plusSeconds(interval);
             }
 
             nextDate = nextDate.plusDays(1);

@@ -100,7 +100,6 @@ public class Generator {
             }
         }
 
-
         // The probability of combined APs have been summed up into a single AP for every loaded entry, so we can disregard them from here on out.
         data.getIdMap().getCombineAPs().clear();
     }

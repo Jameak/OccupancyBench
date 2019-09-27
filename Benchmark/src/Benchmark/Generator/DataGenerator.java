@@ -80,7 +80,7 @@ public class DataGenerator {
             }
 
             nextDate = nextDate.plusDays(1);
-            if(nextDate == endDate) break;
+            if(nextDate.isEqual(endDate)) break;
         }
 
         if(nextDate.isBefore(endDate)){

@@ -38,13 +38,11 @@ public class ConfigFile {
     private boolean   toInflux;
 
     private static final String INFLUX_URL            = "output.influx.url";
-    private static final String INFLUX_PORT           = "output.influx.port";
     private static final String INFLUX_USERNAME       = "output.influx.username";
     private static final String INFLUX_PASSWORD       = "output.influx.password";
     private static final String INFLUX_DBNAME         = "output.influx.dbname";
     private static final String INFLUX_TABLE          = "output.influx.table";
     private String    influxUrl;
-    private String    influxPort;
     private String    influxUsername;
     private String    influxPassword;
     private String    influxDBName;
@@ -84,8 +82,7 @@ public class ConfigFile {
         config.prop.setProperty(TO_DISK_FILENAME, "PATH");
         config.prop.setProperty(TO_INFLUX, "false");
 
-        config.prop.setProperty(INFLUX_URL, "localhost");
-        config.prop.setProperty(INFLUX_PORT, "8086");
+        config.prop.setProperty(INFLUX_URL, "http://localhost:8086");
         config.prop.setProperty(INFLUX_USERNAME, "USERNAME");
         config.prop.setProperty(INFLUX_PASSWORD, "PASSWORD");
         config.prop.setProperty(INFLUX_DBNAME, "benchmark");
@@ -114,7 +111,6 @@ public class ConfigFile {
         toInflux           = Boolean.parseBoolean(prop.getProperty(TO_INFLUX));
 
         influxUrl      = prop.getProperty(INFLUX_URL);
-        influxPort     = prop.getProperty(INFLUX_PORT);
         influxUsername = prop.getProperty(INFLUX_USERNAME);
         influxPassword = prop.getProperty(INFLUX_PASSWORD);
         influxDBName   = prop.getProperty(INFLUX_DBNAME);
@@ -185,10 +181,6 @@ public class ConfigFile {
 
     public String influxUrl() {
         return influxUrl;
-    }
-
-    public String influxPort() {
-        return influxPort;
     }
 
     public String influxUsername() {

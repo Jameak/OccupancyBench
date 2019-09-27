@@ -5,6 +5,7 @@ import org.influxdb.BatchOptions;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Point;
+import org.influxdb.dto.Query;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -22,8 +23,8 @@ public class InfluxTarget implements ITarget {
             throw new IOException("No connection to Influx database.");
         }
 
-        //TODO: Check if database exists and create it if it doesn't?
-        //  And if it already exists then drop it first?
+        influxDB.query(new Query("DROP DATABASE " + dbName));
+        influxDB.query(new Query("CREATE DATABASE " + dbName));
 
         influxDB.setDatabase(dbName);
         influxDB.enableBatch(BatchOptions.DEFAULTS); //TODO: Batching seems to force asynchronous error handling. Currently I just ignore any errors that might happen. I should handle them explicitly?
@@ -36,7 +37,7 @@ public class InfluxTarget implements ITarget {
         influxDB.write(
                 Point.measurement(measurementName)
                         .time(timeNano, TimeUnit.NANOSECONDS)
-                        .addField("AP", entry.getAP())
+                        .tag("AP", entry.getAP())
                         .addField("clients", entry.getNumClients())
                         .build());
     }

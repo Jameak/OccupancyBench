@@ -61,11 +61,10 @@ public class Generator {
         }
 
         for(Entry[] entriesAtSpecificTime : data.getDateEntries().values()){
-            double totalAssignedProbability = 0.0;
-
             // Sum up all the probabilities of used APs at a specific timestamp entry.
             for(Entry entry : entriesAtSpecificTime){
                 if(!entry.hasData()) continue;
+                double totalAssignedProbability = 0.0;
 
                 for(Integer APid : entry.getProbabilities().keySet()){
                     if(assignedAPidsAndAmountOfTimesAssigned.containsKey(APid)){
@@ -87,22 +86,20 @@ public class Generator {
                         totalAssignedProbability += probability * count;
                     }
                 }
-            }
 
-            // Update probabilities of each used AP at the entry by dividing with the total.
-            // This normalizes the total probability to 1 (100%).
-            for(Entry entry : entriesAtSpecificTime){
-                if(!entry.hasData()) continue;
-
+                // Update probabilities of each used AP at the entry by dividing with the total.
+                // This normalizes the total probability to 1 (100%).
                 for(Integer APid : entry.getProbabilities().keySet()){
                     if(assignedAPidsAndAmountOfTimesAssigned.containsKey(APid)){
                         double probability = entry.getProbabilities().get(APid);
                         double newprobability = probability / totalAssignedProbability;
+                        //if(newprobability > largestProbAfterNormal) largestProbAfterNormal = newprobability;
                         entry.getProbabilities().put(APid, newprobability);
                     }
                 }
             }
         }
+
 
         // The probability of combined APs have been summed up into a single AP for every loaded entry, so we can disregard them from here on out.
         data.getIdMap().getCombineAPs().clear();

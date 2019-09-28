@@ -93,7 +93,6 @@ public class Generator {
                     if(assignedAPidsAndAmountOfTimesAssigned.containsKey(APid)){
                         double probability = entry.getProbabilities().get(APid);
                         double newprobability = probability / totalAssignedProbability;
-                        //if(newprobability > largestProbAfterNormal) largestProbAfterNormal = newprobability;
                         entry.getProbabilities().put(APid, newprobability);
                     }
                 }

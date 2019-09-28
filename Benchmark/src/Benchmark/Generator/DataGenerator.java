@@ -29,7 +29,7 @@ public class DataGenerator {
     private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval, int loadedInterval, Floor[] generatedFloors, LocalDate[] sortedEntryKeys, MapData data, Random rng, double scale, ITarget outputTarget) throws IOException {
         LocalTime previousReadingTime;
         LocalDate nextDate = startDate;
-        
+
         for(int i = 0; i < sortedEntryKeys.length; i++){
             LocalTime startTime = LocalTime.of(0,0,startSecond,0);
 

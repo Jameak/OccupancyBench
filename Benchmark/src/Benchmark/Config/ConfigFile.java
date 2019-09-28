@@ -16,20 +16,22 @@ public class ConfigFile {
     private double    scale;
     private int       seed;
 
-    private static final String IDMAP                 = "generator.data.idmap";
-    private static final String MAP_FOLDER            = "generator.data.folder";
-    private static final String ENTRY_INTERVAL        = "generator.data.entryinterval";
-    private static final String GENERATION_INTERVAL   = "generator.data.generationinterval";
-    private static final String START_DATE            = "generator.data.startdate";
-    private static final String END_DATE              = "generator.data.enddate";
-    private static final String TO_DISK               = "generator.data.todisk";
-    private static final String TO_DISK_FOLDER        = "generator.data.todisk.folder";
-    private static final String TO_DISK_FILENAME      = "generator.data.todisk.filename";
-    private static final String TO_INFLUX             = "generator.data.toinflux";
+    private static final String IDMAP                   = "generator.data.idmap";
+    private static final String MAP_FOLDER              = "generator.data.folder";
+    private static final String ENTRY_INTERVAL          = "generator.data.entryinterval";
+    private static final String GENERATION_INTERVAL     = "generator.data.generationinterval";
+    private static final String KEEP_FLOOR_ASSOCIATIONS = "generator.data.keepfloorassociations";
+    private static final String START_DATE              = "generator.data.startdate";
+    private static final String END_DATE                = "generator.data.enddate";
+    private static final String TO_DISK                 = "generator.data.todisk";
+    private static final String TO_DISK_FOLDER          = "generator.data.todisk.folder";
+    private static final String TO_DISK_FILENAME        = "generator.data.todisk.filename";
+    private static final String TO_INFLUX               = "generator.data.toinflux";
     private String    idmap;
     private String    mapfolder;
     private int       entryinterval;
     private int       generationinterval;
+    private boolean   keepFloorAssociations;
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean   toDisk;
@@ -75,6 +77,7 @@ public class ConfigFile {
         config.prop.setProperty(MAP_FOLDER, "PATH");
         config.prop.setProperty(ENTRY_INTERVAL, "60");
         config.prop.setProperty(GENERATION_INTERVAL, "60");
+        config.prop.setProperty(KEEP_FLOOR_ASSOCIATIONS, "true");
         config.prop.setProperty(START_DATE, "2019-01-01");
         config.prop.setProperty(END_DATE, "2019-03-31");
         config.prop.setProperty(TO_DISK, "true");
@@ -99,16 +102,17 @@ public class ConfigFile {
         scale        = Double.parseDouble(  prop.getProperty(SCALE));
         seed         = Integer.parseInt(    prop.getProperty(SEED));
 
-        idmap              =                      prop.getProperty(IDMAP);
-        mapfolder          =                      prop.getProperty(MAP_FOLDER);
-        entryinterval      = Integer.parseInt(    prop.getProperty(ENTRY_INTERVAL));
-        generationinterval = Integer.parseInt(    prop.getProperty(GENERATION_INTERVAL));
-        startDate          = LocalDate.parse(     prop.getProperty(START_DATE));
-        endDate            = LocalDate.parse(     prop.getProperty(END_DATE));
-        toDisk             = Boolean.parseBoolean(prop.getProperty(TO_DISK));
-        toDiskFolder       =                      prop.getProperty(TO_DISK_FOLDER);
-        toDiskFilename     =                      prop.getProperty(TO_DISK_FILENAME);
-        toInflux           = Boolean.parseBoolean(prop.getProperty(TO_INFLUX));
+        idmap                 =                      prop.getProperty(IDMAP);
+        mapfolder             =                      prop.getProperty(MAP_FOLDER);
+        entryinterval         = Integer.parseInt(    prop.getProperty(ENTRY_INTERVAL));
+        generationinterval    = Integer.parseInt(    prop.getProperty(GENERATION_INTERVAL));
+        keepFloorAssociations = Boolean.parseBoolean(prop.getProperty(KEEP_FLOOR_ASSOCIATIONS));
+        startDate             = LocalDate.parse(     prop.getProperty(START_DATE));
+        endDate               = LocalDate.parse(     prop.getProperty(END_DATE));
+        toDisk                = Boolean.parseBoolean(prop.getProperty(TO_DISK));
+        toDiskFolder          =                      prop.getProperty(TO_DISK_FOLDER);
+        toDiskFilename        =                      prop.getProperty(TO_DISK_FILENAME);
+        toInflux              = Boolean.parseBoolean(prop.getProperty(TO_INFLUX));
 
         influxUrl      = prop.getProperty(INFLUX_URL);
         influxUsername = prop.getProperty(INFLUX_USERNAME);
@@ -201,5 +205,9 @@ public class ConfigFile {
 
     public String toDiskFilename() {
         return toDiskFilename;
+    }
+
+    public boolean keepFloorAssociations() {
+        return keepFloorAssociations;
     }
 }

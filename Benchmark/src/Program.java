@@ -50,15 +50,16 @@ public class Program {
         Random rng = new Random(config.seed());
 
         if(config.generatedata()){
-            System.out.println(LocalTime.now().toString() + ": Parse map");
+            System.out.println(LocalTime.now().toString() + ": Parsing map");
             MapData parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
             System.out.println(LocalTime.now().toString() + ": Generating floors");
             Floor[] generatedFloors = Generator.Generate(config.scale(), rng);
             System.out.println(LocalTime.now().toString() + ": Assigning floors to IDs");
-            Generator.AssignFloorsToIDs(generatedFloors, parsedData);
+            Generator.AssignFloorsToIDs(generatedFloors, parsedData, config.keepFloorAssociations());
             System.out.println(LocalTime.now().toString() + ": Preparing for generation");
             Generator.PrepareDataForGeneration(generatedFloors, parsedData);
 
+            System.out.println(LocalTime.now().toString() + ": Setting up targets");
             ITarget target = new BaseTarget();
             if(config.saveToDisk()){
                 try {

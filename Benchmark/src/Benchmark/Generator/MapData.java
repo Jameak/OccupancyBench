@@ -2,6 +2,7 @@ package Benchmark.Generator;
 
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Set;
 
 public class MapData {
     private final IdMap idMap;
@@ -24,11 +25,13 @@ public class MapData {
         private final Map<AccessPoint.APLocation, Integer[]> locationMap;
         private final Map<Integer, Integer[]> partnerMap;
         private final Map<Integer, Integer[]> combinedAPs;
+        private final Map<Integer, Set<Integer>> floorMap;
 
-        public IdMap(Map<AccessPoint.APLocation, Integer[]> locationMap, Map<Integer, Integer[]> partnerMap, Map<Integer, Integer[]> combineAPs){
+        public IdMap(Map<AccessPoint.APLocation, Integer[]> locationMap, Map<Integer, Integer[]> partnerMap, Map<Integer, Integer[]> combineAPs, Map<Integer, Set<Integer>> floorMap){
             this.locationMap = locationMap;
             this.partnerMap = partnerMap;
             this.combinedAPs = combineAPs;
+            this.floorMap = floorMap;
         }
 
         public Map<Integer, Integer[]> getPartnerMap() {
@@ -41,6 +44,10 @@ public class MapData {
 
         public Map<Integer, Integer[]> getCombineAPs() {
             return combinedAPs;
+        }
+
+        public Map<Integer, Set<Integer>> getFloorMap() {
+            return floorMap;
         }
     }
 }

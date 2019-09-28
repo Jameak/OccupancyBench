@@ -6,19 +6,21 @@ public class Generator {
     public static Floor[] Generate(double scale, Random rng){
         assert scale > 0.0;
         int numberOfFloors = (int)Math.ceil(5 * scale);
-        Floor[] floors = new Floor[numberOfFloors+1];
+        Floor[] floors = new Floor[numberOfFloors];
 
         floors[0] = FloorGenerator.GenerateGroundlevelFloor(rng);
 
-        for(int i = 1; i < numberOfFloors+1; i++){
-            floors[i] = FloorGenerator.GenerateFloor(i, rng);
-            FloorGenerator.CreateCrossFloorJumps(floors[i-1], floors[i]);
+        // Dont generate floor 0 because we just did that (ground floor)
+        // Skip generating floor 1 because it's weird
+        for(int i = 2; i < numberOfFloors+1; i++){
+            floors[i-1] = FloorGenerator.GenerateFloor(i, rng);
+            FloorGenerator.CreateCrossFloorJumps(floors[i-2], floors[i-1]);
         }
 
         return floors;
     }
 
-    public static void AssignFloorsToIDs(Floor[] floors, MapData data){
+    public static void AssignFloorsToIDs(Floor[] floors, MapData data, boolean preserveFloorAssociations){
         MapData.IdMap idMap = data.getIdMap();
         Map<AccessPoint.APLocation, Integer[]> locationMap = idMap.getLocationMap();
 
@@ -32,7 +34,7 @@ public class Generator {
                 AccessPoint AP = floorAPs[i];
                 if (AP.hasMapID()) continue;
                 Integer[] candidates = locationMap.get(AP.getLocation());
-                boolean foundMatch = AssignIDToAP(idMap, assignedIDs, AP, candidates);
+                boolean foundMatch = AssignIDToAP(idMap, assignedIDs, AP, candidates, floor.getFloorNumber(), preserveFloorAssociations);
 
                 if (foundMatch) {
                     matchesFailedInARow = 0;
@@ -111,9 +113,33 @@ public class Generator {
         count.put(APid, count.get(APid) + 1);
     }
 
-    private static boolean AssignIDToAP(MapData.IdMap idMap, Map<AccessPoint.APLocation, Set<Integer>> assignedIDs, AccessPoint AP, Integer[] candidates){
+    private static boolean AssignIDToAP(MapData.IdMap idMap, Map<AccessPoint.APLocation, Set<Integer>> assignedIDs, AccessPoint AP, Integer[] candidates, int APfloorNumber, boolean preserveFloors){
         for (Integer candidate : candidates) {
             if (IsAssigned(assignedIDs, AP.getLocation(), candidate)) continue;
+
+            if(preserveFloors){
+                assert APfloorNumber != 1 : "AP on floor 1 exists when floor 1 is skipped. Wtf";
+                assert idMap.getFloorMap().keySet().size() > 1 : "Loaded data expected to contain at least 2 floors. Ground floor + a 'normal' floor";
+
+                if(APfloorNumber == 0){
+                    assert idMap.getFloorMap().get(APfloorNumber) != null : "Loaded data was expected to contain ground floor";
+                    if(!idMap.getFloorMap().get(APfloorNumber).contains(candidate)) continue;
+                } else {
+                    int numFloorsInLoadedData = idMap.getFloorMap().keySet().size();
+                    // Example of floor to check mapping:
+                    //   Loaded data contains floors 0,2,3
+                    //   Generated floors are: 0,2,3,4,5,6
+                    //   FloorToCheck is: 2 -> 2, 3 -> 3, 4 -> 2, 5 -> 3, 6 -> 2, 7 -> 3
+                    //   ... because we dont want to have more than 1 ground-floor.
+                    int floorToCheck = ((APfloorNumber - 2) % (numFloorsInLoadedData - 1)) + 2;
+                    assert idMap.getFloorMap().get(floorToCheck) != null : "Loaded data was expected to contain info about floor " + floorToCheck;
+                    if(!idMap.getFloorMap().get(floorToCheck).contains(candidate)) continue;
+                }
+
+                if(!idMap.getFloorMap().get(APfloorNumber).contains(candidate)){
+                    continue;
+                }
+            }
 
             Integer[] mapPartners = idMap.getPartnerMap().get(candidate);
             if(mapPartners == null || mapPartners.length == 0){

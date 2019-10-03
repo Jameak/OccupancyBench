@@ -1,3 +1,4 @@
+import Benchmark.Analysis.Precomputation;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.Floor;
 import Benchmark.Generator.Generator;
@@ -86,6 +87,14 @@ public class Program {
             try {
                 target.close();
             } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+
+            System.out.println(LocalTime.now().toString() + ": DEBUG: Filling precomputation tables");
+            try {
+                Precomputation.ComputeTotals(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable(), config.generationinterval(), generatedFloors, config.startDate(), config.endDate());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         } else {

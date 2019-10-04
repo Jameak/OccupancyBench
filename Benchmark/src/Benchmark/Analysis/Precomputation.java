@@ -1,5 +1,6 @@
 package Benchmark.Analysis;
 
+import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.AccessPoint;
 import Benchmark.Generator.Floor;
 import Benchmark.Generator.MapData;
@@ -21,31 +22,73 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class Precomputation {
-    public static void ComputeTotals(String url, String username, String password, String dbName,
-                                     String measurementName, int interval, Floor[] generatedFloors,
-                                     LocalDate startDate, LocalDate endDate) throws IOException {
-        InfluxDB influxDB = SetupConnection(url, username, password, dbName);
+    public static void ComputeTotals(int interval, Floor[] generatedFloors, ConfigFile config) throws IOException {
+        InfluxDB writeDB = SetupConnection(config.influxUrl(), config.influxUsername(), config.influxPassword(), config, false);
+        InfluxDB readDB = SetupConnection(config.influxUrl(), config.influxUsername(), config.influxPassword(), config, true);
 
-        LocalDate nextDate = startDate;
-        while(nextDate.isBefore(endDate)){
+        LocalDate nextDate = config.startDate();
+        while(nextDate.isBefore(config.endDate())){
             LocalDateTime nextTime = LocalDateTime.of(nextDate, LocalTime.of(0, 0, 0, 0));
             LocalDateTime endTime = LocalDateTime.of(nextDate.plusDays(1), LocalTime.of(0, 0, 0, 0));
 
             while(nextTime.isBefore(endTime)){
-                ComputeTotalForTime(influxDB, measurementName, nextTime, interval, generatedFloors);
+                ComputeTotalForTime(readDB, writeDB, config.influxTable(), nextTime, interval, generatedFloors, config);
                 nextTime = nextTime.plusSeconds(interval);
             }
 
             nextDate = nextDate.plusDays(1);
         }
 
-        influxDB.close();
+        WriteMeta(readDB, writeDB, config, generatedFloors);
+
+        writeDB.close();
+        readDB.close();
     }
 
-    private static void ComputeTotalForTime(InfluxDB db, String measurement, LocalDateTime time, int interval, Floor[] generatedFloors){
+    private static void WriteMeta(InfluxDB readDB, InfluxDB writeDB, ConfigFile config, Floor[] generatedFloors){
+        String tablePrefix = GetTablePrefix(config);
+        String precomputedMetaName = tablePrefix + "Meta";
+
+        Query query = new Query("SELECT COUNT(clients) FROM " + config.influxTable());
+        QueryResult results = readDB.query(query);
+        int count = 0;
+        for(QueryResult.Result result : results.getResults()){
+            assert result.getSeries() != null;
+            for(QueryResult.Series series : result.getSeries()){
+                for(List<Object> entries : series.getValues()){
+                    count = (int)Math.round((Double) entries.get(series.getColumns().indexOf("count")));
+                }
+            }
+        }
+
+        writeDB.write(
+                Point.measurement(precomputedMetaName)
+                        .time(150, TimeUnit.NANOSECONDS)
+                        .addField("info", count)
+                        .build());
+
+        int numAPs = 0;
+        for(Floor floor : generatedFloors){
+            numAPs += floor.getAPs().length;
+        }
+        writeDB.write(
+                Point.measurement(precomputedMetaName)
+                        .time(300, TimeUnit.NANOSECONDS)
+                        .addField("info", numAPs)
+                        .build());
+
+        writeDB.write(
+                Point.measurement(precomputedMetaName)
+                        .time(450, TimeUnit.NANOSECONDS)
+                        .addField("info", generatedFloors.length)
+                        .build());
+    }
+
+    private static void ComputeTotalForTime(InfluxDB readDB, InfluxDB writeDB, String measurement, LocalDateTime time, int interval, Floor[] generatedFloors, ConfigFile config){
         assert interval > 3 : "If readings are too close together than the next reading starts before the previous one ends, so defining a total for an interval would be much more annoying";
-        String precomputedTotalName = "total";
-        String precomputedFloorName = "floor";
+        String tablePrefix = GetTablePrefix(config);
+        String precomputedTotalName = tablePrefix + "Total";
+        String precomputedFloorName = tablePrefix + "Floor";
         int total = 0;
         Map<Integer, Integer> floorTotals = new HashMap<>();
         for(Floor floor : generatedFloors){
@@ -53,7 +96,7 @@ public class Precomputation {
         }
         String queryString = "SELECT AP,clients FROM " + measurement + " WHERE time < '" + ToStringTime(time.plusSeconds(interval).minusSeconds(1)) + "' AND time > '" + ToStringTime(time) + "'";
         Query query = new Query(queryString);
-        QueryResult results = db.query(query);
+        QueryResult results = readDB.query(query);
         for(QueryResult.Result result : results.getResults()){
             if(result.getSeries() == null) continue; // No results. Caused by hole in data.
             for(QueryResult.Series series : result.getSeries()){
@@ -71,14 +114,14 @@ public class Precomputation {
         Instant timeInstant = Instant.parse(ToStringTime(time));
         long timeNano = timeInstant.getEpochSecond() * 1_000_000_000 + timeInstant.getNano();
 
-        db.write(
+        writeDB.write(
                 Point.measurement(precomputedTotalName)
                         .time(timeNano, TimeUnit.NANOSECONDS)
                         .addField("total", total)
                         .build());
 
         for(Floor floor : generatedFloors){
-            db.write(
+            writeDB.write(
                     Point.measurement(precomputedFloorName + floor.getFloorNumber())
                             .time(timeNano, TimeUnit.NANOSECONDS)
                             .addField("total", floorTotals.get(floor.getFloorNumber()))
@@ -103,35 +146,51 @@ public class Precomputation {
     private static String ToStringTime(LocalDateTime time){
         // TODO: For the query used in the benchmark, I assume that passing this as the nano-second precision number would be more performant.
         return String.format("%d-%02d-%02dT%02d:%02d:%02dZ", time.getYear(), time.getMonthValue(), time.getDayOfMonth(), time.getHour(), time.getMinute(), time.getSecond());
-        //return time.getYear() + "-" + time.getMonthValue() + "-" + time.getDayOfMonth() + "T" + time.getHour() + ":" + time.getMinute() + ":" + time.getSecond() + "Z";
     }
 
-    private static InfluxDB SetupConnection(String url, String username, String password, String dbName) throws IOException{
+    private static String GetTablePrefix(ConfigFile config){
+        String tablePrefix = "Int" + config.generationinterval() + "_";
+        if(!config.keepFloorAssociations()) tablePrefix += "NoAssoc_";
+        tablePrefix += ("Scale" + config.scale()).replace(".", "_").replace(",", "_") + "_";
+        return tablePrefix;
+    }
+
+    private static InfluxDB SetupConnection(String url, String username, String password, ConfigFile config, boolean readDB) throws IOException{
         InfluxDB influxDB = InfluxDBFactory.connect(url, username, password);
         if (influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
             influxDB.close();
             throw new IOException("No connection to Influx database.");
         }
 
-        influxDB.setDatabase(dbName);
+        if(readDB){
+            influxDB.setDatabase(config.influxDBName());
+            influxDB.enableBatch(BatchOptions.DEFAULTS);
+            return influxDB;
+        }
+
+        String tablePrefix = GetTablePrefix(config);
+        influxDB.query(new Query("CREATE DATABASE debug_analytics"));
+
+        influxDB.setDatabase("debug_analytics");
         influxDB.enableBatch(BatchOptions.DEFAULTS);
-        influxDB.query(new Query("DROP MEASUREMENT total"));
-        influxDB.query(new Query("DROP MEASUREMENT floor0"));
-        influxDB.query(new Query("DROP MEASUREMENT floor1"));
-        influxDB.query(new Query("DROP MEASUREMENT floor2"));
-        influxDB.query(new Query("DROP MEASUREMENT floor3"));
-        influxDB.query(new Query("DROP MEASUREMENT floor4"));
-        influxDB.query(new Query("DROP MEASUREMENT floor5"));
-        influxDB.query(new Query("DROP MEASUREMENT floor6"));
-        influxDB.query(new Query("DROP MEASUREMENT floor7"));
-        influxDB.query(new Query("DROP MEASUREMENT floor8"));
-        influxDB.query(new Query("DROP MEASUREMENT floor9"));
-        influxDB.query(new Query("DROP MEASUREMENT floor10"));
-        influxDB.query(new Query("DROP MEASUREMENT floor11"));
-        influxDB.query(new Query("DROP MEASUREMENT floor12"));
-        influxDB.query(new Query("DROP MEASUREMENT floor13"));
-        influxDB.query(new Query("DROP MEASUREMENT floor14"));
-        influxDB.query(new Query("DROP MEASUREMENT floor15"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Total"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Meta"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor0"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor1"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor2"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor3"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor4"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor5"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor6"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor7"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor8"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor9"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor10"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor11"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor12"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor13"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor14"));
+        influxDB.query(new Query("DROP MEASUREMENT " + tablePrefix + "Floor15"));
         return influxDB;
     }
 }

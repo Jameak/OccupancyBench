@@ -93,7 +93,7 @@ public class Program {
 
             System.out.println(LocalTime.now().toString() + ": DEBUG: Filling precomputation tables");
             try {
-                Precomputation.ComputeTotals(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable(), config.generationinterval(), generatedFloors, config.startDate(), config.endDate());
+                Precomputation.ComputeTotals(config.generationinterval(), generatedFloors, config);
             } catch (IOException e) {
                 e.printStackTrace();
             }

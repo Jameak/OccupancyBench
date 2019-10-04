@@ -135,10 +135,6 @@ public class Generator {
                     assert idMap.getFloorMap().get(floorToCheck) != null : "Loaded data was expected to contain info about floor " + floorToCheck;
                     if(!idMap.getFloorMap().get(floorToCheck).contains(candidate)) continue;
                 }
-
-                if(!idMap.getFloorMap().get(APfloorNumber).contains(candidate)){
-                    continue;
-                }
             }
 
             Integer[] mapPartners = idMap.getPartnerMap().get(candidate);

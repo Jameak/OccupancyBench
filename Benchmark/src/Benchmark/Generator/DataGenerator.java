@@ -73,11 +73,14 @@ public class DataGenerator {
                     if(!entryOnDay.hasData() || (nextEntry != null && !nextEntry.hasData())) noData = true;
 
                     if(!noData){
+                        assert nextEntry != null;
                         for (int j = 0; j < numAdditionalEntriesToInclude; j++) {
                             startTime = startTime.plusSeconds(interval);
                             Entry fakeEntry = CreateFakeEntry(entryOnDay, nextEntry, j, numAdditionalEntriesToInclude);
                             GenerateBasedOnEntry(startTime, generatedFloors, fakeEntry, rng, nextDate, scale, outputTarget);
                         }
+                    } else {
+                        startTime = startTime.plusSeconds(interval * numAdditionalEntriesToInclude);
                     }
                 }
                 startTime = startTime.plusSeconds(interval);
@@ -117,7 +120,7 @@ public class DataGenerator {
 
     private static Entry CreateFakeEntry(Entry first, Entry last, int index, int additionalEntries){
         assert last != null;
-        LocalDateTime time = null; // Time-field isn't used during generation. If that changes, this needs to be fixed.
+        LocalDateTime time = null; // Time-field isn't used during generation. If that changes, this needs to be changed.
 
         double blendPerNum = 1.0 / (additionalEntries+1);
         int interpolatedTotal = (int)Math.ceil(LinearInterpolate(first.getTotal(), last.getTotal(), blendPerNum * (index+1)));

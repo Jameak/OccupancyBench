@@ -10,11 +10,15 @@ public class ConfigFile {
     private static final String INGEST                = "benchmark.ingest";
     private static final String SCALE                 = "benchmark.scale";
     private static final String SEED                  = "benchmark.rngseed";
+    private static final String SERIALIZE             = "benchmark.serialize";
+    private static final String SERIALIZE_PATH        = "benchmark.serializepath";
     private boolean   generatedata;
     private boolean   runqueries;
     private boolean   ingest;
     private double    scale;
     private int       seed;
+    private boolean   serialize;
+    private String    serializePath;
 
     private static final String IDMAP                   = "generator.data.idmap";
     private static final String MAP_FOLDER              = "generator.data.folder";
@@ -27,6 +31,7 @@ public class ConfigFile {
     private static final String TO_DISK_FOLDER          = "generator.data.todisk.folder";
     private static final String TO_DISK_FILENAME        = "generator.data.todisk.filename";
     private static final String TO_INFLUX               = "generator.data.toinflux";
+    private static final String CREATE_DEBUG_TABLES     = "generator.data.createdebugtables";
     private String    idmap;
     private String    mapfolder;
     private int       entryinterval;
@@ -38,6 +43,7 @@ public class ConfigFile {
     private String    toDiskFolder;
     private String    toDiskFilename;
     private boolean   toInflux;
+    private boolean   createDebugTables;
 
     private static final String INFLUX_URL            = "output.influx.url";
     private static final String INFLUX_USERNAME       = "output.influx.username";
@@ -72,18 +78,21 @@ public class ConfigFile {
         config.prop.setProperty(INGEST, "false");
         config.prop.setProperty(SCALE, "1.0");
         config.prop.setProperty(SEED, "1234");
+        config.prop.setProperty(SERIALIZE, "false");
+        config.prop.setProperty(SERIALIZE_PATH, "FILE PATH");
 
-        config.prop.setProperty(IDMAP, "PATH");
-        config.prop.setProperty(MAP_FOLDER, "PATH");
+        config.prop.setProperty(IDMAP, "FILE PATH");
+        config.prop.setProperty(MAP_FOLDER, "FOLDER PATH");
         config.prop.setProperty(ENTRY_INTERVAL, "60");
         config.prop.setProperty(GENERATION_INTERVAL, "60");
         config.prop.setProperty(KEEP_FLOOR_ASSOCIATIONS, "true");
         config.prop.setProperty(START_DATE, "2019-01-01");
         config.prop.setProperty(END_DATE, "2019-03-31");
         config.prop.setProperty(TO_DISK, "true");
-        config.prop.setProperty(TO_DISK_FOLDER, "PATH");
-        config.prop.setProperty(TO_DISK_FILENAME, "PATH");
+        config.prop.setProperty(TO_DISK_FOLDER, "FOLDER PATH");
+        config.prop.setProperty(TO_DISK_FILENAME, "FILENAME");
         config.prop.setProperty(TO_INFLUX, "false");
+        config.prop.setProperty(CREATE_DEBUG_TABLES, "false");
 
         config.prop.setProperty(INFLUX_URL, "http://localhost:8086");
         config.prop.setProperty(INFLUX_USERNAME, "USERNAME");
@@ -96,11 +105,13 @@ public class ConfigFile {
     }
 
     private void parseProps(){
-        generatedata = Boolean.parseBoolean(prop.getProperty(GENERATE_INITIAL_DATA));
-        runqueries   = Boolean.parseBoolean(prop.getProperty(RUN_QUERIES));
-        ingest       = Boolean.parseBoolean(prop.getProperty(INGEST));
-        scale        = Double.parseDouble(  prop.getProperty(SCALE));
-        seed         = Integer.parseInt(    prop.getProperty(SEED));
+        generatedata  = Boolean.parseBoolean(prop.getProperty(GENERATE_INITIAL_DATA));
+        runqueries    = Boolean.parseBoolean(prop.getProperty(RUN_QUERIES));
+        ingest        = Boolean.parseBoolean(prop.getProperty(INGEST));
+        scale         = Double.parseDouble(  prop.getProperty(SCALE));
+        seed          = Integer.parseInt(    prop.getProperty(SEED));
+        serialize     = Boolean.parseBoolean(prop.getProperty(SERIALIZE));
+        serializePath =                      prop.getProperty(SERIALIZE_PATH);
 
         idmap                 =                      prop.getProperty(IDMAP);
         mapfolder             =                      prop.getProperty(MAP_FOLDER);
@@ -113,6 +124,7 @@ public class ConfigFile {
         toDiskFolder          =                      prop.getProperty(TO_DISK_FOLDER);
         toDiskFilename        =                      prop.getProperty(TO_DISK_FILENAME);
         toInflux              = Boolean.parseBoolean(prop.getProperty(TO_INFLUX));
+        createDebugTables     = Boolean.parseBoolean(prop.getProperty(CREATE_DEBUG_TABLES));
 
         influxUrl      = prop.getProperty(INFLUX_URL);
         influxUsername = prop.getProperty(INFLUX_USERNAME);
@@ -209,5 +221,17 @@ public class ConfigFile {
 
     public boolean keepFloorAssociations() {
         return keepFloorAssociations;
+    }
+
+    public boolean createDebugTables() {
+        return createDebugTables;
+    }
+
+    public boolean serialize() {
+        return serialize;
+    }
+
+    public String serializePath() {
+        return serializePath;
     }
 }

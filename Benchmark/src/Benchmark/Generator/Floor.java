@@ -1,8 +1,9 @@
 package Benchmark.Generator;
 
+import java.io.Serializable;
 import java.util.Map;
 
-public class Floor {
+public class Floor implements Serializable {
     private final int floorNumber;
     private final Map<AccessPoint, AccessPoint[]> adjacency;
     private final AccessPoint[] APs;

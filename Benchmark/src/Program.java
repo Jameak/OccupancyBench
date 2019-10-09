@@ -7,7 +7,7 @@ import Benchmark.Generator.MapData;
 import Benchmark.Generator.Targets.*;
 import Benchmark.MapParser;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.time.LocalTime;
@@ -50,11 +50,13 @@ public class Program {
     public void run(ConfigFile config){
         Random rng = new Random(config.seed());
 
+        MapData parsedData;
+        Floor[] generatedFloors;
         if(config.generatedata()){
             System.out.println(LocalTime.now().toString() + ": Parsing map");
-            MapData parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
+            parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
             System.out.println(LocalTime.now().toString() + ": Generating floors");
-            Floor[] generatedFloors = Generator.Generate(config.scale(), rng);
+            generatedFloors = Generator.Generate(config.scale(), rng);
             System.out.println(LocalTime.now().toString() + ": Assigning floors to IDs");
             Generator.AssignFloorsToIDs(generatedFloors, parsedData, config.keepFloorAssociations());
             System.out.println(LocalTime.now().toString() + ": Preparing for generation");
@@ -90,15 +92,27 @@ public class Program {
                 e.printStackTrace();
             }
 
+            if(config.createDebugTables()){
+                System.out.println(LocalTime.now().toString() + ": DEBUG: Filling precomputation tables");
+                try {
+                    Precomputation.ComputeTotals(config.generationinterval(), generatedFloors, config);
+                } catch (IOException e) {
+                    System.out.println("Failed to fill debug tables");
+                    e.printStackTrace();
+                }
+            }
 
-            System.out.println(LocalTime.now().toString() + ": DEBUG: Filling precomputation tables");
-            try {
-                Precomputation.ComputeTotals(config.generationinterval(), generatedFloors, config);
-            } catch (IOException e) {
-                e.printStackTrace();
+            if(config.serialize()){
+                System.out.println(LocalTime.now().toString() + ": Serializing floors");
+                serializeGeneratedData(generatedFloors, config);
             }
         } else {
             // Load the generated floors and parsed data from previous run
+            System.out.println(LocalTime.now().toString() + ": Parsing map");
+            parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
+
+            System.out.println(LocalTime.now().toString() + ": Deserializing floors");
+            generatedFloors = deserializeGeneratedData(config);
         }
 
         if(config.runqueries()){
@@ -106,5 +120,27 @@ public class Program {
         }
 
         System.out.println(LocalTime.now().toString() + ": Done.");
+    }
+
+    public void serializeGeneratedData(Floor[] generatedFloors, ConfigFile config){
+        try(FileOutputStream outFile = new FileOutputStream(config.serializePath());
+            ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
+            outStream.writeObject(generatedFloors);
+        } catch (IOException e){
+            System.out.println("Serialization failed.");
+            e.printStackTrace();
+        }
+    }
+
+    public Floor[] deserializeGeneratedData(ConfigFile config){
+        Floor[] data = null;
+        try(FileInputStream inFile = new FileInputStream(config.serializePath());
+            ObjectInputStream inStream = new ObjectInputStream(inFile)){
+            data = (Floor[]) inStream.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Deserialization failed");
+            e.printStackTrace();
+        }
+        return data;
     }
 }

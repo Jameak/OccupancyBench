@@ -1,9 +1,10 @@
 package Benchmark.Generator;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AccessPoint {
+public class AccessPoint implements Serializable {
     private final APLocation location;
     private final String APname;
     private final String humanReadableName;

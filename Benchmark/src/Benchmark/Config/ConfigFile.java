@@ -56,6 +56,13 @@ public class ConfigFile {
     private String    influxDBName;
     private String    influxTable;
 
+    private static final String INGEST_START_DATE       = "ingest.startdate";
+    private static final String INGEST_DESIRED_SPEED    = "ingest.desiredspeed";
+    private static final String INGEST_REPORT_FREQUENCY = "ingest.reportfrequency";
+    private LocalDate ingestStartDate;
+    private int       desiredSpeed;
+    private int       reportFrequency;
+
     private final Properties prop = new Properties();
 
     private ConfigFile(){ }
@@ -100,6 +107,10 @@ public class ConfigFile {
         config.prop.setProperty(INFLUX_DBNAME, "benchmark");
         config.prop.setProperty(INFLUX_TABLE, "generated");
 
+        config.prop.setProperty(INGEST_START_DATE, "2019-04-01");
+        config.prop.setProperty(INGEST_DESIRED_SPEED, "-1");
+        config.prop.setProperty(INGEST_REPORT_FREQUENCY, "-1");
+
         config.parseProps();
         return config;
     }
@@ -131,6 +142,10 @@ public class ConfigFile {
         influxPassword = prop.getProperty(INFLUX_PASSWORD);
         influxDBName   = prop.getProperty(INFLUX_DBNAME);
         influxTable    = prop.getProperty(INFLUX_TABLE);
+
+        ingestStartDate = LocalDate.parse( prop.getProperty(INGEST_START_DATE));
+        desiredSpeed    = Integer.parseInt(prop.getProperty(INGEST_DESIRED_SPEED));
+        reportFrequency = Integer.parseInt(prop.getProperty(INGEST_REPORT_FREQUENCY));
     }
 
     public void save(String filePath) throws IOException {
@@ -233,5 +248,17 @@ public class ConfigFile {
 
     public String serializePath() {
         return serializePath;
+    }
+
+    public LocalDate ingestStartDate() {
+        return ingestStartDate;
+    }
+
+    public int desiredIngestSpeed() {
+        return desiredSpeed;
+    }
+
+    public int reportFrequency() {
+        return reportFrequency;
     }
 }

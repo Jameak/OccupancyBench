@@ -21,6 +21,11 @@ public class FileTarget implements ITarget {
     }
 
     @Override
+    public boolean shouldStopEarly() {
+        return false;
+    }
+
+    @Override
     public void close() throws Exception {
         writer.close();
     }

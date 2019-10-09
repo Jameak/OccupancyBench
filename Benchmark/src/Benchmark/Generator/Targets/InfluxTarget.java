@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 public class InfluxTarget implements ITarget {
     private final InfluxDB influxDB;
     private final String measurementName;
+    private boolean errorsOccurred;
 
     public InfluxTarget(String url, String username, String password, String dbName, String measurementName) throws IOException {
         this.measurementName = measurementName;
@@ -27,7 +28,7 @@ public class InfluxTarget implements ITarget {
         influxDB.query(new Query("CREATE DATABASE " + dbName));
 
         influxDB.setDatabase(dbName);
-        influxDB.enableBatch(BatchOptions.DEFAULTS); //TODO: Batching seems to force asynchronous error handling. Currently I just ignore any errors that might happen. I should handle them explicitly?
+        influxDB.enableBatch(BatchOptions.DEFAULTS.exceptionHandler((points, throwable) -> errorsOccurred = true));
     }
 
     @Override
@@ -40,6 +41,11 @@ public class InfluxTarget implements ITarget {
                         .tag("AP", entry.getAP())
                         .addField("clients", entry.getNumClients())
                         .build());
+    }
+
+    @Override
+    public boolean shouldStopEarly() {
+        return errorsOccurred;
     }
 
     @Override

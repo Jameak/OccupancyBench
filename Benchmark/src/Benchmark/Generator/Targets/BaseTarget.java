@@ -7,6 +7,10 @@ import java.io.IOException;
 public class BaseTarget implements ITarget {
     @Override
     public void add(DataGenerator.GeneratedEntry entry) throws IOException { }
+
+    @Override
+    public boolean shouldStopEarly() { return false; }
+
     @Override
     public void close() throws Exception { }
 }

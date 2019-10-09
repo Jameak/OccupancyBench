@@ -1,5 +1,6 @@
 package Benchmark.Generator;
 
+import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.Targets.ITarget;
 
 import java.io.IOException;
@@ -9,7 +10,12 @@ import java.time.LocalTime;
 import java.util.*;
 
 public class DataGenerator {
-    public static void Generate(int interval, int loadedInterval, Floor[] generatedFloors, MapData data, LocalDate startDate, LocalDate endDate, double scale, Random rng, ITarget outputTarget) throws IOException {
+    public static void Generate(Floor[] generatedFloors, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
+        int interval = config.generationinterval();
+        int loadedInterval = config.entryinterval();
+        double scale = config.scale();
+
+
         assert interval == loadedInterval || // Intervals match
                 (interval < loadedInterval && loadedInterval % interval == 0) || // Interval to generate is quicker than data-interval. Then the generate-interval must be evenly divisible by the data-interval
                 (interval > loadedInterval && interval % loadedInterval == 0) :  // Interval to generate is slower than data-interval.  Then the data-interval must be evenly divisible by the generate-interval
@@ -25,6 +31,7 @@ public class DataGenerator {
         LocalDate nextDate = startDate;
         while(!nextDate.isAfter(endDate)){ // If we run out of data to generate from, then go back to the beginning.
             nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, generatedFloors, sortedEntryKeys, data, rng, scale, outputTarget);
+            if(nextDate.isEqual(endDate) || outputTarget.shouldStopEarly()) break;
         }
     }
 
@@ -37,6 +44,8 @@ public class DataGenerator {
         int numAdditionalEntriesToInclude = (loadedInterval / interval) - 1; // Example: (60 / 20) - 1 = 2. Add 2 extra entries every loop
 
         for (int k = 0; k < sortedEntryKeys.length; k++) {
+            if(outputTarget.shouldStopEarly()) break;
+
             LocalDate sortedEntryKey = sortedEntryKeys[k];
             LocalTime startTime = LocalTime.of(0, 0, startSecond, 0);
 
@@ -87,7 +96,7 @@ public class DataGenerator {
             }
 
             nextDate = nextDate.plusDays(1);
-            if (nextDate.isEqual(endDate)) break;
+            if (nextDate.isEqual(endDate) || nextDate.isAfter(endDate)) break;
         }
 
         return nextDate;

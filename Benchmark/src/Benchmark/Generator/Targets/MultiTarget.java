@@ -20,6 +20,11 @@ public class MultiTarget implements ITarget {
     }
 
     @Override
+    public boolean shouldStopEarly() {
+        return target1.shouldStopEarly() || target2.shouldStopEarly();
+    }
+
+    @Override
     public void close() throws Exception {
         target1.close();
         target2.close();

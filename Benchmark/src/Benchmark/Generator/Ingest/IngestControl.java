@@ -1,6 +1,7 @@
 package Benchmark.Generator.Ingest;
 
 import Benchmark.CoarseTimer;
+import Benchmark.Generator.DataGenerator;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
@@ -36,8 +37,14 @@ public class IngestControl {
         logger.log(String.format("Ingest: %d entries were added in %.2f seconds.", totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
-    public void add() {
+    public void add(DataGenerator.GeneratedEntry entry) {
         totalCounter++;
+
+        // Update the info about what the newest entry is, so we can use it in queries.
+        // However, updating that info requires taking a lock, so rarely do that update.
+        if(totalCounter % 20000 == 0){
+            logger.setNewestTime(entry.getDate(), entry.getTime());
+        }
 
         if(!timersStarted) {
             totalTimer.start();
@@ -50,7 +57,7 @@ public class IngestControl {
             reportCounter++;
             double elapsedMillis = reportTimer.elapsedMilliseconds();
             if(elapsedMillis > reportFrequencyMillis){
-                logger.log(String.format("Ingest speed: %d entries per second.", reportCounter / (reportFrequencyMillis/1000)));
+                logger.log(String.format("Ingest: %d entries / sec.", reportCounter / (reportFrequencyMillis/1000)));
 
                 reportCounter = 0;
                 reportTimer.start();

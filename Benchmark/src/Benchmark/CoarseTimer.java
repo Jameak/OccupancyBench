@@ -8,4 +8,7 @@ public class CoarseTimer {
     public double elapsedMilliseconds(){
         return System.currentTimeMillis() - start;
     }
+    public double elapsedSeconds(){
+        return (System.currentTimeMillis() - start) / 1e3;
+    }
 }

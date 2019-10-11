@@ -13,6 +13,7 @@ import Benchmark.Queries.QueryRunnable;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.time.LocalTime;
 import java.util.Random;
 
 public class Program {
@@ -123,10 +124,13 @@ public class Program {
             generatedFloors = deserializeGeneratedData(config, logger);
         }
 
+        logger.setDirectly(config.endDate(), LocalTime.of(0,0,0));
+
         Thread ingestThread = null;
         IngestRunnable ingestRunnable = null;
         ITarget ingestTarget = null;
         if(config.ingest()){
+            logger.log("Starting ingestion.");
             Random ingestRng = new Random(rng.nextInt());
             try {
                 ingestTarget = new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable());
@@ -136,15 +140,18 @@ public class Program {
             ingestRunnable = new IngestRunnable(config, generatedFloors, parsedData, ingestRng, ingestTarget, logger);
             ingestThread = new Thread(ingestRunnable);
             ingestThread.start(); //TODO: If I multithread ingestion then this needs to be submitted to a thread-pool.
+            logger.log("Ingestion started.");
         }
 
         Thread queryThread = null;
         QueryRunnable queryRunnable = null;
         if(config.runqueries()){
+            logger.log("Starting queries.");
             Random queryRng = new Random(rng.nextInt());
-            queryRunnable = new QueryRunnable(config, queryRng, ingestRunnable);
+            queryRunnable = new QueryRunnable(config, queryRng, ingestRunnable, logger, generatedFloors);
             queryThread = new Thread(queryRunnable);
-            queryThread.start();
+            queryThread.start(); //TODO: If I multithread queries then this needs to be submitted to a thread-pool.
+            logger.log("Queries started.");
         }
 
         if(ingestThread != null){

@@ -22,7 +22,7 @@ public class ConfigFile {
 
     private static final String IDMAP                   = "generator.data.idmap";
     private static final String MAP_FOLDER              = "generator.data.folder";
-    private static final String ENTRY_INTERVAL          = "generator.data.entryinterval";
+    private static final String SOURCE_INTERVAL         = "generator.data.sourceinterval";
     private static final String GENERATION_INTERVAL     = "generator.data.generationinterval";
     private static final String KEEP_FLOOR_ASSOCIATIONS = "generator.data.keepfloorassociations";
     private static final String START_DATE              = "generator.data.startdate";
@@ -34,7 +34,7 @@ public class ConfigFile {
     private static final String CREATE_DEBUG_TABLES     = "generator.data.createdebugtables";
     private String    idmap;
     private String    mapfolder;
-    private int       entryinterval;
+    private int       sourceinterval;
     private int       generationinterval;
     private boolean   keepFloorAssociations;
     private LocalDate startDate;
@@ -63,6 +63,31 @@ public class ConfigFile {
     private int       desiredSpeed;
     private int       reportFrequency;
 
+    private static final String QUERIES_DURATION                 = "queries.duration";
+    private static final String QUERIES_WARMUP                   = "queries.warmup";
+    private static final String QUERIES_EARLIEST_VALID_DATE      = "queries.earliestdate";
+    private static final String QUERIES_PROP_QUERY_TOTAL_CLIENTS = "queries.prop.totalclients";
+    private static final String QUERIES_PROP_QUERY_FLOOR_TOTALS  = "queries.prop.floortotals";
+    private static final String QUERIES_RNG_LAMBDA               = "queries.lambdaparameter";
+    private static final String QUERIES_RNG_RANGE_DAY            = "queries.range.day";
+    private static final String QUERIES_RNG_RANGE_WEEK           = "queries.range.week";
+    private static final String QUERIES_RNG_RANGE_MONTH          = "queries.range.month";
+    private static final String QUERIES_RNG_RANGE_YEAR           = "queries.range.year";
+    private static final String QUERIES_INTERVAL_MIN             = "queries.interval.min";
+    private static final String QUERIES_INTERVAL_MAX             = "queries.interval.max";
+    private int       queriesDuration;
+    private int       queriesWarmup;
+    private LocalDate queriesEarliestValidDate;
+    private int       queriesPropTotalClients;
+    private int       queriesPropFloorTotals;
+    private int       queriesRngLambda;
+    private double    queriesRngRangeDay;
+    private double    queriesRngRangeWeek;
+    private double    queriesRngRangeMonth;
+    private double    queriesRngRangeYear;
+    private int       queriesIntervalMin;
+    private int       queriesIntervalMax;
+
     private final Properties prop = new Properties();
 
     private ConfigFile(){ }
@@ -90,7 +115,7 @@ public class ConfigFile {
 
         config.prop.setProperty(IDMAP, "FILE PATH");
         config.prop.setProperty(MAP_FOLDER, "FOLDER PATH");
-        config.prop.setProperty(ENTRY_INTERVAL, "60");
+        config.prop.setProperty(SOURCE_INTERVAL, "60");
         config.prop.setProperty(GENERATION_INTERVAL, "60");
         config.prop.setProperty(KEEP_FLOOR_ASSOCIATIONS, "true");
         config.prop.setProperty(START_DATE, "2019-01-01");
@@ -111,6 +136,19 @@ public class ConfigFile {
         config.prop.setProperty(INGEST_DESIRED_SPEED, "-1");
         config.prop.setProperty(INGEST_REPORT_FREQUENCY, "-1");
 
+        config.prop.setProperty(QUERIES_DURATION, "-1");
+        config.prop.setProperty(QUERIES_WARMUP, "-1");
+        config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, "2019-01-01");
+        config.prop.setProperty(QUERIES_PROP_QUERY_TOTAL_CLIENTS, "1");
+        config.prop.setProperty(QUERIES_PROP_QUERY_FLOOR_TOTALS, "1");
+        config.prop.setProperty(QUERIES_RNG_LAMBDA     , "1");
+        config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , "0.5");
+        config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , "1");
+        config.prop.setProperty(QUERIES_RNG_RANGE_MONTH, "2");
+        config.prop.setProperty(QUERIES_RNG_RANGE_YEAR , "3");
+        config.prop.setProperty(QUERIES_INTERVAL_MIN   , "21600"); // 6 hours in seconds
+        config.prop.setProperty(QUERIES_INTERVAL_MAX   , "7776000"); // 90 days in seconds
+
         config.parseProps();
         return config;
     }
@@ -126,7 +164,7 @@ public class ConfigFile {
 
         idmap                 =                      prop.getProperty(IDMAP);
         mapfolder             =                      prop.getProperty(MAP_FOLDER);
-        entryinterval         = Integer.parseInt(    prop.getProperty(ENTRY_INTERVAL));
+        sourceinterval        = Integer.parseInt(    prop.getProperty(SOURCE_INTERVAL));
         generationinterval    = Integer.parseInt(    prop.getProperty(GENERATION_INTERVAL));
         keepFloorAssociations = Boolean.parseBoolean(prop.getProperty(KEEP_FLOOR_ASSOCIATIONS));
         startDate             = LocalDate.parse(     prop.getProperty(START_DATE));
@@ -146,6 +184,19 @@ public class ConfigFile {
         ingestStartDate = LocalDate.parse( prop.getProperty(INGEST_START_DATE));
         desiredSpeed    = Integer.parseInt(prop.getProperty(INGEST_DESIRED_SPEED));
         reportFrequency = Integer.parseInt(prop.getProperty(INGEST_REPORT_FREQUENCY));
+
+        queriesDuration          = Integer.parseInt(  prop.getProperty(QUERIES_DURATION));
+        queriesWarmup            = Integer.parseInt(  prop.getProperty(QUERIES_WARMUP));
+        queriesEarliestValidDate = LocalDate.parse(   prop.getProperty(QUERIES_EARLIEST_VALID_DATE));
+        queriesPropTotalClients  = Integer.parseInt(  prop.getProperty(QUERIES_PROP_QUERY_TOTAL_CLIENTS));
+        queriesPropFloorTotals   = Integer.parseInt(  prop.getProperty(QUERIES_PROP_QUERY_FLOOR_TOTALS));
+        queriesRngLambda         = Integer.parseInt(  prop.getProperty(QUERIES_RNG_LAMBDA));
+        queriesRngRangeDay       = Double.parseDouble(prop.getProperty(QUERIES_RNG_RANGE_DAY));
+        queriesRngRangeWeek      = Double.parseDouble(prop.getProperty(QUERIES_RNG_RANGE_WEEK));
+        queriesRngRangeMonth     = Double.parseDouble(prop.getProperty(QUERIES_RNG_RANGE_MONTH));
+        queriesRngRangeYear      = Double.parseDouble(prop.getProperty(QUERIES_RNG_RANGE_YEAR));
+        queriesIntervalMin       = Integer.parseInt(  prop.getProperty(QUERIES_INTERVAL_MIN));
+        queriesIntervalMax       = Integer.parseInt(  prop.getProperty(QUERIES_INTERVAL_MAX));
     }
 
     public void save(String filePath) throws IOException {
@@ -182,8 +233,8 @@ public class ConfigFile {
         return mapfolder;
     }
 
-    public int entryinterval() {
-        return entryinterval;
+    public int sourceinterval() {
+        return sourceinterval;
     }
 
     public int generationinterval() {
@@ -260,5 +311,53 @@ public class ConfigFile {
 
     public int reportFrequency() {
         return reportFrequency;
+    }
+
+    public int queriesDuration() {
+        return queriesDuration;
+    }
+
+    public int queriesWarmup() {
+        return queriesWarmup;
+    }
+
+    public int queriesPropTotalClients() {
+        return queriesPropTotalClients;
+    }
+
+    public int queriesPropFloorTotals() {
+        return queriesPropFloorTotals;
+    }
+
+    public LocalDate queriesEarliestValidDate() {
+        return queriesEarliestValidDate;
+    }
+
+    public int queriesRngLambda() {
+        return queriesRngLambda;
+    }
+
+    public double queriesRngRangeDay() {
+        return queriesRngRangeDay;
+    }
+
+    public double queriesRngRangeWeek() {
+        return queriesRngRangeWeek;
+    }
+
+    public double queriesRngRangeMonth() {
+        return queriesRngRangeMonth;
+    }
+
+    public double queriesRngRangeYear() {
+        return queriesRngRangeYear;
+    }
+
+    public int queriesIntervalMin() {
+        return queriesIntervalMin;
+    }
+
+    public int queriesIntervalMax() {
+        return queriesIntervalMax;
     }
 }

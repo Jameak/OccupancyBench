@@ -12,7 +12,7 @@ import java.util.*;
 public class DataGenerator {
     public static void Generate(Floor[] generatedFloors, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
         int interval = config.generationinterval();
-        int loadedInterval = config.entryinterval();
+        int loadedInterval = config.sourceinterval();
         double scale = config.scale();
 
 
@@ -120,7 +120,7 @@ public class DataGenerator {
                 int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
                 LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
 
-                GeneratedEntry genEntry = new GeneratedEntry(nextDate.toString() + "T" + readingTime.toString() + "Z", AP.getAPname(), (int) Math.ceil(entryOnDay.getTotal() * scale * probability));
+                GeneratedEntry genEntry = new GeneratedEntry(nextDate, readingTime, AP.getAPname(), (int) Math.ceil(entryOnDay.getTotal() * scale * probability));
                 outputTarget.add(genEntry);
                 previousReadingTime = readingTime;
             }
@@ -157,10 +157,14 @@ public class DataGenerator {
         private final String timestamp;
         private final String ap;
         private final int numClients;
+        private final LocalDate date;
+        private final LocalTime time;
 
-        public GeneratedEntry(String timestamp, String AP, int numClients){
-            this.timestamp = timestamp;
-            ap = AP;
+        public GeneratedEntry(LocalDate date, LocalTime time, String AP, int numClients){
+            this.date = date;
+            this.time = time;
+            this.timestamp = date.toString() + "T" + time.toString() + "Z";
+            this.ap = AP;
             this.numClients = numClients;
         }
 
@@ -179,6 +183,14 @@ public class DataGenerator {
         @Override
         public String toString() {
             return timestamp + ";" + ap + ";" + numClients;
+        }
+
+        public LocalDate getDate() {
+            return date;
+        }
+
+        public LocalTime getTime() {
+            return time;
         }
     }
 }

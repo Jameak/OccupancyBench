@@ -22,7 +22,7 @@ public class IngestWrapper implements ITarget {
     @Override
     public void add(DataGenerator.GeneratedEntry entry) throws IOException {
         wrappedTarget.add(entry);
-        ingestControl.add();
+        ingestControl.add(entry);
     }
 
     @Override

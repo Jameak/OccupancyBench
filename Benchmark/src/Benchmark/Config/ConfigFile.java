@@ -12,6 +12,8 @@ public class ConfigFile {
     private static final String SEED                  = "benchmark.rngseed";
     private static final String SERIALIZE             = "benchmark.serialize";
     private static final String SERIALIZE_PATH        = "benchmark.serializepath";
+    private static final String THREADS_INGEST        = "benchmark.threads.ingest";
+    private static final String THREADS_QUERIES       = "benchmark.threads.queries";
     private boolean   generatedata;
     private boolean   runqueries;
     private boolean   ingest;
@@ -19,6 +21,8 @@ public class ConfigFile {
     private int       seed;
     private boolean   serialize;
     private String    serializePath;
+    private int       threadsIngest;
+    private int       threadsQueries;
 
     private static final String IDMAP                   = "generator.data.idmap";
     private static final String MAP_FOLDER              = "generator.data.folder";
@@ -56,12 +60,14 @@ public class ConfigFile {
     private String    influxDBName;
     private String    influxTable;
 
-    private static final String INGEST_START_DATE       = "ingest.startdate";
-    private static final String INGEST_DESIRED_SPEED    = "ingest.desiredspeed";
-    private static final String INGEST_REPORT_FREQUENCY = "ingest.reportfrequency";
+    private static final String INGEST_START_DATE          = "ingest.startdate";
+    private static final String INGEST_DESIRED_SPEED       = "ingest.desiredspeed";
+    private static final String INGEST_REPORT_FREQUENCY    = "ingest.reportfrequency";
+    private static final String INGEST_STANDALONE_DURATION = "ingest.standaloneduration";
     private LocalDate ingestStartDate;
     private int       desiredSpeed;
     private int       reportFrequency;
+    private int       durationStandalone;
 
     private static final String QUERIES_DURATION                 = "queries.duration";
     private static final String QUERIES_WARMUP                   = "queries.warmup";
@@ -112,6 +118,8 @@ public class ConfigFile {
         config.prop.setProperty(SEED, "1234");
         config.prop.setProperty(SERIALIZE, "false");
         config.prop.setProperty(SERIALIZE_PATH, "FILE PATH");
+        config.prop.setProperty(THREADS_INGEST, "1");
+        config.prop.setProperty(THREADS_QUERIES, "1");
 
         config.prop.setProperty(IDMAP, "FILE PATH");
         config.prop.setProperty(MAP_FOLDER, "FOLDER PATH");
@@ -135,6 +143,7 @@ public class ConfigFile {
         config.prop.setProperty(INGEST_START_DATE, "2019-04-01");
         config.prop.setProperty(INGEST_DESIRED_SPEED, "-1");
         config.prop.setProperty(INGEST_REPORT_FREQUENCY, "-1");
+        config.prop.setProperty(INGEST_STANDALONE_DURATION, "-1");
 
         config.prop.setProperty(QUERIES_DURATION, "-1");
         config.prop.setProperty(QUERIES_WARMUP, "-1");
@@ -154,13 +163,15 @@ public class ConfigFile {
     }
 
     private void parseProps(){
-        generatedata  = Boolean.parseBoolean(prop.getProperty(GENERATE_INITIAL_DATA));
-        runqueries    = Boolean.parseBoolean(prop.getProperty(RUN_QUERIES));
-        ingest        = Boolean.parseBoolean(prop.getProperty(INGEST));
-        scale         = Double.parseDouble(  prop.getProperty(SCALE));
-        seed          = Integer.parseInt(    prop.getProperty(SEED));
-        serialize     = Boolean.parseBoolean(prop.getProperty(SERIALIZE));
-        serializePath =                      prop.getProperty(SERIALIZE_PATH);
+        generatedata     = Boolean.parseBoolean(prop.getProperty(GENERATE_INITIAL_DATA));
+        runqueries       = Boolean.parseBoolean(prop.getProperty(RUN_QUERIES));
+        ingest           = Boolean.parseBoolean(prop.getProperty(INGEST));
+        scale            = Double.parseDouble(  prop.getProperty(SCALE));
+        seed             = Integer.parseInt(    prop.getProperty(SEED));
+        serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE));
+        serializePath    =                      prop.getProperty(SERIALIZE_PATH);
+        threadsIngest    = Integer.parseInt(    prop.getProperty(THREADS_INGEST));
+        threadsQueries   = Integer.parseInt(    prop.getProperty(THREADS_QUERIES));
 
         idmap                 =                      prop.getProperty(IDMAP);
         mapfolder             =                      prop.getProperty(MAP_FOLDER);
@@ -181,9 +192,10 @@ public class ConfigFile {
         influxDBName   = prop.getProperty(INFLUX_DBNAME);
         influxTable    = prop.getProperty(INFLUX_TABLE);
 
-        ingestStartDate = LocalDate.parse( prop.getProperty(INGEST_START_DATE));
-        desiredSpeed    = Integer.parseInt(prop.getProperty(INGEST_DESIRED_SPEED));
-        reportFrequency = Integer.parseInt(prop.getProperty(INGEST_REPORT_FREQUENCY));
+        ingestStartDate    = LocalDate.parse( prop.getProperty(INGEST_START_DATE));
+        desiredSpeed       = Integer.parseInt(prop.getProperty(INGEST_DESIRED_SPEED));
+        reportFrequency    = Integer.parseInt(prop.getProperty(INGEST_REPORT_FREQUENCY));
+        durationStandalone = Integer.parseInt(prop.getProperty(INGEST_STANDALONE_DURATION));
 
         queriesDuration          = Integer.parseInt(  prop.getProperty(QUERIES_DURATION));
         queriesWarmup            = Integer.parseInt(  prop.getProperty(QUERIES_WARMUP));
@@ -359,5 +371,17 @@ public class ConfigFile {
 
     public int queriesIntervalMax() {
         return queriesIntervalMax;
+    }
+
+    public int threadsIngest() {
+        return threadsIngest;
+    }
+
+    public int threadsQueries() {
+        return threadsQueries;
+    }
+
+    public int durationStandalone() {
+        return durationStandalone;
     }
 }

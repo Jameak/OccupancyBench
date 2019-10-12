@@ -8,7 +8,7 @@ import java.io.IOException;
 public class IngestWrapper implements ITarget {
     private final ITarget wrappedTarget;
     private final IngestControl ingestControl;
-    private boolean stop;
+    private volatile boolean stop;
 
     public IngestWrapper(ITarget wrappedTarget, IngestControl ingestControl){
         this.wrappedTarget = wrappedTarget;

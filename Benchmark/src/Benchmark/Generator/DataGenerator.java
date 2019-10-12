@@ -10,7 +10,7 @@ import java.time.LocalTime;
 import java.util.*;
 
 public class DataGenerator {
-    public static void Generate(Floor[] generatedFloors, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
+    public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
         int interval = config.generationinterval();
         int loadedInterval = config.sourceinterval();
         double scale = config.scale();
@@ -30,12 +30,12 @@ public class DataGenerator {
 
         LocalDate nextDate = startDate;
         while(!nextDate.isAfter(endDate)){ // If we run out of data to generate from, then go back to the beginning.
-            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, generatedFloors, sortedEntryKeys, data, rng, scale, outputTarget);
+            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, APs, sortedEntryKeys, data, rng, scale, outputTarget);
             if(nextDate.isEqual(endDate) || outputTarget.shouldStopEarly()) break;
         }
     }
 
-    private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval, int loadedInterval, Floor[] generatedFloors, LocalDate[] sortedEntryKeys, MapData data, Random rng, double scale, ITarget outputTarget) throws IOException {
+    private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval, int loadedInterval, AccessPoint[] APs, LocalDate[] sortedEntryKeys, MapData data, Random rng, double scale, ITarget outputTarget) throws IOException {
         boolean generateFasterThanLoadedData = interval < loadedInterval;
         boolean generateSlowerThanLoadedData = interval > loadedInterval;
 
@@ -62,7 +62,7 @@ public class DataGenerator {
                     skippedEntries = 0;
                 }
 
-                GenerateBasedOnEntry(startTime, generatedFloors, entryOnDay, rng, nextDate, scale, outputTarget);
+                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, scale, outputTarget);
 
                 if (generateFasterThanLoadedData) {
                     Entry nextEntry = null;
@@ -86,7 +86,7 @@ public class DataGenerator {
                         for (int j = 0; j < numAdditionalEntriesToInclude; j++) {
                             startTime = startTime.plusSeconds(interval);
                             Entry fakeEntry = CreateFakeEntry(entryOnDay, nextEntry, j, numAdditionalEntriesToInclude);
-                            GenerateBasedOnEntry(startTime, generatedFloors, fakeEntry, rng, nextDate, scale, outputTarget);
+                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget);
                         }
                     } else {
                         startTime = startTime.plusSeconds(interval * numAdditionalEntriesToInclude);
@@ -102,28 +102,26 @@ public class DataGenerator {
         return nextDate;
     }
 
-    private static void GenerateBasedOnEntry(LocalTime startTime, Floor[] generatedFloors, Entry entryOnDay, Random rng, LocalDate nextDate, double scale, ITarget outputTarget) throws IOException {
+    private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng, LocalDate nextDate, double scale, ITarget outputTarget) throws IOException {
         LocalTime previousReadingTime = startTime;
-        for (Floor floor : generatedFloors) {
-            AccessPoint[] APs = floor.getAPs();
-            for (AccessPoint AP : APs) {
-                //TODO: For now, this just matches the actual data 1-to-1, but with random AP assignments and scaled as desired.
-                //  So it completely ignores AP-adjacency, etc. Add the random walk here to introduce more randomness.
 
-                int APid = AP.getMapID();
-                if (!entryOnDay.hasData())
-                    continue; // Entry has no data, so generate nothing rather than zeros.
-                if (entryOnDay.getProbabilities().get(APid) == null)
-                    continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
-                double probability = entryOnDay.getProbabilities().get(APid);
+        for (AccessPoint AP : APs) {
+            //TODO: For now, this just matches the actual data 1-to-1, but with random AP assignments and scaled as desired.
+            //  So it completely ignores AP-adjacency, etc. Add the random walk here to introduce more randomness.
 
-                int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
-                LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
+            int APid = AP.getMapID();
+            if (!entryOnDay.hasData())
+                continue; // Entry has no data, so generate nothing rather than zeros.
+            if (entryOnDay.getProbabilities().get(APid) == null)
+                continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
+            double probability = entryOnDay.getProbabilities().get(APid);
 
-                GeneratedEntry genEntry = new GeneratedEntry(nextDate, readingTime, AP.getAPname(), (int) Math.ceil(entryOnDay.getTotal() * scale * probability));
-                outputTarget.add(genEntry);
-                previousReadingTime = readingTime;
-            }
+            int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
+            LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
+
+            GeneratedEntry genEntry = new GeneratedEntry(nextDate, readingTime, AP.getAPname(), (int) Math.ceil(entryOnDay.getTotal() * scale * probability));
+            outputTarget.add(genEntry);
+            previousReadingTime = readingTime;
         }
     }
 

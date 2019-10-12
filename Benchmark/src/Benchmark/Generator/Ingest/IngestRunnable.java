@@ -1,6 +1,7 @@
 package Benchmark.Generator.Ingest;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Generator.AccessPoint;
 import Benchmark.Generator.DataGenerator;
 import Benchmark.Generator.Floor;
 import Benchmark.Generator.MapData;
@@ -14,20 +15,22 @@ import java.util.Random;
 
 public class IngestRunnable implements Runnable {
     private final ConfigFile config;
-    private final Floor[] generatedFloors;
+    private final AccessPoint[] APs;
     private final MapData data;
     private final Random rng;
     private final IngestWrapper targetWrapper;
     private final IngestControl ingestControl;
     private final Logger logger;
+    private final String threadName;
 
-    public IngestRunnable(ConfigFile config, Floor[] generatedFloors, MapData data, Random rng, ITarget outputTarget, Logger logger){
+    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, Logger logger, String threadName){
         this.config = config;
-        this.generatedFloors = generatedFloors;
+        this.APs = APs;
         this.data = data;
         this.rng = rng;
         this.logger = logger;
-        this.ingestControl = new IngestControl(config.desiredIngestSpeed(), config.reportFrequency(), logger);
+        this.threadName = threadName;
+        this.ingestControl = new IngestControl(config.desiredIngestSpeed(), config.reportFrequency(), logger, threadName);
         this.targetWrapper = new IngestWrapper(outputTarget, ingestControl);
     }
 
@@ -38,9 +41,9 @@ public class IngestRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            DataGenerator.Generate(generatedFloors, data, config.ingestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
+            DataGenerator.Generate(APs, data, config.ingestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
         } catch (IOException e) {
-            logger.log("Ingestion failed.");
+            logger.log(threadName + ": Ingestion failed.");
             e.printStackTrace();
         }
 

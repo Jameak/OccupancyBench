@@ -17,9 +17,9 @@ public class QueryRunnable implements Runnable {
     private final CoarseTimer timer;
     private final ConfigFile config;
     private final Random rng;
-    private final IngestRunnable ingest;
     private final Logger logger;
     private final Floor[] generatedFloors;
+    private final String threadName;
     private final int minTimeInterval;
     private final int maxTimeInterval;
 
@@ -37,12 +37,12 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQuery_TotalClients;
     private long timeSpentQuery_FloorTotal;
 
-    public QueryRunnable(ConfigFile config, Random rng, IngestRunnable ingest, Logger logger, Floor[] generatedFloors){
+    public QueryRunnable(ConfigFile config, Random rng, Logger logger, Floor[] generatedFloors, String threadName){
         this.config = config;
         this.rng = rng;
-        this.ingest = ingest;
         this.logger = logger;
         this.generatedFloors = generatedFloors;
+        this.threadName = threadName;
         this.timer = new CoarseTimer();
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
@@ -90,7 +90,7 @@ public class QueryRunnable implements Runnable {
                 break;
             case UNKNOWN:
                 assert false;
-                logger.log("WTF. Invalid query probabilities");
+                logger.log(threadName + ": WTF. Invalid query probabilities");
                 throw new RuntimeException();
         }
         if(!warmUp) countFull++;
@@ -174,11 +174,11 @@ public class QueryRunnable implements Runnable {
 
     private void reportStats(){
         double totalTime = (timeSpentQuery_TotalClients + timeSpentQuery_FloorTotal) / 1e9;
-        logger.log(              "Query: Query name      |    Count |   Total time |  Queries / sec");
-        logger.log(String.format("Query: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
-        logger.log(String.format("Query: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
-        logger.log(              "Query: ----------------|----------|--------------|---------------");
-        logger.log(String.format("Query: TOTAL           | %8d | %8.1f sec | %8.1f / sec", countFull, totalTime, countFull / totalTime ));
+        logger.log(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", threadName));
+        logger.log(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", threadName, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
+        logger.log(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", threadName, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
+        logger.log(String.format("%s: ----------------|----------|--------------|---------------", threadName));
+        logger.log(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", threadName, countFull, totalTime, countFull / totalTime ));
     }
 
     @Override
@@ -205,7 +205,6 @@ public class QueryRunnable implements Runnable {
             runQueries(queries, false);
         }
 
-        if (ingest != null) ingest.stop();
         queries.done();
         logger.log(this::reportStats);
     }

@@ -19,14 +19,16 @@ public class IngestControl {
     private final boolean reportIntermediateStats;
     private final int reportFrequencyMillis;
     private final Logger logger;
+    private final String threadName;
     private int sleepDuration = 0;
 
-    public IngestControl(int desiredIngestSpeed, int reportFrequency, Logger logger){
+    public IngestControl(int desiredIngestSpeed, int reportFrequency, Logger logger, String threadName){
         this.desiredIngestSpeedPer100Millis = desiredIngestSpeed / 10;
         this.limitSpeed = desiredIngestSpeed > 0;
         this.reportFrequencyMillis = reportFrequency * 1000;
         this.reportIntermediateStats = reportFrequency > 0;
         this.logger = logger;
+        this.threadName = threadName;
         totalTimer = new CoarseTimer();
         reportTimer = new CoarseTimer();
         speedTimer = new CoarseTimer();
@@ -34,7 +36,7 @@ public class IngestControl {
     }
 
     public void printFinalStats(){
-        logger.log(String.format("Ingest: %d entries were added in %.2f seconds.", totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+        logger.log(String.format("%s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
     public void add(DataGenerator.GeneratedEntry entry) {
@@ -57,7 +59,7 @@ public class IngestControl {
             reportCounter++;
             double elapsedMillis = reportTimer.elapsedMilliseconds();
             if(elapsedMillis > reportFrequencyMillis){
-                logger.log(String.format("Ingest: %d entries / sec.", reportCounter / (reportFrequencyMillis/1000)));
+                logger.log(String.format("%s: %d entries / sec.", threadName, reportCounter / (reportFrequencyMillis/1000)));
 
                 reportCounter = 0;
                 reportTimer.start();

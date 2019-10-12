@@ -1,10 +1,7 @@
 import Benchmark.Analysis.Precomputation;
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.Floor;
-import Benchmark.Generator.Generator;
-import Benchmark.Generator.DataGenerator;
+import Benchmark.Generator.*;
 import Benchmark.Generator.Ingest.IngestRunnable;
-import Benchmark.Generator.MapData;
 import Benchmark.Generator.Targets.*;
 import Benchmark.Logger;
 import Benchmark.MapParser;
@@ -14,7 +11,13 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Program {
     public static void main(String[] args) {
@@ -80,7 +83,8 @@ public class Program {
             }
 
             logger.log("Generating data");
-            DataGenerator.Generate(generatedFloors, parsedData, config.startDate(), config.endDate(), rng, target, config);
+            AccessPoint[] allAPs = allAPs(generatedFloors);
+            DataGenerator.Generate(allAPs, parsedData, config.startDate(), config.endDate(), rng, target, config);
 
             if(target.shouldStopEarly()){
                 logger.log("POTENTIAL ERROR: Entry generation was stopped early.");
@@ -107,43 +111,71 @@ public class Program {
             generatedFloors = deserializeGeneratedData(config);
         }
 
+        ExecutorService threadPoolIngest = Executors.newFixedThreadPool(config.threadsIngest());
+        ExecutorService threadPoolQueries = Executors.newFixedThreadPool(config.threadsQueries());
         logger.setDirectly(config.endDate(), LocalTime.of(0,0,0));
 
-        Thread ingestThread = null;
-        IngestRunnable ingestRunnable = null;
+        Future[] ingestTasks = new Future[config.threadsIngest()];
+        IngestRunnable[] ingestRunnables = new IngestRunnable[config.threadsIngest()];
         ITarget ingestTarget = null;
         if(config.ingest()){
             logger.log("Starting ingestion.");
-            Random ingestRng = new Random(rng.nextInt());
             ingestTarget = new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable());
-            ingestRunnable = new IngestRunnable(config, generatedFloors, parsedData, ingestRng, ingestTarget, logger);
-            ingestThread = new Thread(ingestRunnable);
-            ingestThread.start(); //TODO: If I multithread ingestion then this needs to be submitted to a thread-pool.
+            AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs(generatedFloors), config.threadsIngest());
+            //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
+            //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
+            //      any queries for 'recent' data too easy. Or I could make queries for 'recent' data be the recency of
+            //      the slowest thread (currently it follows the fastest one).
+            for(int i = 0; i < config.threadsIngest(); i++){
+                Random ingestRng = new Random(rng.nextInt());
+                ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, logger, "Ingest " + i);
+                ingestTasks[i] = threadPoolIngest.submit(ingestRunnables[i]);
+            }
             logger.log("Ingestion started.");
         }
 
-        Thread queryThread = null;
-        QueryRunnable queryRunnable = null;
+        Future[] queryTasks = new Future[config.threadsQueries()];
         if(config.runqueries()){
             logger.log("Starting queries.");
-            Random queryRng = new Random(rng.nextInt());
-            queryRunnable = new QueryRunnable(config, queryRng, ingestRunnable, logger, generatedFloors);
-            queryThread = new Thread(queryRunnable);
-            queryThread.start(); //TODO: If I multithread queries then this needs to be submitted to a thread-pool.
+            for(int i = 0; i < config.threadsQueries(); i++){
+                Random queryRng = new Random(rng.nextInt());
+                QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, logger, generatedFloors, "Query " + i);
+                queryTasks[i] = threadPoolQueries.submit(queryRunnable);
+            }
             logger.log("Queries started.");
         }
 
-        if(ingestThread != null){
-            ingestThread.join();
+        // First, wait for queries to finish, since they have a specified duration
+        for(Future queryTask : queryTasks){
+            if(queryTask != null) queryTask.get();
         }
 
-        if(queryThread != null){
-            queryThread.join();
+        if(config.runqueries()){
+            // Once queries have finished, tell ingestion to stop.
+            for(IngestRunnable ingestRunnable : ingestRunnables){
+                if(ingestRunnable != null) ingestRunnable.stop();
+            }
+        } else if(config.ingest()) {
+            // If we aren't running the queries, but are running ingestion, then we need some other way to determine
+            //   how long to run ingestion for. Otherwise they'll just stop immediately.
+            Thread.sleep(config.durationStandalone() * 1000);
+
+            for(IngestRunnable ingestRunnable : ingestRunnables){
+                if(ingestRunnable != null) ingestRunnable.stop();
+            }
+        }
+
+        // Wait for ingestion tasks to shutdown
+        for (Future ingestTask : ingestTasks) {
+            if (ingestTask != null) ingestTask.get();
         }
 
         if(ingestTarget != null){
             ingestTarget.close();
         }
+
+        threadPoolIngest.shutdown();
+        threadPoolQueries.shutdown();
         logger.log("Done.");
     }
 
@@ -161,5 +193,30 @@ public class Program {
             data = (Floor[]) inStream.readObject();
         }
         return data;
+    }
+
+    private AccessPoint[] allAPs(Floor[] generatedFloors){
+        List<AccessPoint> APs = new ArrayList<>();
+        for(Floor floor : generatedFloors){
+            APs.addAll(Arrays.asList(floor.getAPs()));
+        }
+        return APs.toArray(new AccessPoint[0]);
+    }
+
+    private AccessPoint[][] evenlyPartitionAPs(AccessPoint[] allAPs, int partitions){
+        List<List<AccessPoint>> results = new ArrayList<>(partitions);
+        for(int i = 0; i < partitions; i++){
+            results.add(new ArrayList<>());
+        }
+        for(int i = 0; i < allAPs.length; i++){
+            results.get(i % partitions).add(allAPs[i]);
+        }
+
+        AccessPoint[][] out = new AccessPoint[partitions][];
+        for(int i = 0; i < partitions; i++){
+            out[i] = results.get(i).toArray(new AccessPoint[0]);
+        }
+
+        return out;
     }
 }

@@ -47,10 +47,14 @@ public class Program {
             return;
         }
 
-        new Program().run(config);
+        try {
+            new Program().run(config);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    public void run(ConfigFile config){
+    public void run(ConfigFile config) throws Exception{
         Random rng = new Random(config.seed());
         Logger logger = new Logger();
 
@@ -69,51 +73,30 @@ public class Program {
             logger.log("Setting up targets.");
             ITarget target = new BaseTarget();
             if(config.saveToDisk()){
-                try {
-                    target = new MultiTarget(target, new FileTarget(config.toDiskFolder(), config.toDiskFilename()));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                target = new MultiTarget(target, new FileTarget(config.toDiskFolder(), config.toDiskFilename()));
             }
             if(config.saveToInflux()){
-                try {
-                    target = new MultiTarget(target, new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable()));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                target = new MultiTarget(target, new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable()));
             }
 
-            try {
-                logger.log("Generating data");
-                DataGenerator.Generate(generatedFloors, parsedData, config.startDate(), config.endDate(), rng, target, config);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            logger.log("Generating data");
+            DataGenerator.Generate(generatedFloors, parsedData, config.startDate(), config.endDate(), rng, target, config);
 
             if(target.shouldStopEarly()){
                 logger.log("POTENTIAL ERROR: Entry generation was stopped early.");
             }
 
-            try {
-                target.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            target.close();
 
             if(config.createDebugTables()){
                 logger.log("DEBUG: Filling precomputation tables.");
-                try {
-                    Precomputation.ComputeTotals(config.generationinterval(), generatedFloors, config);
-                } catch (IOException e) {
-                    logger.log("Failed to fill debug tables.");
-                    e.printStackTrace();
-                }
+                Precomputation.ComputeTotals(config.generationinterval(), generatedFloors, config);
             }
 
             if(config.serialize()){
                 //TODO: Also serialize the instance of random so we can continue from where we left off.
                 logger.log("Serializing floors.");
-                serializeGeneratedData(generatedFloors, config, logger);
+                serializeGeneratedData(generatedFloors, config);
             }
         } else {
             // Load the generated floors and parsed data from previous run
@@ -121,7 +104,7 @@ public class Program {
             parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
 
             logger.log("Deserializing floors.");
-            generatedFloors = deserializeGeneratedData(config, logger);
+            generatedFloors = deserializeGeneratedData(config);
         }
 
         logger.setDirectly(config.endDate(), LocalTime.of(0,0,0));
@@ -132,11 +115,7 @@ public class Program {
         if(config.ingest()){
             logger.log("Starting ingestion.");
             Random ingestRng = new Random(rng.nextInt());
-            try {
-                ingestTarget = new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            ingestTarget = new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable());
             ingestRunnable = new IngestRunnable(config, generatedFloors, parsedData, ingestRng, ingestTarget, logger);
             ingestThread = new Thread(ingestRunnable);
             ingestThread.start(); //TODO: If I multithread ingestion then this needs to be submitted to a thread-pool.
@@ -155,49 +134,31 @@ public class Program {
         }
 
         if(ingestThread != null){
-            try {
-                ingestThread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            ingestThread.join();
         }
 
         if(queryThread != null){
-            try {
-                queryThread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            queryThread.join();
         }
 
         if(ingestTarget != null){
-            try {
-                ingestTarget.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            ingestTarget.close();
         }
         logger.log("Done.");
     }
 
-    public void serializeGeneratedData(Floor[] generatedFloors, ConfigFile config, Logger logger){
+    public void serializeGeneratedData(Floor[] generatedFloors, ConfigFile config) throws IOException{
         try(FileOutputStream outFile = new FileOutputStream(config.serializePath());
             ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
             outStream.writeObject(generatedFloors);
-        } catch (IOException e){
-            logger.log("Serialization failed.");
-            e.printStackTrace();
         }
     }
 
-    public Floor[] deserializeGeneratedData(ConfigFile config, Logger logger){
+    public Floor[] deserializeGeneratedData(ConfigFile config) throws IOException, ClassNotFoundException{
         Floor[] data = null;
         try(FileInputStream inFile = new FileInputStream(config.serializePath());
             ObjectInputStream inStream = new ObjectInputStream(inFile)){
             data = (Floor[]) inStream.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            logger.log("Deserialization failed.");
-            e.printStackTrace();
         }
         return data;
     }

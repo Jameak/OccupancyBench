@@ -5,13 +5,12 @@ import Benchmark.Generator.DataGenerator;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Paths;
 
 public class FileTarget implements ITarget {
     private BufferedWriter writer;
 
-    public FileTarget(String path, String outputFileName) throws IOException {
-        writer = new BufferedWriter(new FileWriter(Paths.get(path).resolve(outputFileName).toString()));
+    public FileTarget(String outputPath) throws IOException {
+        writer = new BufferedWriter(new FileWriter(outputPath));
     }
 
     @Override

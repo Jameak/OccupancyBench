@@ -10,6 +10,7 @@ import Benchmark.Queries.QueryRunnable;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +51,12 @@ public class Program {
             return;
         }
 
+        if(!config.isValidConfig()){
+            System.out.println("Config has invalid values: " + config.getValidationError());
+            System.out.println("Aborting.");
+            return;
+        }
+
         try {
             new Program().run(config);
         } catch (Exception e) {
@@ -58,6 +65,7 @@ public class Program {
     }
 
     public void run(ConfigFile config) throws Exception{
+        assert config.isValidConfig();
         Random rng = new Random(config.seed());
         Logger logger = new Logger();
 
@@ -76,7 +84,7 @@ public class Program {
             logger.log("Setting up targets.");
             ITarget target = new BaseTarget();
             if(config.saveToDisk()){
-                target = new MultiTarget(target, new FileTarget(config.toDiskFolder(), config.toDiskFilename()));
+                target = new MultiTarget(target, new FileTarget(config.toDiskTarget()));
             }
             if(config.saveToInflux()){
                 target = new MultiTarget(target, new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable()));
@@ -98,17 +106,17 @@ public class Program {
             }
 
             if(config.serialize()){
-                //TODO: Also serialize the instance of random so we can continue from where we left off.
-                logger.log("Serializing floors.");
-                serializeGeneratedData(generatedFloors, config);
+                logger.log("Serializing data.");
+                serializeData(generatedFloors, rng, config);
             }
         } else {
             // Load the generated floors and parsed data from previous run
             logger.log("Parsing map.");
             parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
 
-            logger.log("Deserializing floors.");
-            generatedFloors = deserializeGeneratedData(config);
+            logger.log("Deserializing data.");
+            generatedFloors = deserializeFloor(config);
+            rng = deserializeRandom(config);
         }
 
         ExecutorService threadPoolIngest = Executors.newFixedThreadPool(config.threadsIngest());
@@ -179,20 +187,33 @@ public class Program {
         logger.log("Done.");
     }
 
-    public void serializeGeneratedData(Floor[] generatedFloors, ConfigFile config) throws IOException{
-        try(FileOutputStream outFile = new FileOutputStream(config.serializePath());
+    private void serializeData(Floor[] generatedFloors, Random rng, ConfigFile config) throws IOException{
+        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.serializePath(), "floors.ser").toString());
             ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
             outStream.writeObject(generatedFloors);
         }
+        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.serializePath(), "random.ser").toString());
+            ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
+            outStream.writeObject(rng);
+        }
     }
 
-    public Floor[] deserializeGeneratedData(ConfigFile config) throws IOException, ClassNotFoundException{
-        Floor[] data = null;
-        try(FileInputStream inFile = new FileInputStream(config.serializePath());
+    private Floor[] deserializeFloor(ConfigFile config) throws IOException, ClassNotFoundException{
+        Floor[] data;
+        try(FileInputStream inFile = new FileInputStream(Paths.get(config.serializePath(), "floors.ser").toString());
             ObjectInputStream inStream = new ObjectInputStream(inFile)){
             data = (Floor[]) inStream.readObject();
         }
         return data;
+    }
+
+    private Random deserializeRandom(ConfigFile config) throws IOException, ClassNotFoundException{
+        Random rng;
+        try(FileInputStream inFile = new FileInputStream(Paths.get(config.serializePath(), "random.ser").toString());
+            ObjectInputStream inStream = new ObjectInputStream(inFile)){
+            rng = (Random) inStream.readObject();
+        }
+        return rng;
     }
 
     private AccessPoint[] allAPs(Floor[] generatedFloors){

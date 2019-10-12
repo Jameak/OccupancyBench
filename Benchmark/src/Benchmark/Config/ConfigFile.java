@@ -1,6 +1,7 @@
 package Benchmark.Config;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.Properties;
 
@@ -32,8 +33,7 @@ public class ConfigFile {
     private static final String START_DATE              = "generator.data.startdate";
     private static final String END_DATE                = "generator.data.enddate";
     private static final String TO_DISK                 = "generator.data.todisk";
-    private static final String TO_DISK_FOLDER          = "generator.data.todisk.folder";
-    private static final String TO_DISK_FILENAME        = "generator.data.todisk.filename";
+    private static final String TO_DISK_TARGET          = "generator.data.todisk.target";
     private static final String TO_INFLUX               = "generator.data.toinflux";
     private static final String CREATE_DEBUG_TABLES     = "generator.data.createdebugtables";
     private String    idmap;
@@ -44,8 +44,7 @@ public class ConfigFile {
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean   toDisk;
-    private String    toDiskFolder;
-    private String    toDiskFilename;
+    private String    toDiskTarget;
     private boolean   toInflux;
     private boolean   createDebugTables;
 
@@ -95,6 +94,8 @@ public class ConfigFile {
     private int       queriesIntervalMax;
 
     private final Properties prop = new Properties();
+    private boolean validated;
+    private String validationError = "NO ERROR";
 
     private ConfigFile(){ }
 
@@ -105,6 +106,11 @@ public class ConfigFile {
         }
 
         config.parseProps();
+
+        String error = config.validateConfig();
+        if(error == null) config.validated = true;
+        else config.validationError = error;
+
         return config;
     }
 
@@ -117,7 +123,7 @@ public class ConfigFile {
         config.prop.setProperty(SCALE, "1.0");
         config.prop.setProperty(SEED, "1234");
         config.prop.setProperty(SERIALIZE, "false");
-        config.prop.setProperty(SERIALIZE_PATH, "FILE PATH");
+        config.prop.setProperty(SERIALIZE_PATH, "FOLDER PATH");
         config.prop.setProperty(THREADS_INGEST, "1");
         config.prop.setProperty(THREADS_QUERIES, "1");
 
@@ -129,8 +135,7 @@ public class ConfigFile {
         config.prop.setProperty(START_DATE, "2019-01-01");
         config.prop.setProperty(END_DATE, "2019-03-31");
         config.prop.setProperty(TO_DISK, "true");
-        config.prop.setProperty(TO_DISK_FOLDER, "FOLDER PATH");
-        config.prop.setProperty(TO_DISK_FILENAME, "FILENAME");
+        config.prop.setProperty(TO_DISK_TARGET, "TARGET FILE PATH");
         config.prop.setProperty(TO_INFLUX, "false");
         config.prop.setProperty(CREATE_DEBUG_TABLES, "false");
 
@@ -181,8 +186,7 @@ public class ConfigFile {
         startDate             = LocalDate.parse(     prop.getProperty(START_DATE));
         endDate               = LocalDate.parse(     prop.getProperty(END_DATE));
         toDisk                = Boolean.parseBoolean(prop.getProperty(TO_DISK));
-        toDiskFolder          =                      prop.getProperty(TO_DISK_FOLDER);
-        toDiskFilename        =                      prop.getProperty(TO_DISK_FILENAME);
+        toDiskTarget          =                      prop.getProperty(TO_DISK_TARGET);
         toInflux              = Boolean.parseBoolean(prop.getProperty(TO_INFLUX));
         createDebugTables     = Boolean.parseBoolean(prop.getProperty(CREATE_DEBUG_TABLES));
 
@@ -211,10 +215,79 @@ public class ConfigFile {
         queriesIntervalMax       = Integer.parseInt(  prop.getProperty(QUERIES_INTERVAL_MAX));
     }
 
+    @SuppressWarnings("ConstantConditions")
+    private String validateConfig(){
+        // ---- Benchmark ----
+        assert scale > 0.0;
+        if(!(scale > 0.0)) return SCALE + ": Scale must be > 0.0";
+        assert threadsIngest >= 0;
+        if(!(threadsIngest >= 0)) return THREADS_INGEST + ": Ingest threads must be >= 0";
+        assert threadsQueries >= 0;
+        if(!(threadsQueries >= 0)) return THREADS_QUERIES + ": Query threads must be >= 0";
+        if(serialize){
+            assert Paths.get(serializePath).toFile().exists();
+            if(!Paths.get(serializePath).toFile().exists()) return SERIALIZE_PATH + ": Serialize path doesn't exist: " + Paths.get(serializePath).toFile().getAbsolutePath();
+        }
+
+        // ---- Generator ----
+        assert Paths.get(idmap).toFile().exists();
+        if(!Paths.get(idmap).toFile().exists()) return IDMAP + ": Path doesn't exist: " + Paths.get(idmap).toFile().getAbsolutePath();
+        assert Paths.get(mapfolder).toFile().exists();
+        if(!Paths.get(mapfolder).toFile().exists()) return MAP_FOLDER + ": Folder path doesn't exist: " + Paths.get(mapfolder).toFile().getAbsolutePath();
+        assert sourceinterval > 0;
+        if(!(sourceinterval > 0)) return SOURCE_INTERVAL + ": Source interval must be > 0";
+        assert generationinterval > 0;
+        if(!(generationinterval > 0)) return GENERATION_INTERVAL + ": Generation interval must be > 0";
+        assert generationinterval == sourceinterval || // Intervals match
+                (generationinterval < sourceinterval && sourceinterval % generationinterval == 0) || // Interval to generate is quicker than source-interval. Then the generate-interval must be evenly divisible by the source-interval
+                (generationinterval > sourceinterval && generationinterval % sourceinterval == 0) :  // Interval to generate is slower than source-interval.  Then the source-interval must be evenly divisible by the generate-interval
+                "Mismatching intervals. Intervals must match, or one interval must be evenly divisible by the other.\n Generation interval: " + generationinterval + ". Source interval: " + sourceinterval;
+        if(!(generationinterval == sourceinterval ||
+                (generationinterval < sourceinterval && sourceinterval % generationinterval == 0) ||
+                (generationinterval > sourceinterval && generationinterval % sourceinterval == 0))) return SOURCE_INTERVAL + " and " + GENERATION_INTERVAL + ": Source interval and generation interval must be equal, or one must be evenly divisible by the other";
+        assert startDate.isBefore(endDate) || startDate.isEqual(endDate);
+        if(!(startDate.isBefore(endDate) || startDate.isEqual(endDate))) return START_DATE + ": Start date " + startDate + " must be before end date " + endDate + "(" + END_DATE + ")";
+        // Cannot assert that the TO_DISK_TARGET exists because we're writing to that path, creating it if it doesn't exist.
+        //if(toDisk){
+        //    assert Paths.get(toDiskTarget).toFile().exists();
+        //    if(!Paths.get(toDiskTarget).toFile().exists()) return TO_DISK_TARGET + ": To Disk target path doesn't exist: " + Paths.get(toDiskTarget).toFile().getAbsolutePath();
+        //}
+
+        // ---- Ingest ----
+        assert ingestStartDate.isAfter(startDate) || ingestStartDate.isEqual(startDate);
+        if(!(ingestStartDate.isAfter(startDate) || ingestStartDate.isEqual(startDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + startDate + "(" + START_DATE + ")";
+
+        // ---- Queries ----
+        if(ingest) {
+            assert queriesDuration > 0;
+            if(!(queriesDuration > 0)) return QUERIES_DURATION + ": Query-duration must be > 0";
+        }
+        assert queriesPropTotalClients >= 0;
+        if(!(queriesPropTotalClients >= 0)) return QUERIES_PROP_QUERY_TOTAL_CLIENTS + ": Query-probability for 'TotalClients' must be >= 0";
+        assert queriesPropFloorTotals >= 0;
+        if(!(queriesPropFloorTotals >= 0)) return QUERIES_PROP_QUERY_FLOOR_TOTALS + ": Query-probability for 'FloorTotals' must be >= 0";
+        assert queriesIntervalMin >= 0;
+        if(!(queriesIntervalMin >= 0)) return QUERIES_INTERVAL_MIN + ": Minimum query interval must be >= 0";
+        assert queriesIntervalMax >= 0;
+        if(!(queriesIntervalMax >= 0)) return QUERIES_INTERVAL_MAX + ": Maximum query interval must be >= 0";
+        assert queriesIntervalMin <= queriesIntervalMax;
+        if(!(queriesIntervalMin <= queriesIntervalMax)) return QUERIES_INTERVAL_MIN + " and " + QUERIES_INTERVAL_MAX + ": Minimum query interval must be <= maximum query interval";
+
+        return null;
+    }
+
     public void save(String filePath) throws IOException {
         try(OutputStream output = new FileOutputStream(filePath)){
             prop.store(output, "Config file for Benchmark");
         }
+    }
+
+    public boolean isValidConfig() {
+        return validated;
+    }
+
+    public String getValidationError(){
+        return validationError;
     }
 
     public boolean generatedata() {
@@ -265,10 +338,6 @@ public class ConfigFile {
         return toDisk;
     }
 
-    public String toDiskFolder() {
-        return toDiskFolder;
-    }
-
     public boolean saveToInflux() {
         return toInflux;
     }
@@ -293,8 +362,8 @@ public class ConfigFile {
         return influxTable;
     }
 
-    public String toDiskFilename() {
-        return toDiskFilename;
+    public String toDiskTarget() {
+        return toDiskTarget;
     }
 
     public boolean keepFloorAssociations() {

@@ -68,8 +68,9 @@ public class ConfigFile {
     private int       reportFrequency;
     private int       durationStandalone;
 
-    private static final String QUERIES_DURATION                 = "queries.duration";
-    private static final String QUERIES_WARMUP                   = "queries.warmup";
+    private static final String QUERIES_DURATION                 = "queries.duration.time";
+    private static final String QUERIES_WARMUP                   = "queries.duration.warmup";
+    private static final String QUERIES_MAX_COUNT                = "queries.duration.count";
     private static final String QUERIES_EARLIEST_VALID_DATE      = "queries.earliestdate";
     private static final String QUERIES_PROP_QUERY_TOTAL_CLIENTS = "queries.prop.totalclients";
     private static final String QUERIES_PROP_QUERY_FLOOR_TOTALS  = "queries.prop.floortotals";
@@ -82,6 +83,7 @@ public class ConfigFile {
     private static final String QUERIES_INTERVAL_MAX             = "queries.interval.max";
     private int       queriesDuration;
     private int       queriesWarmup;
+    private int       queriesMaxCount;
     private LocalDate queriesEarliestValidDate;
     private int       queriesPropTotalClients;
     private int       queriesPropFloorTotals;
@@ -150,8 +152,9 @@ public class ConfigFile {
         config.prop.setProperty(INGEST_REPORT_FREQUENCY, "-1");
         config.prop.setProperty(INGEST_STANDALONE_DURATION, "-1");
 
-        config.prop.setProperty(QUERIES_DURATION, "-1");
+        config.prop.setProperty(QUERIES_DURATION, "60");
         config.prop.setProperty(QUERIES_WARMUP, "-1");
+        config.prop.setProperty(QUERIES_MAX_COUNT, "-1");
         config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, "2019-01-01");
         config.prop.setProperty(QUERIES_PROP_QUERY_TOTAL_CLIENTS, "1");
         config.prop.setProperty(QUERIES_PROP_QUERY_FLOOR_TOTALS, "1");
@@ -203,6 +206,7 @@ public class ConfigFile {
 
         queriesDuration          = Integer.parseInt(  prop.getProperty(QUERIES_DURATION));
         queriesWarmup            = Integer.parseInt(  prop.getProperty(QUERIES_WARMUP));
+        queriesMaxCount          = Integer.parseInt(  prop.getProperty(QUERIES_MAX_COUNT));
         queriesEarliestValidDate = LocalDate.parse(   prop.getProperty(QUERIES_EARLIEST_VALID_DATE));
         queriesPropTotalClients  = Integer.parseInt(  prop.getProperty(QUERIES_PROP_QUERY_TOTAL_CLIENTS));
         queriesPropFloorTotals   = Integer.parseInt(  prop.getProperty(QUERIES_PROP_QUERY_FLOOR_TOTALS));
@@ -259,8 +263,8 @@ public class ConfigFile {
 
         // ---- Queries ----
         if(ingest) {
-            assert queriesDuration > 0;
-            if(!(queriesDuration > 0)) return QUERIES_DURATION + ": Query-duration must be > 0";
+            assert queriesDuration > 0 || queriesMaxCount > 0;
+            if(!(queriesDuration > 0 || queriesMaxCount > 0)) return "Query-duration (" + QUERIES_DURATION + ") must be > 0 or max query count (" + QUERIES_MAX_COUNT + ") must be > 0";
         }
         assert queriesPropTotalClients >= 0;
         if(!(queriesPropTotalClients >= 0)) return QUERIES_PROP_QUERY_TOTAL_CLIENTS + ": Query-probability for 'TotalClients' must be >= 0";
@@ -452,5 +456,9 @@ public class ConfigFile {
 
     public int durationStandalone() {
         return durationStandalone;
+    }
+
+    public int queriesMaxCount() {
+        return queriesMaxCount;
     }
 }

@@ -3,7 +3,6 @@ package Benchmark.Queries;
 import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.Floor;
-import Benchmark.Generator.Ingest.IngestRunnable;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
@@ -14,7 +13,6 @@ import java.time.ZoneOffset;
 import java.util.Random;
 
 public class QueryRunnable implements Runnable {
-    private final CoarseTimer timer;
     private final ConfigFile config;
     private final Random rng;
     private final Logger logger;
@@ -43,7 +41,6 @@ public class QueryRunnable implements Runnable {
         this.logger = logger;
         this.generatedFloors = generatedFloors;
         this.threadName = threadName;
-        this.timer = new CoarseTimer();
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
 
@@ -185,7 +182,10 @@ public class QueryRunnable implements Runnable {
     public void run() {
         int duration = config.queriesDuration();
         int warmUpTime = config.queriesWarmup();
+        int targetCount = config.queriesMaxCount();
+        CoarseTimer timer = new CoarseTimer();
         boolean warmUp = warmUpTime > 0;
+
         Queries queries = new InfluxQueries();
         try {
             queries.prepare(config);
@@ -200,11 +200,18 @@ public class QueryRunnable implements Runnable {
             }
         }
 
-        timer.start();
-        while (timer.elapsedSeconds() < duration) {
-            runQueries(queries, false);
+        if(duration > 0){
+            timer.start();
+            while (timer.elapsedSeconds() < duration) {
+                runQueries(queries, false);
+            }
+        } else {
+            assert targetCount > 0;
+            while (countFull < targetCount) {
+                runQueries(queries, false);
+            }
         }
-
+        
         queries.done();
         logger.log(this::reportStats);
     }

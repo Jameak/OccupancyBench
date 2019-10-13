@@ -1,9 +1,8 @@
 package Benchmark.Analysis;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.AccessPoint;
-import Benchmark.Generator.Floor;
-import Benchmark.Generator.MapData;
+import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.Floor;
 import org.influxdb.BatchOptions;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
@@ -21,6 +20,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A class dedicated to performing computations on generated data and saving it in a different database for later
+ * referencing. The data that is saved resembles the pre-computations done to ITU data, and various metadata is also
+ * included that would otherwise be lost once the original database is deleted.
+ *
+ * This data is useful for debugging and for comparisons between the actual ITU data and the generated data, and between
+ * generated data that was generated with different config settings.
+ */
 public class Precomputation {
     public static void ComputeTotals(int interval, Floor[] generatedFloors, ConfigFile config) throws IOException {
         InfluxDB writeDB = SetupConnection(config.influxUrl(), config.influxUsername(), config.influxPassword(), config, false);

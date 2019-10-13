@@ -5,6 +5,18 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.Properties;
 
+/**
+ * The config files accepted by this program is defined by this class.
+ *
+ * It uses the Java Properties class for loading existing config files, so config files must adhere to its format.
+ * See https://docs.oracle.com/javase/7/docs/api/java/util/Properties.html#load(java.io.Reader) for full rules.
+ *
+ * The relevant highlights are:
+ * - Literal backslashes '\' must be escaped (such as in Windows paths). Valid example: path = C:\\example\\path\\to\\file.example
+ * - Whitespace between the property name and the property value are ignored. Whitespace after the property value is not ignored.
+ * - Lines that start with '!' or '#' are comments.
+ * - Single and double quotes " and ' do not need to be escaped.
+ */
 public class ConfigFile {
     private static final String GENERATE_INITIAL_DATA = "benchmark.generateinitialdata";
     private static final String RUN_QUERIES           = "benchmark.runqueries";

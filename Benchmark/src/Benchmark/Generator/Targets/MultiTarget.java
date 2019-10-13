@@ -1,9 +1,12 @@
 package Benchmark.Generator.Targets;
 
-import Benchmark.Generator.DataGenerator;
+import Benchmark.Generator.GeneratedData.GeneratedEntry;
 
 import java.io.IOException;
 
+/**
+ * Facilitates composition of ITarget instances.
+ */
 public class MultiTarget implements ITarget {
     private final ITarget target1;
     private final ITarget target2;
@@ -14,7 +17,7 @@ public class MultiTarget implements ITarget {
     }
 
     @Override
-    public void add(DataGenerator.GeneratedEntry entry) throws IOException {
+    public void add(GeneratedEntry entry) throws IOException {
         target1.add(entry);
         target2.add(entry);
     }

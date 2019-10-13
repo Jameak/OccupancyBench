@@ -1,9 +1,14 @@
-package Benchmark.Generator;
+package Benchmark.Loader;
+
+import Benchmark.Generator.GeneratedData.AccessPoint;
 
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Top-level class of data loaded from the source data.
+ */
 public class MapData {
     private final IdMap idMap;
     private final Map<LocalDate, Entry[]> loadedEntries;

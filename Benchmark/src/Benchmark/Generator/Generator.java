@@ -1,8 +1,29 @@
 package Benchmark.Generator;
 
+import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Loader.Entry;
+import Benchmark.Loader.MapData;
+
 import java.util.*;
 
+/**
+ * Generation of the metadata required for generating entries.
+ *
+ * The required metadata is:
+ * - Floors and their access points
+ * - An assignment from access points in the real source data to the fake, generated, access points.
+ * - Fix the metadata in the source data to fit our generated data since some access points may have been combined,
+ *     might not be assigned, or may have been assigned multiple times.
+ *
+ * First generate data using {@code Generate},
+ * then create an assignment using {@code AssignFloorsToIDs},
+ * then fix-up the metadata with {@code PrepareDataForGeneration}.
+ */
 public class Generator {
+    /**
+     * Generate floors and access-points with the given scale using the given Random-instance.
+     */
     public static Floor[] Generate(double scale, Random rng){
         assert scale > 0.0;
         int numberOfFloors = (int)Math.ceil(5 * scale);
@@ -20,6 +41,16 @@ public class Generator {
         return floors;
     }
 
+    /**
+     * Assign each fake access-point to a real access-point in the source data. This assignment will obey the
+     * metadata generated for each fake access-point. Namely, their location-type and their partner-information.
+     *
+     * - All fake access-points will be assigned. If not, an error will be thrown.
+     * - Real access-points may be assigned to several fake access-points.
+     * - Real access-points may not be assigned at all.
+     * - If preserving floor associations is desired, the assignment from fake to real access points will only consider
+     *     access points on the same floor.
+     */
     public static void AssignFloorsToIDs(Floor[] floors, MapData data, boolean preserveFloorAssociations){
         MapData.IdMap idMap = data.getIdMap();
         Map<AccessPoint.APLocation, Integer[]> locationMap = idMap.getLocationMap();
@@ -54,6 +85,15 @@ public class Generator {
         }
     }
 
+    /**
+     * Using the assignment between the generated data and the source data, fix-up the data to fit our assignments.
+     *
+     * The fixes that are applied are:
+     * - The probabilities for each time-period (each entry) are normalized to 100% to account for APs having been
+     *     assigned multiple times, or not being assigned at all.
+     * - Access points in the source data whose probability-data should be combined are combined into a single
+     *     data-entry which means we dont have to think about combined APs later on.
+     */
     public static void PrepareDataForGeneration(Floor[] generatedFloors, MapData data){
         Map<Integer, Integer> assignedAPidsAndAmountOfTimesAssigned = new HashMap<>();
         for(Floor floor : generatedFloors){

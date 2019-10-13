@@ -1,10 +1,13 @@
 import Benchmark.Analysis.Precomputation;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.*;
+import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Generator.Ingest.IngestRunnable;
+import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.*;
 import Benchmark.Logger;
-import Benchmark.MapParser;
+import Benchmark.Loader.MapParser;
 import Benchmark.Queries.QueryRunnable;
 
 import java.io.*;
@@ -20,6 +23,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+/**
+ * The entry-point of the benchmark program.
+ */
 public class Program {
     public static void main(String[] args) {
         if(args == null || args.length < 1){

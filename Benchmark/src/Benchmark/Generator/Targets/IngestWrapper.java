@@ -1,10 +1,13 @@
 package Benchmark.Generator.Targets;
 
-import Benchmark.Generator.DataGenerator;
+import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import Benchmark.Generator.Ingest.IngestControl;
 
 import java.io.IOException;
 
+/**
+ * Wraps the given target in an ingest-controller to facilitate monitoring and control of the ingest-process.
+ */
 public class IngestWrapper implements ITarget {
     private final ITarget wrappedTarget;
     private final IngestControl ingestControl;
@@ -20,7 +23,7 @@ public class IngestWrapper implements ITarget {
     }
 
     @Override
-    public void add(DataGenerator.GeneratedEntry entry) throws IOException {
+    public void add(GeneratedEntry entry) throws IOException {
         wrappedTarget.add(entry);
         ingestControl.add(entry);
     }

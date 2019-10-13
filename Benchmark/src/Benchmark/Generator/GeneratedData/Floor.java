@@ -1,8 +1,11 @@
-package Benchmark.Generator;
+package Benchmark.Generator.GeneratedData;
 
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * Holds metadata about a specific generated floor.
+ */
 public class Floor implements Serializable {
     private final int floorNumber;
     private final Map<AccessPoint, AccessPoint[]> adjacency;

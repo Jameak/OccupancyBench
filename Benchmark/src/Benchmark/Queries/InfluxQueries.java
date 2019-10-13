@@ -1,8 +1,8 @@
 package Benchmark.Queries;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.AccessPoint;
-import Benchmark.Generator.Floor;
+import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.Floor;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+/**
+ * An implementation of the benchmark-queries for InfluxDB.
+ */
 public class InfluxQueries implements Queries{
     private InfluxDB influxDB;
     private ConfigFile config;

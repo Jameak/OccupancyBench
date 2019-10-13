@@ -1,6 +1,10 @@
 package Benchmark.Generator;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedEntry;
+import Benchmark.Loader.Entry;
+import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.ITarget;
 
 import java.io.IOException;
@@ -9,7 +13,25 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
+/**
+ * Generates data that is directly ready for insertion into a database, a file, etc.
+ */
 public class DataGenerator {
+    /**
+     * Generates data for the given APs, based on the given data, between the specified start-date (inclusive)
+     * and end-date (exclusive). Generated data is added to the specified target.
+     *
+     * The given config file controls the scale and interval of the generated data.
+     *
+     * @param APs The APs for which to generate data.
+     * @param data The data to use as the basis for generation.
+     * @param startDate The date to start generation from. Inclusive
+     * @param endDate The date to end generation on. Exclusive
+     * @param rng The Random-instance to use during generation
+     * @param outputTarget The target to add generated data to.
+     * @param config The config file to use.
+     * @throws IOException Thrown if the outputTarget throws when data is added.
+     */
     public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
         int interval = config.generationinterval();
         int loadedInterval = config.sourceinterval();
@@ -151,44 +173,5 @@ public class DataGenerator {
         return ((1 - blend) * v1 + blend * v2);
     }
 
-    public static class GeneratedEntry{
-        private final String timestamp;
-        private final String ap;
-        private final int numClients;
-        private final LocalDate date;
-        private final LocalTime time;
 
-        public GeneratedEntry(LocalDate date, LocalTime time, String AP, int numClients){
-            this.date = date;
-            this.time = time;
-            this.timestamp = date.toString() + "T" + time.toString() + "Z";
-            this.ap = AP;
-            this.numClients = numClients;
-        }
-
-        public String getTimestamp() {
-            return timestamp;
-        }
-
-        public String getAP() {
-            return ap;
-        }
-
-        public int getNumClients() {
-            return numClients;
-        }
-
-        @Override
-        public String toString() {
-            return timestamp + ";" + ap + ";" + numClients;
-        }
-
-        public LocalDate getDate() {
-            return date;
-        }
-
-        public LocalTime getTime() {
-            return time;
-        }
-    }
 }

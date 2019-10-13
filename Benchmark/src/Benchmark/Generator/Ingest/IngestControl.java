@@ -2,9 +2,13 @@ package Benchmark.Generator.Ingest;
 
 import Benchmark.CoarseTimer;
 import Benchmark.Generator.DataGenerator;
+import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
+/**
+ * During ingestion, this class monitors and controls the ingest-process.
+ */
 public class IngestControl {
     private final CoarseTimer totalTimer;
     private final CoarseTimer reportTimer;
@@ -39,7 +43,7 @@ public class IngestControl {
         logger.log(String.format("%s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
-    public void add(DataGenerator.GeneratedEntry entry) {
+    public void add(GeneratedEntry entry) {
         totalCounter++;
 
         // Update the info about what the newest entry is, so we can use it in queries.

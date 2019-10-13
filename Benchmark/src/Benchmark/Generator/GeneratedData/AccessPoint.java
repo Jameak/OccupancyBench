@@ -1,13 +1,16 @@
-package Benchmark.Generator;
+package Benchmark.Generator.GeneratedData;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Holds metadata about a specific generated access point.
+ */
 public class AccessPoint implements Serializable {
     private final APLocation location;
     private final String APname;
-    private final String humanReadableName;
+    private final String humanReadableName; // For debugging purposes only
     private AccessPoint[] partners;
     private Integer mapID;
 

@@ -1,6 +1,6 @@
 package Benchmark.Generator.Targets;
 
-import Benchmark.Generator.DataGenerator;
+import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import org.influxdb.BatchOptions;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
@@ -11,6 +11,11 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Writes the added entries to InfluxDB with nano-second precision.
+ *
+ * Will drop any existing database with the specified name and recreate it.
+ */
 public class InfluxTarget implements ITarget {
     private final InfluxDB influxDB;
     private final String measurementName;
@@ -32,7 +37,7 @@ public class InfluxTarget implements ITarget {
     }
 
     @Override
-    public void add(DataGenerator.GeneratedEntry entry) throws IOException {
+    public void add(GeneratedEntry entry) throws IOException {
         Instant time = Instant.parse(entry.getTimestamp());
         long timeNano = time.getEpochSecond() * 1_000_000_000 + time.getNano();
         influxDB.write(

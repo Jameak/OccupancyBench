@@ -2,7 +2,7 @@ package Benchmark.Queries;
 
 import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.Floor;
+import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
@@ -12,6 +12,10 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Random;
 
+/**
+ * The top-level class for benchmark queries. Monitors query-performance, decides which queries to run
+ * and generates their arguments.
+ */
 public class QueryRunnable implements Runnable {
     private final ConfigFile config;
     private final Random rng;

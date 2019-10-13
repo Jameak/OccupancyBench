@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Facilitates synchronized logging, and communication between the ingestion- and queries-threads for date/time metadata.
+ */
 public class Logger {
     private final Object entryLock = new Object();
     private final Object printLock = new Object();

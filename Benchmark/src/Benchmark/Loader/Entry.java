@@ -1,8 +1,16 @@
-package Benchmark.Generator;
+package Benchmark.Loader;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
+/**
+ * Represents a single point in time loaded from the source data.
+ *
+ * Holds a mapping from every access-point ID that is present in the data at that point in time,
+ * to the density of the population at each of those access points at the represented time.
+ *
+ * This density is represented by a percentage of the total that is connected to each specific AP.
+ */
 public class Entry{
     private final LocalDateTime time;
     private final int total;

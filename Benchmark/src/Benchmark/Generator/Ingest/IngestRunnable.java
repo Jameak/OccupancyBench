@@ -1,10 +1,9 @@
 package Benchmark.Generator.Ingest;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.AccessPoint;
+import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.DataGenerator;
-import Benchmark.Generator.Floor;
-import Benchmark.Generator.MapData;
+import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.ITarget;
 import Benchmark.Generator.Targets.IngestWrapper;
 import Benchmark.Logger;
@@ -13,6 +12,10 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Random;
 
+/**
+ * The top-level class for ingestion. Wraps the ingestion-target in a new target that injects an IngestControl-instance
+ * whose add-method is called after each generation, to monitor and control ingestion.
+ */
 public class IngestRunnable implements Runnable {
     private final ConfigFile config;
     private final AccessPoint[] APs;

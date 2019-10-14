@@ -173,22 +173,27 @@ public class QueryRunnable implements Runnable {
         return Math.log(1 - rng.nextDouble()) / -lambda;
     }
 
-    private void reportStats(){
+    private void reportStats(boolean done){
+        String prefix = (done ? "DONE " : "RUNNING ") + threadName;
+
         double totalTime = (timeSpentQuery_TotalClients + timeSpentQuery_FloorTotal) / 1e9;
-        logger.log(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", threadName));
-        logger.log(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", threadName, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
-        logger.log(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", threadName, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
-        logger.log(String.format("%s: ----------------|----------|--------------|---------------", threadName));
-        logger.log(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", threadName, countFull, totalTime, countFull / totalTime ));
+        logger.log(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
+        logger.log(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
+        logger.log(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
+        logger.log(String.format("%s: ----------------|----------|--------------|---------------", prefix));
+        logger.log(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
     }
 
     @Override
     public void run() {
         int duration = config.queriesDuration();
         int warmUpTime = config.queriesWarmup();
+        int reportFrequency = config.queriesReportFrequency();
         int targetCount = config.queriesMaxCount();
-        CoarseTimer timer = new CoarseTimer();
+        CoarseTimer runTimer = new CoarseTimer();
+        CoarseTimer reportTimer = new CoarseTimer();
         boolean warmUp = warmUpTime > 0;
+        boolean printProgressReports =  reportFrequency > 0;
 
         Queries queries = new InfluxQueries();
         try {
@@ -198,26 +203,39 @@ public class QueryRunnable implements Runnable {
         }
 
         if (warmUp) {
-            timer.start();
-            while (timer.elapsedSeconds() < warmUpTime) {
+            runTimer.start();
+            while (runTimer.elapsedSeconds() < warmUpTime) {
                 runQueries(queries, true);
             }
         }
 
         if(duration > 0){
-            timer.start();
-            while (timer.elapsedSeconds() < duration) {
+            runTimer.start();
+            if(printProgressReports) reportTimer.start();
+            while (runTimer.elapsedSeconds() < duration) {
                 runQueries(queries, false);
+
+                if(printProgressReports) progressReport(reportTimer, reportFrequency);
             }
         } else {
             assert targetCount > 0;
+            if(printProgressReports) reportTimer.start();
             while (countFull < targetCount) {
                 runQueries(queries, false);
+
+                if(printProgressReports) progressReport(reportTimer, reportFrequency);
             }
         }
         
         queries.done();
-        logger.log(this::reportStats);
+        logger.log(() -> reportStats(true));
+    }
+
+    private void progressReport(CoarseTimer timer, int frequency){
+        if(timer.elapsedSeconds() > frequency){
+            logger.log(() -> reportStats(false));
+            timer.start();
+        }
     }
 
     private enum QueryType{

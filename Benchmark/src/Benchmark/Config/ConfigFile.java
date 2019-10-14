@@ -83,6 +83,7 @@ public class ConfigFile {
     private static final String QUERIES_DURATION                 = "queries.duration.time";
     private static final String QUERIES_WARMUP                   = "queries.duration.warmup";
     private static final String QUERIES_MAX_COUNT                = "queries.duration.count";
+    private static final String QUERIES_REPORT_FREQUENCY         = "queries.reportfrequency";
     private static final String QUERIES_EARLIEST_VALID_DATE      = "queries.earliestdate";
     private static final String QUERIES_PROP_QUERY_TOTAL_CLIENTS = "queries.prop.totalclients";
     private static final String QUERIES_PROP_QUERY_FLOOR_TOTALS  = "queries.prop.floortotals";
@@ -96,6 +97,7 @@ public class ConfigFile {
     private int       queriesDuration;
     private int       queriesWarmup;
     private int       queriesMaxCount;
+    private int       queriesReportFrequency;
     private LocalDate queriesEarliestValidDate;
     private int       queriesPropTotalClients;
     private int       queriesPropFloorTotals;
@@ -167,6 +169,7 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_DURATION, "60");
         config.prop.setProperty(QUERIES_WARMUP, "-1");
         config.prop.setProperty(QUERIES_MAX_COUNT, "-1");
+        config.prop.setProperty(QUERIES_REPORT_FREQUENCY, "-1");
         config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, "2019-01-01");
         config.prop.setProperty(QUERIES_PROP_QUERY_TOTAL_CLIENTS, "1");
         config.prop.setProperty(QUERIES_PROP_QUERY_FLOOR_TOTALS, "1");
@@ -219,6 +222,7 @@ public class ConfigFile {
         queriesDuration          = Integer.parseInt(  prop.getProperty(QUERIES_DURATION));
         queriesWarmup            = Integer.parseInt(  prop.getProperty(QUERIES_WARMUP));
         queriesMaxCount          = Integer.parseInt(  prop.getProperty(QUERIES_MAX_COUNT));
+        queriesReportFrequency   = Integer.parseInt(  prop.getProperty(QUERIES_REPORT_FREQUENCY));
         queriesEarliestValidDate = LocalDate.parse(   prop.getProperty(QUERIES_EARLIEST_VALID_DATE));
         queriesPropTotalClients  = Integer.parseInt(  prop.getProperty(QUERIES_PROP_QUERY_TOTAL_CLIENTS));
         queriesPropFloorTotals   = Integer.parseInt(  prop.getProperty(QUERIES_PROP_QUERY_FLOOR_TOTALS));
@@ -245,6 +249,7 @@ public class ConfigFile {
             if(!Paths.get(serializePath).toFile().exists()) return SERIALIZE_PATH + ": Serialize path doesn't exist: " + Paths.get(serializePath).toFile().getAbsolutePath();
         }
 
+
         // ---- Generator ----
         assert Paths.get(idmap).toFile().exists();
         if(!Paths.get(idmap).toFile().exists()) return IDMAP + ": Path doesn't exist: " + Paths.get(idmap).toFile().getAbsolutePath();
@@ -269,9 +274,11 @@ public class ConfigFile {
         //    if(!Paths.get(toDiskTarget).toFile().exists()) return TO_DISK_TARGET + ": To Disk target path doesn't exist: " + Paths.get(toDiskTarget).toFile().getAbsolutePath();
         //}
 
+
         // ---- Ingest ----
         assert ingestStartDate.isAfter(startDate) || ingestStartDate.isEqual(startDate);
         if(!(ingestStartDate.isAfter(startDate) || ingestStartDate.isEqual(startDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + startDate + "(" + START_DATE + ")";
+
 
         // ---- Queries ----
         if(ingest) {
@@ -472,5 +479,9 @@ public class ConfigFile {
 
     public int queriesMaxCount() {
         return queriesMaxCount;
+    }
+
+    public int queriesReportFrequency() {
+        return queriesReportFrequency;
     }
 }

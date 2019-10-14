@@ -40,7 +40,7 @@ public class IngestControl {
     }
 
     public void printFinalStats(){
-        logger.log(String.format("%s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+        logger.log(String.format("DONE %s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
     public void add(GeneratedEntry entry) {
@@ -48,6 +48,7 @@ public class IngestControl {
 
         // Update the info about what the newest entry is, so we can use it in queries.
         // However, updating that info requires taking a lock, so rarely do that update.
+        // TODO: Make this configurable...?
         if(totalCounter % 20000 == 0){
             logger.setNewestTime(entry.getDate(), entry.getTime());
         }
@@ -63,7 +64,7 @@ public class IngestControl {
             reportCounter++;
             double elapsedMillis = reportTimer.elapsedMilliseconds();
             if(elapsedMillis > reportFrequencyMillis){
-                logger.log(String.format("%s: %d entries / sec.", threadName, reportCounter / (reportFrequencyMillis/1000)));
+                logger.log(String.format("RUNNING %s: %d entries / sec.", threadName, reportCounter / (reportFrequencyMillis/1000)));
 
                 reportCounter = 0;
                 reportTimer.start();

@@ -10,6 +10,8 @@ import org.influxdb.dto.Query;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * An implementation of the benchmark-queries for InfluxDB.
@@ -18,9 +20,10 @@ public class InfluxQueries implements Queries{
     private InfluxDB influxDB;
     private ConfigFile config;
     private String measurement;
+    private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
 
     @Override
-    public void prepare(ConfigFile config) throws Exception {
+    public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
         this.measurement = config.influxTable();
         this.influxDB = InfluxDBFactory.connect(config.influxUrl(), config.influxUsername(), config.influxPassword());
         this.config = config;
@@ -30,7 +33,29 @@ public class InfluxQueries implements Queries{
         }
 
         influxDB.setDatabase(config.influxDBName());
-        //NOTE: Cannot enable batching of these queries, because then we cant calculate how much time each query uses.
+        //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
+
+        //Pre-computations of the strings needed for the 'FloorTotal' query to minimize time spent in Java code versus on the query itself:
+        for(Floor floor : generatedFloors){
+            StringBuilder sb = new StringBuilder();
+            sb.append("(");
+            boolean first = true;
+            for(AccessPoint AP : floor.getAPs()){
+                if(first){
+                    first = false;
+                } else {
+                    sb.append("OR");
+                }
+                sb.append(" AP='");
+                sb.append(AP.getAPname());
+                sb.append("' ");
+            }
+
+            sb.append(") GROUP BY time(");
+            sb.append(config.generationinterval());
+            sb.append("s)");
+            precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
+        }
     }
 
     @Override
@@ -70,28 +95,10 @@ public class InfluxQueries implements Queries{
 
             // How do we define the start/end span for points to include at an arbitrary point in time?
             //   This is the naive option (which is probably fine for the benchmark) but has a small risk of APs appearing more than once.
-            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d",
-                    measurement, toTimestamp(end), toTimestamp(start));
+            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d AND %s",
+                    measurement, toTimestamp(end), toTimestamp(start), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
-            StringBuilder sb = new StringBuilder(queryString);
-            sb.append(" AND (");
-            boolean first = true;
-            for(AccessPoint AP : floor.getAPs()){
-                if(first){
-                    first = false;
-                } else {
-                    sb.append("OR");
-                }
-                sb.append(" AP='");
-                sb.append(AP.getAPname());
-                sb.append("' ");
-            }
-
-            sb.append(") GROUP BY time(");
-            sb.append(config.generationinterval());
-            sb.append("s)");
-
-            Query query = new Query(sb.toString());
+            Query query = new Query(queryString);
             influxDB.query(query);
             //QueryResult results = influxDB.query(query);
             //for(QueryResult.Result result : results.getResults()){

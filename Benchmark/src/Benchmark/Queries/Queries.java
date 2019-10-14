@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * A shared interface for all Query-implementations.
  */
 public interface Queries {
-    void prepare(ConfigFile config) throws Exception;
+    void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception;
     void done();
 
     int computeTotalClients(LocalDateTime start, LocalDateTime end);

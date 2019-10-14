@@ -197,7 +197,7 @@ public class QueryRunnable implements Runnable {
 
         Queries queries = new InfluxQueries();
         try {
-            queries.prepare(config);
+            queries.prepare(config, generatedFloors);
         } catch (Exception e) {
             e.printStackTrace();
         }

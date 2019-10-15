@@ -8,6 +8,8 @@ import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.*;
 import Benchmark.Logger;
 import Benchmark.Loader.MapParser;
+import Benchmark.Queries.InfluxQueries;
+import Benchmark.Queries.Queries;
 import Benchmark.Queries.QueryRunnable;
 
 import java.io.*;
@@ -70,135 +72,179 @@ public class Program {
         }
     }
 
+    // INGESTION 'GLOBALS'
+    private ExecutorService threadPoolIngest;
+    private Future[] ingestTasks;
+    private IngestRunnable[] ingestRunnables;
+    private ITarget ingestTarget;
+
+    // QUERY 'GLOBALS'
+    private ExecutorService threadPoolQueries;
+
     public void run(ConfigFile config) throws Exception{
         assert config.isValidConfig();
-        Random rng = new Random(config.seed());
+        Random rng = new Random(config.getSeed());
         Logger logger = new Logger();
 
-        MapData parsedData;
-        Floor[] generatedFloors;
-        if(config.generatedata()){
-            logger.log("Parsing map.");
-            parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
-            logger.log("Generating floors.");
-            generatedFloors = Generator.Generate(config.scale(), rng);
-            logger.log("Assigning floors to IDs.");
-            Generator.AssignFloorsToIDs(generatedFloors, parsedData, config.keepFloorAssociations());
-            logger.log("Preparing for generation.");
-            Generator.PrepareDataForGeneration(generatedFloors, parsedData);
+        MapData parsedData = null;
+        if (config.isGeneratorEnabled() || config.isIngestionEnabled()) {
+            parsedData = parseMapData(logger, config);
+        }
 
-            logger.log("Setting up targets.");
-            ITarget target = new BaseTarget();
-            if(config.saveToDisk()){
-                target = new MultiTarget(target, new FileTarget(config.toDiskTarget()));
+        Floor[] generatedFloors;
+        if(config.isGeneratorEnabled()){
+            generatedFloors = generateFloorData(logger, config, rng, parsedData);
+        } else {
+            assert config.doSerialization();
+            // Load the data from previous run
+            logger.log("Deserializing floor.");
+            generatedFloors = deserializeFloor(config);
+            logger.log("Deserializing rng.");
+            rng = deserializeRandom(config);
+        }
+
+        logger.setInitialDate(config.getGeneratorEndDate(), LocalTime.of(0,0,0));
+
+        if(config.isIngestionEnabled()){
+            logger.log("Starting ingestion.");
+            startIngestion(config, generatedFloors, parsedData, logger, rng);
+            logger.log("Ingestion started.");
+        }
+
+        Future[] queryTasks = null;
+        if(config.isQueryingEnabled()){
+            logger.log("Starting queries.");
+            queryTasks = startQueries(config, logger, rng, generatedFloors);
+            logger.log("Queries started.");
+        }
+
+        if(config.isQueryingEnabled()){
+            // First, wait for queries to finish, since they have a specified duration
+            assert queryTasks != null;
+            for(Future queryTask : queryTasks){
+                queryTask.get();
             }
-            if(config.saveToInflux()){
-                target = new MultiTarget(target, new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable()));
+        } else {
+            assert config.isIngestionEnabled();
+            // If we aren't running the queries, but are running ingestion, then we need some other way to determine
+            //   how long to run ingestion for. Otherwise they'll just stop immediately.
+            assert config.getIngestionStandaloneDuration() > 0;
+            Thread.sleep(config.getIngestionStandaloneDuration() * 1000);
+        }
+
+        if(config.isIngestionEnabled()){
+            stopIngestion();
+        }
+
+        if(config.isQueryingEnabled()) threadPoolQueries.shutdown();
+        logger.log("Done.");
+    }
+
+    private Future[] startQueries(ConfigFile config, Logger logger, Random rng, Floor[] generatedFloors) {
+        assert config.getQueriesThreadCount() > 0;
+        threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
+
+        Queries queryInstance = null;
+        if(config.useSharedQueriesInstance()) queryInstance = getQueryTargetInstance(config);
+
+        Future[] queryTasks = new Future[config.getQueriesThreadCount()];
+        for(int i = 0; i < config.getQueriesThreadCount(); i++){
+            Random queryRng = new Random(rng.nextInt());
+            if(!config.useSharedQueriesInstance()) queryInstance = getQueryTargetInstance(config);
+
+            QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, logger, generatedFloors, queryInstance, "Query " + i);
+            queryTasks[i] = threadPoolQueries.submit(queryRunnable);
+        }
+        return queryTasks;
+    }
+
+    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, Logger logger, Random rng) throws IOException {
+        assert config.getIngestThreadCount() > 0;
+        threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
+        ingestTasks = new Future[config.getIngestThreadCount()];
+        ingestRunnables = new IngestRunnable[config.getIngestThreadCount()];
+
+        ingestTarget = getTargetInstance(config.getIngestTarget(), config);
+
+        AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs(generatedFloors), config.getIngestThreadCount());
+        //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
+        //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
+        //      any queries for 'recent' data too easy. Or I could make queries for 'recent' data be the recency of
+        //      the slowest thread (currently it follows the fastest one).
+        for(int i = 0; i < config.getIngestThreadCount(); i++){
+            Random ingestRng = new Random(rng.nextInt());
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, logger, "Ingest " + i);
+            ingestTasks[i] = threadPoolIngest.submit(ingestRunnables[i]);
+        }
+    }
+
+    private void stopIngestion() throws Exception {
+        // Once it's time to stop ingestion, first tell ingestion to stop gracefully.
+        for(IngestRunnable ingestRunnable : ingestRunnables){
+            ingestRunnable.stop();
+        }
+
+        // Then Wait for ingestion to shutdown gracefully
+        for (Future ingestTask : ingestTasks) {
+            ingestTask.get();
+        }
+
+        ingestTarget.close();
+        threadPoolIngest.shutdown();
+    }
+
+    private MapData parseMapData(Logger logger, ConfigFile config){
+        logger.log("Parsing map.");
+        return MapParser.ParseMap(config.getGeneratorIdmap(), config.getGeneratorMapfolder());
+    }
+
+    private Floor[] generateFloorData(Logger logger, ConfigFile config, Random rng, MapData parsedData) throws Exception {
+        Floor[] generatedFloors;
+        logger.log("Generating floors.");
+        generatedFloors = Generator.Generate(config.getGeneratorScale(), rng);
+        logger.log("Assigning floors to IDs.");
+        Generator.AssignFloorsToIDs(generatedFloors, parsedData, config.keepFloorAssociationsForGenerator());
+        logger.log("Preparing for generation.");
+        Generator.PrepareDataForGeneration(generatedFloors, parsedData);
+
+        logger.log("Setting up targets.");
+        ITarget target = null;
+        try{
+            target = new BaseTarget();
+            for(ConfigFile.Target configTarget : config.saveGeneratedDataTargets()){
+                target = new MultiTarget(target, getTargetInstance(configTarget, config));
             }
 
             logger.log("Generating data");
             AccessPoint[] allAPs = allAPs(generatedFloors);
-            DataGenerator.Generate(allAPs, parsedData, config.startDate(), config.endDate(), rng, target, config);
+            DataGenerator.Generate(allAPs, parsedData, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
 
             if(target.shouldStopEarly()){
-                logger.log("POTENTIAL ERROR: Entry generation was stopped early.");
+                logger.log("POTENTIAL ERROR: Generation was stopped early.");
             }
-
-            target.close();
-
-            if(config.createDebugTables()){
-                logger.log("DEBUG: Filling precomputation tables.");
-                Precomputation.ComputeTotals(config.generationinterval(), generatedFloors, config);
-            }
-
-            if(config.serialize()){
-                logger.log("Serializing data.");
-                serializeData(generatedFloors, rng, config);
-            }
-        } else {
-            // Load the generated floors and parsed data from previous run
-            logger.log("Parsing map.");
-            parsedData = MapParser.ParseMap(config.idmap(), config.mapfolder());
-
-            logger.log("Deserializing data.");
-            generatedFloors = deserializeFloor(config);
-            rng = deserializeRandom(config);
+        } finally {
+            if(target != null) target.close();
         }
 
-        ExecutorService threadPoolIngest = Executors.newFixedThreadPool(config.threadsIngest());
-        ExecutorService threadPoolQueries = Executors.newFixedThreadPool(config.threadsQueries());
-        logger.setDirectly(config.endDate(), LocalTime.of(0,0,0));
-
-        Future[] ingestTasks = new Future[config.threadsIngest()];
-        IngestRunnable[] ingestRunnables = new IngestRunnable[config.threadsIngest()];
-        ITarget ingestTarget = null;
-        if(config.ingest()){
-            logger.log("Starting ingestion.");
-            ingestTarget = new InfluxTarget(config.influxUrl(), config.influxUsername(), config.influxPassword(), config.influxDBName(), config.influxTable());
-            AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs(generatedFloors), config.threadsIngest());
-            //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
-            //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
-            //      any queries for 'recent' data too easy. Or I could make queries for 'recent' data be the recency of
-            //      the slowest thread (currently it follows the fastest one).
-            for(int i = 0; i < config.threadsIngest(); i++){
-                Random ingestRng = new Random(rng.nextInt());
-                ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, logger, "Ingest " + i);
-                ingestTasks[i] = threadPoolIngest.submit(ingestRunnables[i]);
-            }
-            logger.log("Ingestion started.");
+        if(config.generatorCreateDebugTables()){
+            logger.log("DEBUG: Filling precomputation tables.");
+            Precomputation.ComputeTotals(config.getGeneratorGenerationInterval(), generatedFloors, config);
         }
 
-        Future[] queryTasks = new Future[config.threadsQueries()];
-        if(config.runqueries()){
-            logger.log("Starting queries.");
-            for(int i = 0; i < config.threadsQueries(); i++){
-                Random queryRng = new Random(rng.nextInt());
-                QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, logger, generatedFloors, "Query " + i);
-                queryTasks[i] = threadPoolQueries.submit(queryRunnable);
-            }
-            logger.log("Queries started.");
+        if(config.doSerialization()){
+            logger.log("Serializing floor and rng.");
+            serializeData(generatedFloors, rng, config);
         }
 
-        // First, wait for queries to finish, since they have a specified duration
-        for(Future queryTask : queryTasks){
-            if(queryTask != null) queryTask.get();
-        }
-
-        if(config.runqueries()){
-            // Once queries have finished, tell ingestion to stop.
-            for(IngestRunnable ingestRunnable : ingestRunnables){
-                if(ingestRunnable != null) ingestRunnable.stop();
-            }
-        } else if(config.ingest()) {
-            // If we aren't running the queries, but are running ingestion, then we need some other way to determine
-            //   how long to run ingestion for. Otherwise they'll just stop immediately.
-            Thread.sleep(config.durationStandalone() * 1000);
-
-            for(IngestRunnable ingestRunnable : ingestRunnables){
-                if(ingestRunnable != null) ingestRunnable.stop();
-            }
-        }
-
-        // Wait for ingestion tasks to shutdown
-        for (Future ingestTask : ingestTasks) {
-            if (ingestTask != null) ingestTask.get();
-        }
-
-        if(ingestTarget != null){
-            ingestTarget.close();
-        }
-
-        threadPoolIngest.shutdown();
-        threadPoolQueries.shutdown();
-        logger.log("Done.");
+        return generatedFloors;
     }
 
     private void serializeData(Floor[] generatedFloors, Random rng, ConfigFile config) throws IOException{
-        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.serializePath(), "floors.ser").toString());
+        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.getSerializationPath(), "floors.ser").toString());
             ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
             outStream.writeObject(generatedFloors);
         }
-        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.serializePath(), "random.ser").toString());
+        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.getSerializationPath(), "random.ser").toString());
             ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
             outStream.writeObject(rng);
         }
@@ -206,7 +252,7 @@ public class Program {
 
     private Floor[] deserializeFloor(ConfigFile config) throws IOException, ClassNotFoundException{
         Floor[] data;
-        try(FileInputStream inFile = new FileInputStream(Paths.get(config.serializePath(), "floors.ser").toString());
+        try(FileInputStream inFile = new FileInputStream(Paths.get(config.getSerializationPath(), "floors.ser").toString());
             ObjectInputStream inStream = new ObjectInputStream(inFile)){
             data = (Floor[]) inStream.readObject();
         }
@@ -215,7 +261,7 @@ public class Program {
 
     private Random deserializeRandom(ConfigFile config) throws IOException, ClassNotFoundException{
         Random rng;
-        try(FileInputStream inFile = new FileInputStream(Paths.get(config.serializePath(), "random.ser").toString());
+        try(FileInputStream inFile = new FileInputStream(Paths.get(config.getSerializationPath(), "random.ser").toString());
             ObjectInputStream inStream = new ObjectInputStream(inFile)){
             rng = (Random) inStream.readObject();
         }
@@ -245,5 +291,30 @@ public class Program {
         }
 
         return out;
+    }
+
+    private ITarget getTargetInstance(ConfigFile.Target target, ConfigFile config) throws IOException {
+        switch (target){
+            case INFLUX:
+                return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config.getInfluxDBName(), config.getInfluxTable());
+            case FILE:
+                return new FileTarget(config.getGeneratorDiskTarget());
+            default:
+                assert false : "New ingestion target must have been added, but target-switch wasn't updated";
+                throw new IllegalStateException("Unknown ingestion target: " + config.getIngestTarget());
+        }
+    }
+
+    private Queries getQueryTargetInstance(ConfigFile config){
+        switch (config.getQueriesTarget()){
+            case INFLUX:
+                return new InfluxQueries();
+            case FILE:
+                assert false;
+                throw new IllegalStateException("Unsupported query target: " + config.getQueriesTarget());
+            default:
+                assert false : "New query target must have been added, but query-switch wasn't updated";
+                throw new IllegalStateException("Unknown query target: " + config.getQueriesTarget());
+        }
     }
 }

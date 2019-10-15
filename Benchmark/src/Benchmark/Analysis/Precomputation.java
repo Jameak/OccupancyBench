@@ -30,16 +30,16 @@ import java.util.concurrent.TimeUnit;
  */
 public class Precomputation {
     public static void ComputeTotals(int interval, Floor[] generatedFloors, ConfigFile config) throws IOException {
-        InfluxDB writeDB = SetupConnection(config.influxUrl(), config.influxUsername(), config.influxPassword(), config, false);
-        InfluxDB readDB = SetupConnection(config.influxUrl(), config.influxUsername(), config.influxPassword(), config, true);
+        InfluxDB writeDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, false);
+        InfluxDB readDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, true);
 
-        LocalDate nextDate = config.startDate();
-        while(nextDate.isBefore(config.endDate())){
+        LocalDate nextDate = config.getGeneratorStartDate();
+        while(nextDate.isBefore(config.getGeneratorEndDate())){
             LocalDateTime nextTime = LocalDateTime.of(nextDate, LocalTime.of(0, 0, 0, 0));
             LocalDateTime endTime = LocalDateTime.of(nextDate.plusDays(1), LocalTime.of(0, 0, 0, 0));
 
             while(nextTime.isBefore(endTime)){
-                ComputeTotalForTime(readDB, writeDB, config.influxTable(), nextTime, interval, generatedFloors, config);
+                ComputeTotalForTime(readDB, writeDB, config.getInfluxTable(), nextTime, interval, generatedFloors, config);
                 nextTime = nextTime.plusSeconds(interval);
             }
 
@@ -56,7 +56,7 @@ public class Precomputation {
         String tablePrefix = GetTablePrefix(config);
         String precomputedMetaName = tablePrefix + "Meta";
 
-        Query query = new Query("SELECT COUNT(clients) FROM " + config.influxTable());
+        Query query = new Query("SELECT COUNT(clients) FROM " + config.getInfluxTable());
         QueryResult results = readDB.query(query);
         int count = 0;
         for(QueryResult.Result result : results.getResults()){
@@ -156,9 +156,9 @@ public class Precomputation {
     }
 
     private static String GetTablePrefix(ConfigFile config){
-        String tablePrefix = "Int" + config.generationinterval() + "_";
-        if(!config.keepFloorAssociations()) tablePrefix += "NoAssoc_";
-        tablePrefix += ("Scale" + config.scale()).replace(".", "_").replace(",", "_") + "_";
+        String tablePrefix = "Int" + config.getGeneratorGenerationInterval() + "_";
+        if(!config.keepFloorAssociationsForGenerator()) tablePrefix += "NoAssoc_";
+        tablePrefix += ("Scale" + config.getGeneratorScale()).replace(".", "_").replace(",", "_") + "_";
         return tablePrefix;
     }
 
@@ -170,7 +170,7 @@ public class Precomputation {
         }
 
         if(readDB){
-            influxDB.setDatabase(config.influxDBName());
+            influxDB.setDatabase(config.getInfluxDBName());
             influxDB.enableBatch(BatchOptions.DEFAULTS);
             return influxDB;
         }

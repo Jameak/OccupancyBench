@@ -18,8 +18,8 @@ public class Logger {
     private volatile LocalDateTime time;
     private volatile boolean updated;
 
-    public void setDirectly(LocalDate date, LocalTime time){
-        assert !initial_val_set : "Logger::setDirectly called more than once";
+    public void setInitialDate(LocalDate date, LocalTime time){
+        assert !initial_val_set : "Logger::setInitialDate called more than once";
         newestDate = date;
         newestTime = time;
         initial_val_set = true;

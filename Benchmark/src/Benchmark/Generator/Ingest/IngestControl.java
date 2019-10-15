@@ -1,7 +1,6 @@
 package Benchmark.Generator.Ingest;
 
 import Benchmark.CoarseTimer;
-import Benchmark.Generator.DataGenerator;
 import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;

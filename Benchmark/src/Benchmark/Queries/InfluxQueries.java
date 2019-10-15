@@ -24,15 +24,15 @@ public class InfluxQueries implements Queries{
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
-        this.measurement = config.influxTable();
-        this.influxDB = InfluxDBFactory.connect(config.influxUrl(), config.influxUsername(), config.influxPassword());
+        this.measurement = config.getInfluxTable();
+        this.influxDB = InfluxDBFactory.connect(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
         this.config = config;
         if(influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
             influxDB.close();
             throw new IOException("No connection to Influx database.");
         }
 
-        influxDB.setDatabase(config.influxDBName());
+        influxDB.setDatabase(config.getInfluxDBName());
         //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
 
         //Pre-computations of the strings needed for the 'FloorTotal' query to minimize time spent in Java code versus on the query itself:
@@ -52,7 +52,7 @@ public class InfluxQueries implements Queries{
             }
 
             sb.append(") GROUP BY time(");
-            sb.append(config.generationinterval());
+            sb.append(config.getGeneratorGenerationInterval());
             sb.append("s)");
             precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
         }
@@ -69,7 +69,7 @@ public class InfluxQueries implements Queries{
         // How do we define the start/end span for points to include at an arbitrary point in time?
         //   This is the naive option (which is probably fine for the benchmark) but has a small risk of APs appearing more than once.
         String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d GROUP BY time(%ss)",
-                measurement, toTimestamp(end), toTimestamp(start), config.generationinterval());
+                measurement, toTimestamp(end), toTimestamp(start), config.getGeneratorGenerationInterval());
 
         Query query = new Query(queryString);
         influxDB.query(query);

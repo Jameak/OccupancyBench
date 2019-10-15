@@ -21,6 +21,7 @@ public class QueryRunnable implements Runnable {
     private final Random rng;
     private final Logger logger;
     private final Floor[] generatedFloors;
+    private final Queries queryTarget;
     private final String threadName;
     private final int minTimeInterval;
     private final int maxTimeInterval;
@@ -39,23 +40,24 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQuery_TotalClients;
     private long timeSpentQuery_FloorTotal;
 
-    public QueryRunnable(ConfigFile config, Random rng, Logger logger, Floor[] generatedFloors, String threadName){
+    public QueryRunnable(ConfigFile config, Random rng, Logger logger, Floor[] generatedFloors, Queries queryTarget, String threadName){
         this.config = config;
         this.rng = rng;
         this.logger = logger;
         this.generatedFloors = generatedFloors;
+        this.queryTarget = queryTarget;
         this.threadName = threadName;
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
 
-        assert this.config.queriesPropTotalClients() >= 0;
-        this.thresholdQuery_TotalClients = config.queriesPropTotalClients();
-        assert this.config.queriesPropFloorTotals() >= 0;
-        this.thresholdQuery_FloorTotal = config.queriesPropTotalClients() + config.queriesPropFloorTotals();
-        this.totalThreshold = config.queriesPropTotalClients() + config.queriesPropFloorTotals();
+        assert this.config.getQueriesPropTotalClients() >= 0;
+        this.thresholdQuery_TotalClients = config.getQueriesPropTotalClients();
+        assert this.config.getQueriesPropFloorTotals() >= 0;
+        this.thresholdQuery_FloorTotal = config.getQueriesPropTotalClients() + config.getQueriesPropFloorTotals();
+        this.totalThreshold = config.getQueriesPropTotalClients() + config.getQueriesPropFloorTotals();
 
-        this.minTimeInterval = config.queriesIntervalMin();
-        this.maxTimeInterval = config.queriesIntervalMax();
+        this.minTimeInterval = config.getQueriesIntervalMin();
+        this.maxTimeInterval = config.getQueriesIntervalMax();
     }
 
     private QueryType selectQuery(){
@@ -98,7 +100,7 @@ public class QueryRunnable implements Runnable {
     }
 
     private LocalDateTime[] generateTime(){
-        LocalDate earliestValidDate = config.queriesEarliestValidDate();
+        LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         LocalDateTime[] time = new LocalDateTime[2];
         LocalDateTime newestValidDate = logger.getNewestTime();
@@ -138,16 +140,16 @@ public class QueryRunnable implements Runnable {
 
     private LocalDateTime generateRandomTime(LocalDateTime newestValue, LocalDateTime earliestValue){
         double choice = randomValue();
-        if(choice < config.queriesRngRangeDay()){
+        if(choice < config.getQueriesRngRangeDay()){
             // Query for some time on the newest date.
             return randomTimeBetween(newestValue.minusDays(1), newestValue, earliestValue);
-        } else if(choice < config.queriesRngRangeWeek()){
+        } else if(choice < config.getQueriesRngRangeWeek()){
             // Query for some time within the last 7 days.
             return randomTimeBetween(newestValue.minusDays(6), newestValue, earliestValue);
-        } else if(choice < config.queriesRngRangeMonth()){
+        } else if(choice < config.getQueriesRngRangeMonth()){
             // Query: within the last 30 days
             return randomTimeBetween(newestValue.minusDays(29), newestValue, earliestValue);
-        } else if(choice < config.queriesRngRangeYear()){
+        } else if(choice < config.getQueriesRngRangeYear()){
             // Query: within the last 365 days
             return randomTimeBetween(newestValue.minusDays(364), newestValue, earliestValue);
         } else {
@@ -169,7 +171,7 @@ public class QueryRunnable implements Runnable {
 
     private double randomValue(){
         // Generate a random value that follows an exponential distribution using the inversion method.
-        int lambda = config.queriesRngLambda();
+        int lambda = config.getQueriesRngLambda();
         return Math.log(1 - rng.nextDouble()) / -lambda;
     }
 
@@ -186,18 +188,17 @@ public class QueryRunnable implements Runnable {
 
     @Override
     public void run() {
-        int duration = config.queriesDuration();
-        int warmUpTime = config.queriesWarmup();
-        int reportFrequency = config.queriesReportFrequency();
-        int targetCount = config.queriesMaxCount();
+        int duration = config.getQueriesDuration();
+        int warmUpTime = config.getQueriesWarmupDuration();
+        int reportFrequency = config.getQueriesReportingFrequency();
+        int targetCount = config.getMaxQueryCount();
         CoarseTimer runTimer = new CoarseTimer();
         CoarseTimer reportTimer = new CoarseTimer();
         boolean warmUp = warmUpTime > 0;
         boolean printProgressReports =  reportFrequency > 0;
 
-        Queries queries = new InfluxQueries();
         try {
-            queries.prepare(config, generatedFloors);
+            queryTarget.prepare(config, generatedFloors);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -205,7 +206,7 @@ public class QueryRunnable implements Runnable {
         if (warmUp) {
             runTimer.start();
             while (runTimer.elapsedSeconds() < warmUpTime) {
-                runQueries(queries, true);
+                runQueries(queryTarget, true);
             }
         }
 
@@ -213,7 +214,7 @@ public class QueryRunnable implements Runnable {
             runTimer.start();
             if(printProgressReports) reportTimer.start();
             while (runTimer.elapsedSeconds() < duration) {
-                runQueries(queries, false);
+                runQueries(queryTarget, false);
 
                 if(printProgressReports) progressReport(reportTimer, reportFrequency);
             }
@@ -221,13 +222,13 @@ public class QueryRunnable implements Runnable {
             assert targetCount > 0;
             if(printProgressReports) reportTimer.start();
             while (countFull < targetCount) {
-                runQueries(queries, false);
+                runQueries(queryTarget, false);
 
                 if(printProgressReports) progressReport(reportTimer, reportFrequency);
             }
         }
-        
-        queries.done();
+
+        queryTarget.done();
         logger.log(() -> reportStats(true));
     }
 

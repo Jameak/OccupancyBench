@@ -33,9 +33,9 @@ public class DataGenerator {
      * @throws IOException Thrown if the outputTarget throws when data is added.
      */
     public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
-        int interval = config.generationinterval();
-        int loadedInterval = config.sourceinterval();
-        double scale = config.scale();
+        int interval = config.getGeneratorGenerationInterval();
+        int loadedInterval = config.getGeneratorSourceInterval();
+        double scale = config.getGeneratorScale();
 
 
         assert interval == loadedInterval || // Intervals match

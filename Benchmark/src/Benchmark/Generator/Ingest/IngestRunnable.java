@@ -33,7 +33,7 @@ public class IngestRunnable implements Runnable {
         this.rng = rng;
         this.logger = logger;
         this.threadName = threadName;
-        this.ingestControl = new IngestControl(config.desiredIngestSpeed(), config.reportFrequency(), logger, threadName);
+        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), logger, threadName);
         this.targetWrapper = new IngestWrapper(outputTarget, ingestControl);
     }
 
@@ -44,7 +44,7 @@ public class IngestRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            DataGenerator.Generate(APs, data, config.ingestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
+            DataGenerator.Generate(APs, data, config.getIngestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
         } catch (IOException e) {
             logger.log(threadName + ": Ingestion failed.");
             e.printStackTrace();

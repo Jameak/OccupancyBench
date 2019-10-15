@@ -76,7 +76,7 @@ public class Program {
     private ExecutorService threadPoolIngest;
     private Future[] ingestTasks;
     private IngestRunnable[] ingestRunnables;
-    private ITarget ingestTarget;
+    private ITarget[] ingestTargets;
 
     // QUERY 'GLOBALS'
     private ExecutorService threadPoolQueries;
@@ -145,12 +145,12 @@ public class Program {
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
         Queries queryInstance = null;
-        if(config.useSharedQueriesInstance()) queryInstance = getQueryTargetInstance(config);
+        if(config.useSharedQueriesInstance()) queryInstance = createQueryTargetInstance(config);
 
         Future[] queryTasks = new Future[config.getQueriesThreadCount()];
         for(int i = 0; i < config.getQueriesThreadCount(); i++){
             Random queryRng = new Random(rng.nextInt());
-            if(!config.useSharedQueriesInstance()) queryInstance = getQueryTargetInstance(config);
+            if(!config.useSharedQueriesInstance()) queryInstance = createQueryTargetInstance(config);
 
             QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, logger, generatedFloors, queryInstance, "Query " + i);
             queryTasks[i] = threadPoolQueries.submit(queryRunnable);
@@ -164,16 +164,36 @@ public class Program {
         ingestTasks = new Future[config.getIngestThreadCount()];
         ingestRunnables = new IngestRunnable[config.getIngestThreadCount()];
 
-        ingestTarget = getTargetInstance(config.getIngestTarget(), config);
+        ingestTargets = new ITarget[config.useSharedIngestInstance() ? 1 : config.getIngestThreadCount()];
+        if(config.useSharedIngestInstance()) ingestTargets[0] = createTargetInstance(config.getIngestTarget(), config, config.recreateIngestTarget());
 
         AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs(generatedFloors), config.getIngestThreadCount());
+        boolean firstCreatedTarget = true;
         //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
         //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
         //      any queries for 'recent' data too easy. Or I could make queries for 'recent' data be the recency of
         //      the slowest thread (currently it follows the fastest one).
-        for(int i = 0; i < config.getIngestThreadCount(); i++){
+        for(int i = 0; i < config.getIngestThreadCount(); i++) {
             Random ingestRng = new Random(rng.nextInt());
+            ITarget ingestTarget;
+            if (config.useSharedIngestInstance()) {
+                ingestTarget = ingestTargets[0];
+            } else {
+                // Only recreate the ingest-target during the first initialization. Avoids churn on the database/target.
+                //   Probably doesn't really matter since we create all the instances before ingest begins.
+                boolean recreate = false;
+                if (firstCreatedTarget) {
+                    recreate = config.recreateIngestTarget();
+                    firstCreatedTarget = false;
+                }
+                ingestTarget = createTargetInstance(config.getIngestTarget(), config, recreate);
+                ingestTargets[i] = ingestTarget;
+            }
+
             ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, logger, "Ingest " + i);
+        }
+
+        for(int i = 0; i < ingestTasks.length; i++){
             ingestTasks[i] = threadPoolIngest.submit(ingestRunnables[i]);
         }
     }
@@ -189,7 +209,9 @@ public class Program {
             ingestTask.get();
         }
 
-        ingestTarget.close();
+        for(ITarget ingestTarget : ingestTargets){
+            ingestTarget.close();
+        }
         threadPoolIngest.shutdown();
     }
 
@@ -212,7 +234,7 @@ public class Program {
         try{
             target = new BaseTarget();
             for(ConfigFile.Target configTarget : config.saveGeneratedDataTargets()){
-                target = new MultiTarget(target, getTargetInstance(configTarget, config));
+                target = new MultiTarget(target, createTargetInstance(configTarget, config, true));
             }
 
             logger.log("Generating data");
@@ -293,11 +315,12 @@ public class Program {
         return out;
     }
 
-    private ITarget getTargetInstance(ConfigFile.Target target, ConfigFile config) throws IOException {
+    private ITarget createTargetInstance(ConfigFile.Target target, ConfigFile config, boolean recreate) throws IOException {
         switch (target){
             case INFLUX:
-                return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config.getInfluxDBName(), config.getInfluxTable());
+                return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config.getInfluxDBName(), config.getInfluxTable(), recreate);
             case FILE:
+                // Not supported for ingestion. Valid config files shouldn't contain FILE as the chosen ingest-target.
                 return new FileTarget(config.getGeneratorDiskTarget());
             default:
                 assert false : "New ingestion target must have been added, but target-switch wasn't updated";
@@ -305,7 +328,7 @@ public class Program {
         }
     }
 
-    private Queries getQueryTargetInstance(ConfigFile config){
+    private Queries createQueryTargetInstance(ConfigFile config){
         switch (config.getQueriesTarget()){
             case INFLUX:
                 return new InfluxQueries();

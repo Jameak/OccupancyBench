@@ -21,7 +21,7 @@ public class InfluxTarget implements ITarget {
     private final String measurementName;
     private boolean errorsOccurred;
 
-    public InfluxTarget(String url, String username, String password, String dbName, String measurementName) throws IOException {
+    public InfluxTarget(String url, String username, String password, String dbName, String measurementName, boolean recreate) throws IOException {
         this.measurementName = measurementName;
         this.influxDB = InfluxDBFactory.connect(url, username, password);
         if(influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
@@ -29,8 +29,10 @@ public class InfluxTarget implements ITarget {
             throw new IOException("No connection to Influx database.");
         }
 
-        influxDB.query(new Query("DROP DATABASE " + dbName));
-        influxDB.query(new Query("CREATE DATABASE " + dbName));
+        if(recreate){
+            influxDB.query(new Query("DROP DATABASE " + dbName));
+            influxDB.query(new Query("CREATE DATABASE " + dbName));
+        }
 
         influxDB.setDatabase(dbName);
         influxDB.enableBatch(BatchOptions.DEFAULTS.exceptionHandler((points, throwable) -> errorsOccurred = true));

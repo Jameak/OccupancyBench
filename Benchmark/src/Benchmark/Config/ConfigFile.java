@@ -69,6 +69,8 @@ public class ConfigFile {
     private static final String INGEST_REPORT_FREQUENCY    = "ingest.reportfrequency";
     private static final String INGEST_STANDALONE_DURATION = "ingest.standaloneduration";
     private static final String INGEST_TARGET              = "ingest.target";
+    private static final String INGEST_TARGET_RECREATE     = "ingest.target.recreate";
+    private static final String INGEST_SHARED_INSTANCE     = "ingest.target.sharedinstance";
     private static final String INGEST_THREADS             = "ingest.threads";
     private boolean   ingestEnabled;
     private LocalDate ingestStartDate;
@@ -76,12 +78,14 @@ public class ConfigFile {
     private int       ingestReportFrequency;
     private int       ingestDurationStandalone;
     private Target    ingestTarget;
+    private boolean   ingestTargetRecreate;
+    private boolean   ingestTargetSharedInstance;
     private int       ingestThreads;
 
     private static final String QUERIES_ENABLED                  = "queries.enabled";
     private static final String QUERIES_TARGET                   = "queries.target";
+    private static final String QUERIES_SHARED_INSTANCE          = "queries.target.sharedinstance";
     private static final String QUERIES_THREADS                  = "queries.threads";
-    private static final String QUERIES_SHARED_INSTANCE          = "queries.sharedinstance";
     private static final String QUERIES_DURATION                 = "queries.duration.time";
     private static final String QUERIES_WARMUP                   = "queries.duration.warmup";
     private static final String QUERIES_MAX_COUNT                = "queries.duration.count";
@@ -178,6 +182,8 @@ public class ConfigFile {
         config.prop.setProperty(INGEST_REPORT_FREQUENCY, "-1");
         config.prop.setProperty(INGEST_STANDALONE_DURATION, "-1");
         config.prop.setProperty(INGEST_TARGET, "influx");
+        config.prop.setProperty(INGEST_TARGET_RECREATE, "false");
+        config.prop.setProperty(INGEST_SHARED_INSTANCE, "true");
         config.prop.setProperty(INGEST_THREADS, "1");
 
         //Queries
@@ -236,13 +242,15 @@ public class ConfigFile {
         influxTable    = prop.getProperty(INFLUX_TABLE);
 
         //Ingest
-        ingestEnabled            = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED));
-        ingestStartDate          = LocalDate.parse(     prop.getProperty(INGEST_START_DATE));
-        ingestSpeed              = Integer.parseInt(    prop.getProperty(INGEST_SPEED));
-        ingestReportFrequency    = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY));
-        ingestDurationStandalone = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION));
-        ingestTarget             = Target.valueOf(      prop.getProperty(INGEST_TARGET).toUpperCase().trim());
-        ingestThreads            = Integer.parseInt(    prop.getProperty(INGEST_THREADS));
+        ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED));
+        ingestStartDate            = LocalDate.parse(     prop.getProperty(INGEST_START_DATE));
+        ingestSpeed                = Integer.parseInt(    prop.getProperty(INGEST_SPEED));
+        ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY));
+        ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION));
+        ingestTarget               = Target.valueOf(      prop.getProperty(INGEST_TARGET).toUpperCase().trim());
+        ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE));
+        ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE));
+        ingestThreads              = Integer.parseInt(    prop.getProperty(INGEST_THREADS));
 
         //Queries
         queriesEnabled           = Boolean.parseBoolean(prop.getProperty(QUERIES_ENABLED));
@@ -312,6 +320,8 @@ public class ConfigFile {
             if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";
             assert ingestThreads > 0;
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
+            assert ingestTarget != Target.FILE;
+            if(ingestTarget == Target.FILE) return "Unsupported ingest target 'FILE' (" + INGEST_TARGET + ")";
 
             if(!queriesEnabled){
                 assert ingestDurationStandalone > 0;
@@ -539,5 +549,13 @@ public class ConfigFile {
 
     public boolean useSharedQueriesInstance() {
         return queriesSharedInstance;
+    }
+
+    public boolean useSharedIngestInstance() {
+        return ingestTargetSharedInstance;
+    }
+
+    public boolean recreateIngestTarget() {
+        return ingestTargetRecreate;
     }
 }

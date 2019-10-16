@@ -50,11 +50,11 @@ public class QueryRunnable implements Runnable {
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
 
-        assert this.config.getQueriesPropTotalClients() >= 0;
-        this.thresholdQuery_TotalClients = config.getQueriesPropTotalClients();
-        assert this.config.getQueriesPropFloorTotals() >= 0;
-        this.thresholdQuery_FloorTotal = config.getQueriesPropTotalClients() + config.getQueriesPropFloorTotals();
-        this.totalThreshold = config.getQueriesPropTotalClients() + config.getQueriesPropFloorTotals();
+        assert this.config.getQueriesWeightTotalClients() >= 0;
+        this.thresholdQuery_TotalClients = config.getQueriesWeightTotalClients();
+        assert this.config.getQueriesWeightFloorTotals() >= 0;
+        this.thresholdQuery_FloorTotal = config.getQueriesWeightTotalClients() + config.getQueriesWeightFloorTotals();
+        this.totalThreshold = config.getQueriesWeightTotalClients() + config.getQueriesWeightFloorTotals();
 
         this.minTimeInterval = config.getQueriesIntervalMin();
         this.maxTimeInterval = config.getQueriesIntervalMax();
@@ -171,7 +171,7 @@ public class QueryRunnable implements Runnable {
 
     private double randomValue(){
         // Generate a random value that follows an exponential distribution using the inversion method.
-        int lambda = config.getQueriesRngLambda();
+        double lambda = config.getQueriesRngLambda();
         return Math.log(1 - rng.nextDouble()) / -lambda;
     }
 

@@ -8,6 +8,7 @@ import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.ITarget;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -32,7 +33,7 @@ public class DataGenerator {
      * @param config The config file to use.
      * @throws IOException Thrown if the outputTarget throws when data is added.
      */
-    public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException {
+    public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException, SQLException {
         int interval = config.getGeneratorGenerationInterval();
         int loadedInterval = config.getGeneratorSourceInterval();
         double scale = config.getGeneratorScale();
@@ -57,7 +58,9 @@ public class DataGenerator {
         }
     }
 
-    private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval, int loadedInterval, AccessPoint[] APs, LocalDate[] sortedEntryKeys, MapData data, Random rng, double scale, ITarget outputTarget) throws IOException {
+    private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval,
+                                             int loadedInterval, AccessPoint[] APs, LocalDate[] sortedEntryKeys,
+                                             MapData data, Random rng, double scale, ITarget outputTarget) throws IOException, SQLException {
         boolean generateFasterThanLoadedData = interval < loadedInterval;
         boolean generateSlowerThanLoadedData = interval > loadedInterval;
 
@@ -124,7 +127,7 @@ public class DataGenerator {
         return nextDate;
     }
 
-    private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng, LocalDate nextDate, double scale, ITarget outputTarget) throws IOException {
+    private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng, LocalDate nextDate, double scale, ITarget outputTarget) throws IOException, SQLException {
         LocalTime previousReadingTime = startTime;
 
         for (AccessPoint AP : APs) {

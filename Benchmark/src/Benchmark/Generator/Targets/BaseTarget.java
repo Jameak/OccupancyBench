@@ -10,11 +10,11 @@ import java.io.IOException;
  */
 public class BaseTarget implements ITarget {
     @Override
-    public void add(GeneratedEntry entry) throws IOException { }
+    public void add(GeneratedEntry entry) { }
 
     @Override
     public boolean shouldStopEarly() { return false; }
 
     @Override
-    public void close() throws Exception { }
+    public void close() { }
 }

@@ -3,6 +3,7 @@ package Benchmark.Queries;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.Floor;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 
 /**
@@ -10,8 +11,8 @@ import java.time.LocalDateTime;
  */
 public interface Queries {
     void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception;
-    void done();
+    void done() throws SQLException;
 
-    int computeTotalClients(LocalDateTime start, LocalDateTime end);
-    int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors);
+    int computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException;
+    int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException;
 }

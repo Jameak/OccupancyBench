@@ -4,6 +4,7 @@ import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import Benchmark.Generator.Ingest.IngestControl;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 /**
  * Wraps the given target in an ingest-controller to facilitate monitoring and control of the ingest-process.
@@ -23,7 +24,7 @@ public class IngestWrapper implements ITarget {
     }
 
     @Override
-    public void add(GeneratedEntry entry) throws IOException {
+    public void add(GeneratedEntry entry) throws IOException, SQLException {
         wrappedTarget.add(entry);
         ingestControl.add(entry);
     }

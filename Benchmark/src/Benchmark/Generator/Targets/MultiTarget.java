@@ -3,6 +3,7 @@ package Benchmark.Generator.Targets;
 import Benchmark.Generator.GeneratedData.GeneratedEntry;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 /**
  * Facilitates composition of ITarget instances.
@@ -17,7 +18,7 @@ public class MultiTarget implements ITarget {
     }
 
     @Override
-    public void add(GeneratedEntry entry) throws IOException {
+    public void add(GeneratedEntry entry) throws IOException, SQLException {
         target1.add(entry);
         target2.add(entry);
     }

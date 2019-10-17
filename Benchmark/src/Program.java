@@ -11,11 +11,13 @@ import Benchmark.Loader.MapParser;
 import Benchmark.Queries.InfluxQueries;
 import Benchmark.Queries.Queries;
 import Benchmark.Queries.QueryRunnable;
+import Benchmark.Queries.TimescaleQueries;
 
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -158,7 +160,7 @@ public class Program {
         return queryTasks;
     }
 
-    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, Logger logger, Random rng) throws IOException {
+    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, Logger logger, Random rng) throws IOException, SQLException {
         assert config.getIngestThreadCount() > 0;
         threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
         ingestTasks = new Future[config.getIngestThreadCount()];
@@ -315,13 +317,18 @@ public class Program {
         return out;
     }
 
-    private ITarget createTargetInstance(ConfigFile.Target target, ConfigFile config, boolean recreate) throws IOException {
+    private ITarget createTargetInstance(ConfigFile.Target target, ConfigFile config, boolean recreate) throws IOException, SQLException {
         switch (target){
             case INFLUX:
-                return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config.getInfluxDBName(), config.getInfluxTable(), recreate);
+                return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(),
+                        config.getInfluxDBName(), config.getInfluxTable(), recreate);
             case FILE:
                 // Not supported for ingestion. Valid config files shouldn't contain FILE as the chosen ingest-target.
                 return new FileTarget(config.getGeneratorDiskTarget());
+            case TIMESCALE:
+                return new TimescaleTarget(config.getTimescaleHost(), config.getTimescaleDBName(),
+                        config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleTable(),
+                        recreate, config.getTimescaleBatchSize(), config.reWriteBatchedTimescaleInserts());
             default:
                 assert false : "New ingestion target must have been added, but target-switch wasn't updated";
                 throw new IllegalStateException("Unknown ingestion target: " + config.getIngestTarget());
@@ -332,6 +339,8 @@ public class Program {
         switch (config.getQueriesTarget()){
             case INFLUX:
                 return new InfluxQueries();
+            case TIMESCALE:
+                return new TimescaleQueries();
             case FILE:
                 assert false;
                 throw new IllegalStateException("Unsupported query target: " + config.getQueriesTarget());

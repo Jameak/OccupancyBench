@@ -118,7 +118,7 @@ public class ConfigFile {
      */
     private static final String GENERATOR_CREATE_DEBUG_TABLES     = "generator.data.createdebugtables";
     /**
-     * Type: Comma-separated string of accepted values. Accepted values are: FILE, INFLUX
+     * Type: Comma-separated string of accepted values. Accepted values are: FILE, INFLUX, TIMESCALE
      * The outputs to add generated data to. If multiple targets are specified, all targets receive data as it is generated.
      */
     private static final String GENERATOR_OUTPUT_TARGETS          = "generator.output.targets";
@@ -173,6 +173,50 @@ public class ConfigFile {
     private String  influxTable;
 
     /**
+     * Type: String
+     * The host of the Influx-database to connect to. May include a port-number.
+     */
+    private static final String TIMESCALE_HOST      = "timescale.host";
+    /**
+     * Type: String
+     * The username of the Timescale user to use.
+     */
+    private static final String TIMESCALE_USERNAME = "timescale.username";
+    /**
+     * Type: String
+     * The password of the specified Timescale user.
+     */
+    private static final String TIMESCALE_PASSWORD = "timescale.password";
+    /**
+     * Type: String
+     * The name of the database to generate/query.
+     * The database must have been created already.
+     */
+    private static final String TIMESCALE_DBNAME   = "timescale.dbname";
+    /**
+     * Type: String
+     * The name of the Timescale-table to generate/query.
+     */
+    private static final String TIMESCALE_TABLE    = "timescale.table";
+    /**
+     * Type: Integer
+     * The number of inserts to batch together during generation/ingestion.
+     */
+    private static final String TIMESCALE_BATCHSIZE     = "timescale.batchsize";
+    /**
+     * Type: Boolean
+     * Controls whether the property "reWriteBatchedInserts" is included in the timescale connection string.
+     */
+    private static final String TIMESCALE_REWRITE_BATCH = "timescale.rewritebatchedinserts";
+    private String  timescaleHost;
+    private String  timescaleUsername;
+    private String  timescalePassword;
+    private String  timescaleDBName;
+    private String  timescaleTable;
+    private Integer timescaleBatchSize;
+    private boolean timescaleReWriteBatchedInserts;
+
+    /**
      * Type: Boolean
      * Controls whether ingestion is enabled.
      */
@@ -202,7 +246,7 @@ public class ConfigFile {
      */
     private static final String INGEST_STANDALONE_DURATION = "ingest.standaloneduration";
     /**
-     * Type: A single accepted value. Accepted values are: INFLUX
+     * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE
      * The target to write generated ingest-data to.
      */
     private static final String INGEST_TARGET              = "ingest.target";
@@ -241,7 +285,7 @@ public class ConfigFile {
      */
     private static final String QUERIES_ENABLED                  = "queries.enabled";
     /**
-     * Type: A single accepted value. Accepted values are: INFLUX
+     * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE
      * The target to run queries against.
      */
     private static final String QUERIES_TARGET                   = "queries.target";
@@ -381,7 +425,7 @@ public class ConfigFile {
     private String validationError = "NO ERROR";
 
     public enum Target{
-        INFLUX, FILE
+        FILE, INFLUX, TIMESCALE
     }
 
     private ConfigFile(){ }
@@ -431,6 +475,15 @@ public class ConfigFile {
         config.prop.setProperty(INFLUX_PASSWORD, "PASSWORD");
         config.prop.setProperty(INFLUX_DBNAME, "benchmark");
         config.prop.setProperty(INFLUX_TABLE, "generated");
+
+        //Timescale
+        config.prop.setProperty(TIMESCALE_HOST, "localhost:5432");
+        config.prop.setProperty(TIMESCALE_USERNAME, "USERNAME");
+        config.prop.setProperty(TIMESCALE_PASSWORD, "PASSWORD");
+        config.prop.setProperty(TIMESCALE_DBNAME, "benchmark");
+        config.prop.setProperty(TIMESCALE_TABLE, "generated");
+        config.prop.setProperty(TIMESCALE_BATCHSIZE, "1000");
+        config.prop.setProperty(TIMESCALE_REWRITE_BATCH, "true");
 
         //Ingest
         config.prop.setProperty(INGEST_ENABLED, "true");
@@ -497,6 +550,15 @@ public class ConfigFile {
         influxPassword = prop.getProperty(INFLUX_PASSWORD);
         influxDBName   = prop.getProperty(INFLUX_DBNAME);
         influxTable    = prop.getProperty(INFLUX_TABLE);
+
+        //Timescale
+        timescaleHost                  =                      prop.getProperty(TIMESCALE_HOST);
+        timescaleUsername              =                      prop.getProperty(TIMESCALE_USERNAME);
+        timescalePassword              =                      prop.getProperty(TIMESCALE_PASSWORD);
+        timescaleDBName                =                      prop.getProperty(TIMESCALE_DBNAME);
+        timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE);
+        timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE));
+        timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH));
 
         //Ingest
         ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED));
@@ -613,6 +675,10 @@ public class ConfigFile {
             assert ingestTarget.equals(queriesTarget);
             if(!(ingestTarget.equals(queriesTarget))) return "Ingestion and queries are both enabled, but have different targets (" + INGEST_TARGET + ", " + QUERIES_TARGET + ")";
         }
+
+        // ---- Databases ----
+        assert timescaleBatchSize > 0;
+        if(!(timescaleBatchSize > 0)) return TIMESCALE_BATCHSIZE + ": Batch size must be > 0";
 
         return null;
     }
@@ -817,5 +883,33 @@ public class ConfigFile {
 
     public boolean recreateIngestTarget() {
         return ingestTargetRecreate;
+    }
+
+    public String getTimescaleHost() {
+        return timescaleHost;
+    }
+
+    public String getTimescaleUsername() {
+        return timescaleUsername;
+    }
+
+    public String getTimescalePassword() {
+        return timescalePassword;
+    }
+
+    public String getTimescaleDBName() {
+        return timescaleDBName;
+    }
+
+    public String getTimescaleTable() {
+        return timescaleTable;
+    }
+
+    public Integer getTimescaleBatchSize() {
+        return timescaleBatchSize;
+    }
+
+    public boolean reWriteBatchedTimescaleInserts() {
+        return timescaleReWriteBatchedInserts;
     }
 }

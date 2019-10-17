@@ -6,6 +6,7 @@ import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -67,7 +68,7 @@ public class QueryRunnable implements Runnable {
         return QueryType.UNKNOWN;
     }
 
-    private void runQueries(Queries queries, boolean warmUp){
+    private void runQueries(Queries queries, boolean warmUp) throws SQLException{
         switch (selectQuery()){
             case TotalClients:
             {
@@ -204,31 +205,45 @@ public class QueryRunnable implements Runnable {
         }
 
         if (warmUp) {
-            runTimer.start();
-            while (runTimer.elapsedSeconds() < warmUpTime) {
-                runQueries(queryTarget, true);
+            try {
+                runTimer.start();
+                while (runTimer.elapsedSeconds() < warmUpTime) {
+                    runQueries(queryTarget, true);
+                }
+            } catch (SQLException e) {
+                logger.log(threadName + ": SQL Exception during querying warmup.");
+                e.printStackTrace();
             }
         }
 
-        if(duration > 0){
-            runTimer.start();
-            if(printProgressReports) reportTimer.start();
-            while (runTimer.elapsedSeconds() < duration) {
-                runQueries(queryTarget, false);
+        try {
+            if(duration > 0){
+                runTimer.start();
+                if(printProgressReports) reportTimer.start();
+                while (runTimer.elapsedSeconds() < duration) {
+                    runQueries(queryTarget, false);
 
-                if(printProgressReports) progressReport(reportTimer, reportFrequency);
-            }
-        } else {
-            assert targetCount > 0;
-            if(printProgressReports) reportTimer.start();
-            while (countFull < targetCount) {
-                runQueries(queryTarget, false);
+                    if(printProgressReports) progressReport(reportTimer, reportFrequency);
+                }
+            } else {
+                assert targetCount > 0;
+                if(printProgressReports) reportTimer.start();
+                while (countFull < targetCount) {
+                        runQueries(queryTarget, false);
 
-                if(printProgressReports) progressReport(reportTimer, reportFrequency);
+                    if(printProgressReports) progressReport(reportTimer, reportFrequency);
+                }
             }
+        } catch (SQLException e) {
+            logger.log(threadName + ": SQL Exception during querying.");
+            e.printStackTrace();
         }
 
-        queryTarget.done();
+        try {
+            queryTarget.done();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         logger.log(() -> reportStats(true));
     }
 

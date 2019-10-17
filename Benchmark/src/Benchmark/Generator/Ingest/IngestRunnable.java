@@ -9,6 +9,7 @@ import Benchmark.Generator.Targets.IngestWrapper;
 import Benchmark.Logger;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Random;
 
@@ -45,7 +46,7 @@ public class IngestRunnable implements Runnable {
     public void run() {
         try {
             DataGenerator.Generate(APs, data, config.getIngestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
-        } catch (IOException e) {
+        } catch (IOException | SQLException e) {
             logger.log(threadName + ": Ingestion failed.");
             e.printStackTrace();
         }

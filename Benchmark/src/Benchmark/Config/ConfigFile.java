@@ -165,16 +165,30 @@ public class ConfigFile {
      * Type: String
      * The name of the Influx-measurement to generate/query.
      */
-    private static final String INFLUX_TABLE    = "influx.table";
+    private static final String INFLUX_TABLE     = "influx.table";
+    /**
+     * Type: Integer
+     * The max number of inserts to batch together during generation/ingestion.
+     * A batch-write is issued if either the batch-size or flush-time is reached
+     */
+    private static final String INFLUX_BATCHSIZE = "influx.batch.size";
+    /**
+     * Type: Integer
+     * The max number of milliseconds between batch-writes.
+     * A batch-write is issued if either the batch-size or flush-time is reached
+     */
+    private static final String INFLUX_BATCH_FLUSH_TIME = "influx.batch.flushtime";
     private String  influxUrl;
     private String  influxUsername;
     private String  influxPassword;
     private String  influxDBName;
     private String  influxTable;
+    private int     influxBatchsize;
+    private int     influxFlushtime;
 
     /**
      * Type: String
-     * The host of the Influx-database to connect to. May include a port-number.
+     * The host of the Timescale-database to connect to. May include a port-number.
      */
     private static final String TIMESCALE_HOST      = "timescale.host";
     /**
@@ -439,6 +453,7 @@ public class ConfigFile {
         config.parseProps();
 
         String error = config.validateConfig();
+        assert error == null : error;
         if(error == null) config.validated = true;
         else config.validationError = error;
 
@@ -475,6 +490,8 @@ public class ConfigFile {
         config.prop.setProperty(INFLUX_PASSWORD, "PASSWORD");
         config.prop.setProperty(INFLUX_DBNAME, "benchmark");
         config.prop.setProperty(INFLUX_TABLE, "generated");
+        config.prop.setProperty(INFLUX_BATCHSIZE, "10000");
+        config.prop.setProperty(INFLUX_BATCH_FLUSH_TIME, "1000");
 
         //Timescale
         config.prop.setProperty(TIMESCALE_HOST, "localhost:5432");
@@ -545,11 +562,13 @@ public class ConfigFile {
         generatorToDiskTarget          =                      prop.getProperty(GENERATOR_OUTPUT_TO_DISK_TARGET);
 
         //Influx
-        influxUrl      = prop.getProperty(INFLUX_URL);
-        influxUsername = prop.getProperty(INFLUX_USERNAME);
-        influxPassword = prop.getProperty(INFLUX_PASSWORD);
-        influxDBName   = prop.getProperty(INFLUX_DBNAME);
-        influxTable    = prop.getProperty(INFLUX_TABLE);
+        influxUrl       =                  prop.getProperty(INFLUX_URL);
+        influxUsername  =                  prop.getProperty(INFLUX_USERNAME);
+        influxPassword  =                  prop.getProperty(INFLUX_PASSWORD);
+        influxDBName    =                  prop.getProperty(INFLUX_DBNAME);
+        influxTable     =                  prop.getProperty(INFLUX_TABLE);
+        influxBatchsize = Integer.parseInt(prop.getProperty(INFLUX_BATCHSIZE));
+        influxFlushtime = Integer.parseInt(prop.getProperty(INFLUX_BATCH_FLUSH_TIME));
 
         //Timescale
         timescaleHost                  =                      prop.getProperty(TIMESCALE_HOST);
@@ -592,45 +611,31 @@ public class ConfigFile {
         queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX));
     }
 
-    @SuppressWarnings("ConstantConditions")
     private String validateConfig(){
         // ---- Serialize ----
         if(serialize){
-            assert Paths.get(serializePath).toFile().exists();
             if(!Paths.get(serializePath).toFile().exists()) return SERIALIZE_PATH + ": Serialize path doesn't exist: " + Paths.get(serializePath).toFile().getAbsolutePath();
         }
         if(!serialize){
-            assert generatorEnabled;
             if(!generatorEnabled) return "Both serialization (" + SERIALIZE_ENABLED + ") and the generator (" + GENERATOR_ENABLED + ") are disabled. One or both must be enabled to create/load the data needed for ingestion and queries.";
         }
 
         if(serialize || generatorEnabled){
             // Serialization doesn't serialize the source-data that ingestion relies on, so still ensure that those paths are valid.
-            assert Paths.get(generatorIdmap).toFile().exists();
             if(!Paths.get(generatorIdmap).toFile().exists()) return GENERATOR_IDMAP + ": Path doesn't exist: " + Paths.get(generatorIdmap).toFile().getAbsolutePath();
-            assert Paths.get(generatorMapfolder).toFile().exists();
             if(!Paths.get(generatorMapfolder).toFile().exists()) return GENERATOR_MAP_FOLDER + ": Folder path doesn't exist: " + Paths.get(generatorMapfolder).toFile().getAbsolutePath();
         }
 
         // ---- Generator ----
         if(generatorEnabled){
-            assert generatorStartDate.isBefore(generatorEndDate) || generatorStartDate.isEqual(generatorEndDate);
             if(!(generatorStartDate.isBefore(generatorEndDate) || generatorStartDate.isEqual(generatorEndDate))) return GENERATOR_START_DATE + ": Start date " + generatorStartDate + " must be before end date " + generatorEndDate + "(" + GENERATOR_END_DATE + ")";
-            assert generatorOutputTargets.length > 0;
             if(!(generatorOutputTargets.length > 0)) return "Generator enabled but no generator targets specified (" + GENERATOR_OUTPUT_TARGETS + ")";
         }
 
         if(generatorEnabled || ingestEnabled){
-            assert generatorScale > 0.0;
             if(!(generatorScale > 0.0)) return GENERATOR_SCALE + ": Scale must be > 0.0";
-            assert generatorSourceInterval > 0;
             if(!(generatorSourceInterval > 0)) return GENERATOR_SOURCE_INTERVAL + ": Source interval must be > 0";
-            assert generatorGenerationInterval > 0;
             if(!(generatorGenerationInterval > 0)) return GENERATOR_GENERATION_INTERVAL + ": Generation interval must be > 0";
-            assert generatorGenerationInterval == generatorSourceInterval || // Intervals match
-                    (generatorGenerationInterval < generatorSourceInterval && generatorSourceInterval % generatorGenerationInterval == 0) || // Interval to generate is quicker than source-interval. Then the generate-interval must be evenly divisible by the source-interval
-                    (generatorGenerationInterval > generatorSourceInterval && generatorGenerationInterval % generatorSourceInterval == 0) :  // Interval to generate is slower than source-interval.  Then the source-interval must be evenly divisible by the generate-interval
-                    "Mismatching intervals. Intervals must match, or one interval must be evenly divisible by the other.\n Generation interval: " + generatorGenerationInterval + ". Source interval: " + generatorSourceInterval;
             if(!(generatorGenerationInterval == generatorSourceInterval ||
                     (generatorGenerationInterval < generatorSourceInterval && generatorSourceInterval % generatorGenerationInterval == 0) ||
                     (generatorGenerationInterval > generatorSourceInterval && generatorGenerationInterval % generatorSourceInterval == 0))) return GENERATOR_SOURCE_INTERVAL + " and " + GENERATOR_GENERATION_INTERVAL + ": Source interval and generation interval must be equal, or one must be evenly divisible by the other";
@@ -638,46 +643,34 @@ public class ConfigFile {
 
         // ---- Ingest ----
         if(ingestEnabled){
-            assert ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate);
             if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";
-            assert ingestThreads > 0;
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
-            assert ingestTarget != Target.FILE;
             if(ingestTarget == Target.FILE) return "Unsupported ingest target 'FILE' (" + INGEST_TARGET + ")";
 
             if(!queriesEnabled){
-                assert ingestDurationStandalone > 0;
                 if(!(ingestDurationStandalone > 0)) return "Ingestion is enabled but queries aren't. No ingest-duration is set (" + INGEST_STANDALONE_DURATION + ") so ingestion will end immediately.";
             }
         }
 
         // ---- Queries ----
         if(queriesEnabled){
-            assert queriesTarget != Target.FILE;
             if(queriesTarget == Target.FILE) return "Unsupported query target 'FILE' (" + QUERIES_TARGET + ")";
-            assert queriesThreads > 0;
             if(!(queriesThreads > 0)) return QUERIES_THREADS + ": Query threads must be > 0";
-            assert queriesDuration > 0 || queriesMaxCount > 0;
             if(!(queriesDuration > 0 || queriesMaxCount > 0)) return "Query-duration (" + QUERIES_DURATION + ") must be > 0 or max query count (" + QUERIES_MAX_COUNT + ") must be > 0";
-            assert queriesWeightTotalClients >= 0;
             if(!(queriesWeightTotalClients >= 0)) return QUERIES_WEIGHT_TOTAL_CLIENTS + ": Query-weight for 'TotalClients' must be >= 0";
-            assert queriesWeightFloorTotals >= 0;
             if(!(queriesWeightFloorTotals >= 0)) return QUERIES_WEIGHT_FLOOR_TOTALS + ": Query-weight for 'FloorTotals' must be >= 0";
-            assert queriesIntervalMin >= 0;
             if(!(queriesIntervalMin >= 0)) return QUERIES_INTERVAL_MIN + ": Minimum query interval must be >= 0";
-            assert queriesIntervalMax >= 0;
             if(!(queriesIntervalMax >= 0)) return QUERIES_INTERVAL_MAX + ": Maximum query interval must be >= 0";
-            assert queriesIntervalMin <= queriesIntervalMax;
             if(!(queriesIntervalMin <= queriesIntervalMax)) return QUERIES_INTERVAL_MIN + " and " + QUERIES_INTERVAL_MAX + ": Minimum query interval must be <= maximum query interval";
         }
 
         if(ingestEnabled && queriesEnabled){
-            assert ingestTarget.equals(queriesTarget);
             if(!(ingestTarget.equals(queriesTarget))) return "Ingestion and queries are both enabled, but have different targets (" + INGEST_TARGET + ", " + QUERIES_TARGET + ")";
         }
 
         // ---- Databases ----
-        assert timescaleBatchSize > 0;
+        if(!(influxBatchsize > 0)) return INFLUX_BATCHSIZE + ": Batch size must be > 0";
+        if(!(influxFlushtime > 0)) return INFLUX_BATCH_FLUSH_TIME + ": Flush time must be > 0";
         if(!(timescaleBatchSize > 0)) return TIMESCALE_BATCHSIZE + ": Batch size must be > 0";
 
         return null;
@@ -911,5 +904,13 @@ public class ConfigFile {
 
     public boolean reWriteBatchedTimescaleInserts() {
         return timescaleReWriteBatchedInserts;
+    }
+
+    public int getInfluxBatchsize() {
+        return influxBatchsize;
+    }
+
+    public int getInfluxFlushtime() {
+        return influxFlushtime;
     }
 }

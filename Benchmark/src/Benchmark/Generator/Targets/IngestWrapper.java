@@ -23,6 +23,10 @@ public class IngestWrapper implements ITarget {
         stop = true;
     }
 
+    public boolean didWrappedTargetCauseStop(){
+        return wrappedTarget.shouldStopEarly();
+    }
+
     @Override
     public void add(GeneratedEntry entry) throws IOException, SQLException {
         wrappedTarget.add(entry);

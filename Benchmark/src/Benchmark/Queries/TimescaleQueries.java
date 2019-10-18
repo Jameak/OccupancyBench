@@ -13,6 +13,9 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * An implementation of the benchmark-queries for TimescaleDB.
+ */
 public class TimescaleQueries extends JdbcQueries {
     private String table;
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();

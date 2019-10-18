@@ -321,7 +321,8 @@ public class Program {
         switch (target){
             case INFLUX:
                 return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(),
-                        config.getInfluxDBName(), config.getInfluxTable(), recreate);
+                        config.getInfluxDBName(), config.getInfluxTable(), recreate, config.getInfluxBatchsize(),
+                        config.getInfluxFlushtime());
             case FILE:
                 // Not supported for ingestion. Valid config files shouldn't contain FILE as the chosen ingest-target.
                 return new FileTarget(config.getGeneratorDiskTarget());

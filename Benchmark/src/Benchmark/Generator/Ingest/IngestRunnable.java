@@ -51,6 +51,10 @@ public class IngestRunnable implements Runnable {
             e.printStackTrace();
         }
 
+        if(targetWrapper.didWrappedTargetCauseStop()){
+            logger.log(threadName + ": Error might have occurred during ingestion.");
+        }
+
         ingestControl.printFinalStats();
     }
 }

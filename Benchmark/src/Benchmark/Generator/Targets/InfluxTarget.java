@@ -1,7 +1,6 @@
 package Benchmark.Generator.Targets;
 
 import Benchmark.Generator.GeneratedData.GeneratedEntry;
-import org.influxdb.BatchOptions;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Point;
@@ -9,6 +8,7 @@ import org.influxdb.dto.Query;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -19,7 +19,7 @@ public class InfluxTarget implements ITarget {
     private final String measurementName;
     private boolean errorsOccurred;
 
-    public InfluxTarget(String url, String username, String password, String dbName, String measurementName, boolean recreate) throws IOException {
+    public InfluxTarget(String url, String username, String password, String dbName, String measurementName, boolean recreate, int maxBatchSize, int flushDuration) throws IOException {
         this.measurementName = measurementName;
         this.influxDB = InfluxDBFactory.connect(url, username, password);
         if(influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
@@ -33,7 +33,10 @@ public class InfluxTarget implements ITarget {
         }
 
         influxDB.setDatabase(dbName);
-        influxDB.enableBatch(BatchOptions.DEFAULTS.exceptionHandler((points, throwable) -> errorsOccurred = true));
+        influxDB.enableBatch(maxBatchSize, flushDuration, TimeUnit.MILLISECONDS, Executors.defaultThreadFactory(), (points, throwable) -> {
+            errorsOccurred = true;
+            assert false : "Error occurred during Influx insertion.";
+        });
     }
 
     @Override
@@ -55,6 +58,7 @@ public class InfluxTarget implements ITarget {
 
     @Override
     public void close() {
+        influxDB.disableBatch();
         influxDB.close();
     }
 }

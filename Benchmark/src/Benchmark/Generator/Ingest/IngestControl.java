@@ -14,7 +14,7 @@ public class IngestControl {
     private final CoarseTimer speedTimer;
     private final PreciseTimer busyTimer;
     private final int desiredIngestSpeedPer100Millis;
-    private int totalCounter;
+    private long totalCounter;
     private int reportCounter;
     private int speedCounter;
     private boolean timersStarted;
@@ -23,7 +23,7 @@ public class IngestControl {
     private final int reportFrequencyMillis;
     private final Logger logger;
     private final String threadName;
-    private int sleepDuration = 0;
+    private long sleepDuration = 0;
 
     public IngestControl(int desiredIngestSpeed, int reportFrequency, Logger logger, String threadName){
         this.desiredIngestSpeedPer100Millis = desiredIngestSpeed / 10;

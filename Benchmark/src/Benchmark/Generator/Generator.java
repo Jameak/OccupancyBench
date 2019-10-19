@@ -72,7 +72,7 @@ public class Generator {
                 } else {
                     matchesFailedInARow++;
                     if (matchesFailedInARow >= 2) {
-                        throw new RuntimeException("Failed matching AP with ID after assignment reset. Aborting"); // TODO: Replace with something that can be caught at a higher level.
+                        throw new IllegalStateException("Failed matching AP with ID after assignment reset. Aborting");
                     }
 
                     assert assignedIDs.get(AP.getLocation()) != null : "Failed to find match for AP for which no match can ever exist. Must be caused by mismatch between floor-generation and data-loading";

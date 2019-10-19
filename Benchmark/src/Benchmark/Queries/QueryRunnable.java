@@ -2,6 +2,7 @@ package Benchmark.Queries;
 
 import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
+import Benchmark.DateCommunication;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
@@ -20,7 +21,7 @@ import java.util.Random;
 public class QueryRunnable implements Runnable {
     private final ConfigFile config;
     private final Random rng;
-    private final Logger logger;
+    private final DateCommunication dateComm;
     private final Floor[] generatedFloors;
     private final Queries queryTarget;
     private final String threadName;
@@ -41,10 +42,10 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQuery_TotalClients;
     private long timeSpentQuery_FloorTotal;
 
-    public QueryRunnable(ConfigFile config, Random rng, Logger logger, Floor[] generatedFloors, Queries queryTarget, String threadName){
+    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, Queries queryTarget, String threadName){
         this.config = config;
         this.rng = rng;
-        this.logger = logger;
+        this.dateComm = dateComm;
         this.generatedFloors = generatedFloors;
         this.queryTarget = queryTarget;
         this.threadName = threadName;
@@ -94,7 +95,7 @@ public class QueryRunnable implements Runnable {
                 break;
             case UNKNOWN:
                 assert false;
-                logger.log(threadName + ": WTF. Invalid query probabilities");
+                Logger.LOG(threadName + ": WTF. Invalid query probabilities");
                 throw new RuntimeException();
         }
         if(!warmUp) countFull++;
@@ -104,7 +105,7 @@ public class QueryRunnable implements Runnable {
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         LocalDateTime[] time = new LocalDateTime[2];
-        LocalDateTime newestValidDate = logger.getNewestTime();
+        LocalDateTime newestValidDate = dateComm.getNewestTime();
 
         LocalDateTime time1 = generateRandomTime(newestValidDate, startClamp);
         LocalDateTime time2 = generateRandomTime(newestValidDate, startClamp);
@@ -180,11 +181,11 @@ public class QueryRunnable implements Runnable {
         String prefix = (done ? "DONE " : "RUNNING ") + threadName;
 
         double totalTime = (timeSpentQuery_TotalClients + timeSpentQuery_FloorTotal) / 1e9;
-        logger.log(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
-        logger.log(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
-        logger.log(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
-        logger.log(String.format("%s: ----------------|----------|--------------|---------------", prefix));
-        logger.log(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
+        Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
+        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
+        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
+        Logger.LOG(String.format("%s: ----------------|----------|--------------|---------------", prefix));
+        Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
     }
 
     @Override
@@ -211,7 +212,7 @@ public class QueryRunnable implements Runnable {
                     runQueries(queryTarget, true);
                 }
             } catch (SQLException e) {
-                logger.log(threadName + ": SQL Exception during querying warmup.");
+                Logger.LOG(threadName + ": SQL Exception during querying warmup.");
                 e.printStackTrace();
             }
         }
@@ -235,7 +236,7 @@ public class QueryRunnable implements Runnable {
                 }
             }
         } catch (SQLException e) {
-            logger.log(threadName + ": SQL Exception during querying.");
+            Logger.LOG(threadName + ": SQL Exception during querying.");
             e.printStackTrace();
         }
 
@@ -244,12 +245,12 @@ public class QueryRunnable implements Runnable {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        logger.log(() -> reportStats(true));
+        Logger.LOG(() -> reportStats(true));
     }
 
     private void progressReport(CoarseTimer timer, int frequency){
         if(timer.elapsedSeconds() > frequency){
-            logger.log(() -> reportStats(false));
+            Logger.LOG(() -> reportStats(false));
             timer.start();
         }
     }

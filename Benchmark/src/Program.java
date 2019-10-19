@@ -1,5 +1,6 @@
 import Benchmark.Analysis.Precomputation;
 import Benchmark.Config.ConfigFile;
+import Benchmark.DateCommunication;
 import Benchmark.Generator.*;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
@@ -86,38 +87,38 @@ public class Program {
     public void run(ConfigFile config) throws Exception{
         assert config.isValidConfig();
         Random rng = new Random(config.getSeed());
-        Logger logger = new Logger();
+        DateCommunication dateComm = new DateCommunication();
 
         MapData parsedData = null;
         if (config.isGeneratorEnabled() || config.isIngestionEnabled()) {
-            parsedData = parseMapData(logger, config);
+            parsedData = parseMapData(config);
         }
 
         Floor[] generatedFloors;
         if(config.isGeneratorEnabled()){
-            generatedFloors = generateFloorData(logger, config, rng, parsedData);
+            generatedFloors = generateFloorData(config, rng, parsedData);
         } else {
             assert config.doSerialization();
             // Load the data from previous run
-            logger.log("Deserializing floor.");
+            Logger.LOG("Deserializing floor.");
             generatedFloors = deserializeFloor(config);
-            logger.log("Deserializing rng.");
+            Logger.LOG("Deserializing rng.");
             rng = deserializeRandom(config);
         }
 
-        logger.setInitialDate(config.getGeneratorEndDate(), LocalTime.of(0,0,0));
+        dateComm.setInitialDate(config.getGeneratorEndDate(), LocalTime.of(0,0,0));
 
         if(config.isIngestionEnabled()){
-            logger.log("Starting ingestion.");
-            startIngestion(config, generatedFloors, parsedData, logger, rng);
-            logger.log("Ingestion started.");
+            Logger.LOG("Starting ingestion.");
+            startIngestion(config, generatedFloors, parsedData, dateComm, rng);
+            Logger.LOG("Ingestion started.");
         }
 
         Future[] queryTasks = null;
         if(config.isQueryingEnabled()){
-            logger.log("Starting queries.");
-            queryTasks = startQueries(config, logger, rng, generatedFloors);
-            logger.log("Queries started.");
+            Logger.LOG("Starting queries.");
+            queryTasks = startQueries(config, dateComm, rng, generatedFloors);
+            Logger.LOG("Queries started.");
         }
 
         if(config.isQueryingEnabled()){
@@ -139,10 +140,10 @@ public class Program {
         }
 
         if(config.isQueryingEnabled()) threadPoolQueries.shutdown();
-        logger.log("Done.");
+        Logger.LOG("Done.");
     }
 
-    private Future[] startQueries(ConfigFile config, Logger logger, Random rng, Floor[] generatedFloors) {
+    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random rng, Floor[] generatedFloors) {
         assert config.getQueriesThreadCount() > 0;
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
@@ -154,13 +155,13 @@ public class Program {
             Random queryRng = new Random(rng.nextInt());
             if(!config.useSharedQueriesInstance()) queryInstance = createQueryTargetInstance(config);
 
-            QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, logger, generatedFloors, queryInstance, "Query " + i);
+            QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i);
             queryTasks[i] = threadPoolQueries.submit(queryRunnable);
         }
         return queryTasks;
     }
 
-    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, Logger logger, Random rng) throws IOException, SQLException {
+    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, DateCommunication dateComm, Random rng) throws IOException, SQLException {
         assert config.getIngestThreadCount() > 0;
         threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
         ingestTasks = new Future[config.getIngestThreadCount()];
@@ -192,7 +193,7 @@ public class Program {
                 ingestTargets[i] = ingestTarget;
             }
 
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, logger, "Ingest " + i);
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, "Ingest " + i);
         }
 
         for(int i = 0; i < ingestTasks.length; i++){
@@ -217,21 +218,21 @@ public class Program {
         threadPoolIngest.shutdown();
     }
 
-    private MapData parseMapData(Logger logger, ConfigFile config){
-        logger.log("Parsing map.");
+    private MapData parseMapData(ConfigFile config) throws IOException{
+        Logger.LOG("Parsing map.");
         return MapParser.ParseMap(config.getGeneratorIdmap(), config.getGeneratorMapfolder());
     }
 
-    private Floor[] generateFloorData(Logger logger, ConfigFile config, Random rng, MapData parsedData) throws Exception {
+    private Floor[] generateFloorData(ConfigFile config, Random rng, MapData parsedData) throws Exception {
         Floor[] generatedFloors;
-        logger.log("Generating floors.");
+        Logger.LOG("Generating floors.");
         generatedFloors = Generator.Generate(config.getGeneratorScale(), rng);
-        logger.log("Assigning floors to IDs.");
+        Logger.LOG("Assigning floors to IDs.");
         Generator.AssignFloorsToIDs(generatedFloors, parsedData, config.keepFloorAssociationsForGenerator());
-        logger.log("Preparing for generation.");
+        Logger.LOG("Preparing for generation.");
         Generator.PrepareDataForGeneration(generatedFloors, parsedData);
 
-        logger.log("Setting up targets.");
+        Logger.LOG("Setting up targets.");
         ITarget target = null;
         try{
             target = new BaseTarget();
@@ -239,24 +240,24 @@ public class Program {
                 target = new MultiTarget(target, createTargetInstance(configTarget, config, true));
             }
 
-            logger.log("Generating data");
+            Logger.LOG("Generating data");
             AccessPoint[] allAPs = allAPs(generatedFloors);
             DataGenerator.Generate(allAPs, parsedData, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
 
             if(target.shouldStopEarly()){
-                logger.log("POTENTIAL ERROR: Generation was stopped early.");
+                Logger.LOG("POTENTIAL ERROR: Generation was stopped early.");
             }
         } finally {
             if(target != null) target.close();
         }
 
         if(config.generatorCreateDebugTables()){
-            logger.log("DEBUG: Filling precomputation tables.");
+            Logger.LOG("DEBUG: Filling precomputation tables.");
             Precomputation.ComputeTotals(config.getGeneratorGenerationInterval(), generatedFloors, config);
         }
 
         if(config.doSerialization()){
-            logger.log("Serializing floor and rng.");
+            Logger.LOG("Serializing floor and rng.");
             serializeData(generatedFloors, rng, config);
         }
 

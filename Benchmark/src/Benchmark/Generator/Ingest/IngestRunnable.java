@@ -1,6 +1,7 @@
 package Benchmark.Generator.Ingest;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.DateCommunication;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.DataGenerator;
 import Benchmark.Loader.MapData;
@@ -24,17 +25,15 @@ public class IngestRunnable implements Runnable {
     private final Random rng;
     private final IngestWrapper targetWrapper;
     private final IngestControl ingestControl;
-    private final Logger logger;
     private final String threadName;
 
-    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, Logger logger, String threadName){
+    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, String threadName){
         this.config = config;
         this.APs = APs;
         this.data = data;
         this.rng = rng;
-        this.logger = logger;
         this.threadName = threadName;
-        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), logger, threadName);
+        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), dateComm, threadName);
         this.targetWrapper = new IngestWrapper(outputTarget, ingestControl);
     }
 
@@ -47,12 +46,12 @@ public class IngestRunnable implements Runnable {
         try {
             DataGenerator.Generate(APs, data, config.getIngestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
         } catch (IOException | SQLException e) {
-            logger.log(threadName + ": Ingestion failed.");
+            Logger.LOG(threadName + ": Ingestion failed.");
             e.printStackTrace();
         }
 
         if(targetWrapper.didWrappedTargetCauseStop()){
-            logger.log(threadName + ": Error might have occurred during ingestion.");
+            Logger.LOG(threadName + ": Error might have occurred during ingestion.");
         }
 
         ingestControl.printFinalStats();

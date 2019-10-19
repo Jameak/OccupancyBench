@@ -1,6 +1,7 @@
 package Benchmark.Generator.Ingest;
 
 import Benchmark.CoarseTimer;
+import Benchmark.DateCommunication;
 import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
@@ -21,16 +22,16 @@ public class IngestControl {
     private boolean limitSpeed;
     private final boolean reportIntermediateStats;
     private final int reportFrequencyMillis;
-    private final Logger logger;
+    private final DateCommunication dateComm;
     private final String threadName;
     private long sleepDuration = 0;
 
-    public IngestControl(int desiredIngestSpeed, int reportFrequency, Logger logger, String threadName){
+    public IngestControl(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName){
         this.desiredIngestSpeedPer100Millis = desiredIngestSpeed / 10;
         this.limitSpeed = desiredIngestSpeed > 0;
         this.reportFrequencyMillis = reportFrequency * 1000;
         this.reportIntermediateStats = reportFrequency > 0;
-        this.logger = logger;
+        this.dateComm = dateComm;
         this.threadName = threadName;
         totalTimer = new CoarseTimer();
         reportTimer = new CoarseTimer();
@@ -39,7 +40,7 @@ public class IngestControl {
     }
 
     public void printFinalStats(){
-        logger.log(String.format("DONE %s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+        Logger.LOG(String.format("DONE %s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
     public void add(GeneratedEntry entry) {
@@ -49,7 +50,7 @@ public class IngestControl {
         // However, updating that info requires taking a lock, so rarely do that update.
         // TODO: Make this configurable...?
         if(totalCounter % 20000 == 0){
-            logger.setNewestTime(entry.getDate(), entry.getTime());
+            dateComm.setNewestTime(entry.getDate(), entry.getTime());
         }
 
         if(!timersStarted) {
@@ -63,7 +64,7 @@ public class IngestControl {
             reportCounter++;
             double elapsedMillis = reportTimer.elapsedMilliseconds();
             if(elapsedMillis > reportFrequencyMillis){
-                logger.log(String.format("RUNNING %s: %d entries / sec.", threadName, reportCounter / (reportFrequencyMillis/1000)));
+                Logger.LOG(String.format("RUNNING %s: %d entries / sec.", threadName, reportCounter / (reportFrequencyMillis/1000)));
 
                 reportCounter = 0;
                 reportTimer.start();

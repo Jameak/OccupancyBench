@@ -26,13 +26,16 @@ public class IngestRunnable implements Runnable {
     private final IngestWrapper targetWrapper;
     private final IngestControl ingestControl;
     private final String threadName;
+    private final LocalDate endDate;
+    private boolean done;
 
-    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, String threadName){
+    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, String threadName, LocalDate endDate){
         this.config = config;
         this.APs = APs;
         this.data = data;
         this.rng = rng;
         this.threadName = threadName;
+        this.endDate = endDate;
         this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), dateComm, threadName);
         this.targetWrapper = new IngestWrapper(outputTarget, ingestControl);
     }
@@ -44,7 +47,7 @@ public class IngestRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            DataGenerator.Generate(APs, data, config.getIngestStartDate(), LocalDate.MAX, rng, targetWrapper, config);
+            DataGenerator.Generate(APs, data, config.getIngestStartDate(), endDate, rng, targetWrapper, config);
         } catch (IOException | SQLException e) {
             Logger.LOG(threadName + ": Ingestion failed.");
             e.printStackTrace();
@@ -55,5 +58,10 @@ public class IngestRunnable implements Runnable {
         }
 
         ingestControl.printFinalStats();
+        done = true;
+    }
+
+    public boolean isDone() {
+        return done;
     }
 }

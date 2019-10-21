@@ -41,11 +41,12 @@ ingest.enabled               = true
 ingest.threads               = 1
 ingest.target                = influx
 ingest.target.recreate       = false
-ingest.target.sharedinstance = true
+ingest.target.sharedinstance = false
 ingest.startdate             = 2019-04-01
 ingest.speed                 = -1
 ingest.reportfrequency       = -1
-ingest.standaloneduration    = -1
+ingest.duration.time         = -1
+ingest.duration.enddate      = 9999-12-31
 
 queries.enabled               = true
 queries.threads               = 1

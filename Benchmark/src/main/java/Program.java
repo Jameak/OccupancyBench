@@ -1,4 +1,5 @@
 import Benchmark.Analysis.Precomputation;
+import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
 import Benchmark.DateCommunication;
 import Benchmark.Generator.*;
@@ -19,6 +20,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -131,8 +133,32 @@ public class Program {
             assert config.isIngestionEnabled();
             // If we aren't running the queries, but are running ingestion, then we need some other way to determine
             //   how long to run ingestion for. Otherwise they'll just stop immediately.
-            assert config.getIngestionStandaloneDuration() > 0;
-            Thread.sleep(config.getIngestionStandaloneDuration() * 1000);
+            boolean timeDuration = config.getIngestionStandaloneDuration() > 0;
+
+            CoarseTimer timer = new CoarseTimer();
+            timer.start();
+            while(!timeDuration || timer.elapsedSeconds() < config.getIngestionStandaloneDuration()){
+                boolean allDone = true;
+                for (IngestRunnable ingestRunnable : ingestRunnables) {
+                    if (!ingestRunnable.isDone()) {
+                        allDone = false;
+                        break;
+                    }
+                }
+                if(allDone){
+                    Logger.LOG("All ingest-threads reached configured end-date (" + config.getIngestEndDate().toString() + "). Ending ingestion.");
+                    break;
+                }
+
+                // The run-time can be limited by:
+                // - the duration in seconds. This is specified in seconds, so sleeping for 1 second wont make us miss it by a lot.
+                // - the end-date of ingestion. When the end-date is reached ingestion automatically stops, so sleeping wont make us miss the stop-date at all.
+                Thread.sleep(1000);
+            }
+
+            if(timeDuration && timer.elapsedSeconds() >= config.getIngestionStandaloneDuration()){
+                Logger.LOG("Ingestion duration reached. Ending ingestion.");
+            }
         }
 
         if(config.isIngestionEnabled()){
@@ -193,7 +219,10 @@ public class Program {
                 ingestTargets[i] = ingestTarget;
             }
 
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, "Ingest " + i);
+            // If ingestion runs alongside querying then we stop ingestion when we're done querying.
+            // However, if querying isn't running then we might want to stop ingestion at some specific date.
+            LocalDate ingestEndDate = config.isQueryingEnabled() ? LocalDate.MAX : config.getIngestEndDate();
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, "Ingest " + i, ingestEndDate);
         }
 
         for(int i = 0; i < ingestTasks.length; i++){

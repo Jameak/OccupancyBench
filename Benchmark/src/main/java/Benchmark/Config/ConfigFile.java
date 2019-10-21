@@ -256,9 +256,22 @@ public class ConfigFile {
     /**
      * Type: Integer
      * The number of seconds to run ingestion for, if ingestion is run on its own.
-     * If queries are running, then the query-duration controls how long to run ingestion for.
+     *
+     * If queries are enabled, then {@code QUERIES_DURATION} controls how long to run ingestion for and this value is ignored.
+     * If both this and {@code INGEST_DURATION_END_DATE} is specified then whichever duration is first reached
+     * will terminate ingestion.
      */
-    private static final String INGEST_STANDALONE_DURATION = "ingest.standaloneduration";
+    private static final String INGEST_STANDALONE_DURATION = "ingest.duration.time";
+    /**
+     * Type: LocalDate (YYYY-MM-DD)
+     * The date to end ingestion on, if ingestion is run on its own. This will ensure that ingestion runs from the
+     * specified start-date up to this end-date.
+     *
+     * If queries are enabled, then {@code QUERIES_DURATION} controls how long to run ingestion for and this value is ignored.
+     * If both this and {@code INGEST_STANDALONE_DURATION} is specified then whichever duration is first reached
+     * will terminate ingestion.
+     */
+    private static final String INGEST_DURATION_END_DATE = "ingest.duration.enddate";
     /**
      * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE
      * The target to write generated ingest-data to.
@@ -288,6 +301,7 @@ public class ConfigFile {
     private int       ingestSpeed;
     private int       ingestReportFrequency;
     private int       ingestDurationStandalone;
+    private LocalDate ingestDurationEndDate;
     private Target    ingestTarget;
     private boolean   ingestTargetRecreate;
     private boolean   ingestTargetSharedInstance;
@@ -508,9 +522,10 @@ public class ConfigFile {
         config.prop.setProperty(INGEST_SPEED, "-1");
         config.prop.setProperty(INGEST_REPORT_FREQUENCY, "-1");
         config.prop.setProperty(INGEST_STANDALONE_DURATION, "-1");
+        config.prop.setProperty(INGEST_DURATION_END_DATE, "9999-12-31");
         config.prop.setProperty(INGEST_TARGET, "influx");
         config.prop.setProperty(INGEST_TARGET_RECREATE, "false");
-        config.prop.setProperty(INGEST_SHARED_INSTANCE, "true");
+        config.prop.setProperty(INGEST_SHARED_INSTANCE, "false");
         config.prop.setProperty(INGEST_THREADS, "1");
 
         //Queries
@@ -585,6 +600,7 @@ public class ConfigFile {
         ingestSpeed                = Integer.parseInt(    prop.getProperty(INGEST_SPEED));
         ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY));
         ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION));
+        ingestDurationEndDate      = LocalDate.parse(     prop.getProperty(INGEST_DURATION_END_DATE, "9999-12-31"));
         ingestTarget               = Target.valueOf(      prop.getProperty(INGEST_TARGET).toUpperCase().trim());
         ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE));
         ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE));
@@ -648,7 +664,7 @@ public class ConfigFile {
             if(ingestTarget == Target.FILE) return "Unsupported ingest target 'FILE' (" + INGEST_TARGET + ")";
 
             if(!queriesEnabled){
-                if(!(ingestDurationStandalone > 0)) return "Ingestion is enabled but queries aren't. No ingest-duration is set (" + INGEST_STANDALONE_DURATION + ") so ingestion will end immediately.";
+                if(!(ingestDurationEndDate.isAfter(ingestStartDate))) return "Ingest end-date (" + INGEST_DURATION_END_DATE + ") must be after start-date (" + INGEST_START_DATE + ") for ingestion to run without also running queries.";
             }
         }
 
@@ -780,6 +796,10 @@ public class ConfigFile {
 
     public LocalDate getIngestStartDate() {
         return ingestStartDate;
+    }
+
+    public LocalDate getIngestEndDate() {
+        return ingestDurationEndDate;
     }
 
     public int getIngestSpeed() {

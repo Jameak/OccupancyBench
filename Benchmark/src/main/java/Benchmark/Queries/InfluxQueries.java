@@ -3,6 +3,7 @@ package Benchmark.Queries;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
+import okhttp3.OkHttpClient;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An implementation of the benchmark-queries for InfluxDB.
@@ -25,7 +27,9 @@ public class InfluxQueries implements Queries{
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
         this.measurement = config.getInfluxTable();
-        this.influxDB = InfluxDBFactory.connect(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
+        // Some queries may take too long on my dev machine. If the connection timed out an exception will be thrown which stops the queries.
+        OkHttpClient.Builder httpClientBuilder = new OkHttpClient.Builder().readTimeout(60, TimeUnit.SECONDS);
+        this.influxDB = InfluxDBFactory.connect(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), httpClientBuilder);
         this.config = config;
         if(influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
             influxDB.close();

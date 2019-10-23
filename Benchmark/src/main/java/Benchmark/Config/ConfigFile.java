@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -160,7 +161,7 @@ public class ConfigFile {
 
     /**
      * Type: String
-     * The url of the Influx-database to connect to. Must include the protocol and port-number.
+     * The url of the Influx-database to connect to. Must include the port-number.
      */
     private static final String INFLUX_URL      = "influx.url";
     /**
@@ -542,7 +543,7 @@ public class ConfigFile {
         config.prop.setProperty(GENERATOR_OUTPUT_TO_DISK_TARGET, "TARGET FILE PATH");
 
         //Influx
-        config.prop.setProperty(INFLUX_URL, "http://localhost:8086");
+        config.prop.setProperty(INFLUX_URL, "localhost:8086");
         config.prop.setProperty(INFLUX_USERNAME, "USERNAME");
         config.prop.setProperty(INFLUX_PASSWORD, "PASSWORD");
         config.prop.setProperty(INFLUX_DBNAME, "benchmark");
@@ -556,7 +557,7 @@ public class ConfigFile {
         config.prop.setProperty(TIMESCALE_PASSWORD, "PASSWORD");
         config.prop.setProperty(TIMESCALE_DBNAME, "benchmark");
         config.prop.setProperty(TIMESCALE_TABLE, "generated");
-        config.prop.setProperty(TIMESCALE_BATCHSIZE, "1000");
+        config.prop.setProperty(TIMESCALE_BATCHSIZE, "10000");
         config.prop.setProperty(TIMESCALE_REWRITE_BATCH, "true");
 
         //Ingest
@@ -577,9 +578,9 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_THREADS, "1");
         config.prop.setProperty(QUERIES_SHARED_INSTANCE, "false");
         config.prop.setProperty(QUERIES_DURATION, "60");
-        config.prop.setProperty(QUERIES_WARMUP, "-1");
+        config.prop.setProperty(QUERIES_WARMUP, "5");
         config.prop.setProperty(QUERIES_MAX_COUNT, "-1");
-        config.prop.setProperty(QUERIES_REPORT_FREQUENCY, "-1");
+        config.prop.setProperty(QUERIES_REPORT_FREQUENCY, "20");
         config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, "2019-01-01");
         config.prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1");
@@ -599,78 +600,78 @@ public class ConfigFile {
     @SuppressWarnings("DuplicatedCode")
     private void parseProps(){
         //Benchmark
-        seed             = Integer.parseInt(    prop.getProperty(SEED));
+        seed             = Integer.parseInt(    prop.getProperty(SEED, "" + new Random().nextInt(10000)));
 
         //Serialization
-        serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED));
+        serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED, "false"));
         serializePath    =                      prop.getProperty(SERIALIZE_PATH);
 
         //Generator
-        generatorEnabled               = Boolean.parseBoolean(prop.getProperty(GENERATOR_ENABLED));
+        generatorEnabled               = Boolean.parseBoolean(prop.getProperty(GENERATOR_ENABLED, "true"));
         generatorIdmap                 =                      prop.getProperty(GENERATOR_IDMAP);
         generatorGranularity           = Granularity.valueOf( prop.getProperty(GENERATOR_GRANULARITY, "nanosecond").toUpperCase().trim());
-        generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE));
+        generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE, "1.0"));
         generatorMapfolder             =                      prop.getProperty(GENERATOR_MAP_FOLDER);
-        generatorSourceInterval        = Integer.parseInt(    prop.getProperty(GENERATOR_SOURCE_INTERVAL));
-        generatorGenerationInterval    = Integer.parseInt(    prop.getProperty(GENERATOR_GENERATION_INTERVAL));
-        generatorKeepFloorAssociations = Boolean.parseBoolean(prop.getProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS));
-        generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE));
-        generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE));
-        generatorCreateDebugTables     = Boolean.parseBoolean(prop.getProperty(GENERATOR_CREATE_DEBUG_TABLES));
-        generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS).split(","))
+        generatorSourceInterval        = Integer.parseInt(    prop.getProperty(GENERATOR_SOURCE_INTERVAL, "60"));
+        generatorGenerationInterval    = Integer.parseInt(    prop.getProperty(GENERATOR_GENERATION_INTERVAL, "60"));
+        generatorKeepFloorAssociations = Boolean.parseBoolean(prop.getProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, "true"));
+        generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE, "2019-01-01"));
+        generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE, "2019-04-01"));
+        generatorCreateDebugTables     = Boolean.parseBoolean(prop.getProperty(GENERATOR_CREATE_DEBUG_TABLES, "false"));
+        generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS, "influx").split(","))
                 .map(String::toUpperCase).map(String::trim).map(Target::valueOf).toArray(Target[]::new);
         generatorToDiskTarget          =                      prop.getProperty(GENERATOR_OUTPUT_TO_DISK_TARGET);
 
         //Influx
-        influxUrl       =                  prop.getProperty(INFLUX_URL);
+        influxUrl       = "http://" +      prop.getProperty(INFLUX_URL, "localhost:8086");
         influxUsername  =                  prop.getProperty(INFLUX_USERNAME);
         influxPassword  =                  prop.getProperty(INFLUX_PASSWORD);
-        influxDBName    =                  prop.getProperty(INFLUX_DBNAME);
-        influxTable     =                  prop.getProperty(INFLUX_TABLE);
-        influxBatchsize = Integer.parseInt(prop.getProperty(INFLUX_BATCHSIZE));
-        influxFlushtime = Integer.parseInt(prop.getProperty(INFLUX_BATCH_FLUSH_TIME));
+        influxDBName    =                  prop.getProperty(INFLUX_DBNAME, "benchmark");
+        influxTable     =                  prop.getProperty(INFLUX_TABLE, "generated");
+        influxBatchsize = Integer.parseInt(prop.getProperty(INFLUX_BATCHSIZE, "10000"));
+        influxFlushtime = Integer.parseInt(prop.getProperty(INFLUX_BATCH_FLUSH_TIME, "1000"));
 
         //Timescale
-        timescaleHost                  =                      prop.getProperty(TIMESCALE_HOST);
+        timescaleHost                  =                      prop.getProperty(TIMESCALE_HOST, "localhost:5432");
         timescaleUsername              =                      prop.getProperty(TIMESCALE_USERNAME);
         timescalePassword              =                      prop.getProperty(TIMESCALE_PASSWORD);
-        timescaleDBName                =                      prop.getProperty(TIMESCALE_DBNAME);
-        timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE);
-        timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE));
-        timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH));
+        timescaleDBName                =                      prop.getProperty(TIMESCALE_DBNAME, "benchmark");
+        timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE, "generated");
+        timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE, "10000"));
+        timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH, "true"));
 
         //Ingest
-        ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED));
-        ingestStartDate            = LocalDate.parse(     prop.getProperty(INGEST_START_DATE));
-        ingestSpeed                = Integer.parseInt(    prop.getProperty(INGEST_SPEED));
-        ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY));
-        ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION));
+        ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED, "true"));
+        ingestStartDate            = LocalDate.parse(     prop.getProperty(INGEST_START_DATE, "2019-04-01"));
+        ingestSpeed                = Integer.parseInt(    prop.getProperty(INGEST_SPEED, "-1"));
+        ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY, "5"));
+        ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION, "-1"));
         ingestDurationEndDate      = LocalDate.parse(     prop.getProperty(INGEST_DURATION_END_DATE, "9999-12-31"));
-        ingestTarget               = Target.valueOf(      prop.getProperty(INGEST_TARGET).toUpperCase().trim());
-        ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE));
-        ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE));
-        ingestThreads              = Integer.parseInt(    prop.getProperty(INGEST_THREADS));
+        ingestTarget               = Target.valueOf(      prop.getProperty(INGEST_TARGET, "influx").toUpperCase().trim());
+        ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE, "false"));
+        ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE, "false"));
+        ingestThreads              = Integer.parseInt(    prop.getProperty(INGEST_THREADS, "1"));
 
         //Queries
-        queriesEnabled           = Boolean.parseBoolean(prop.getProperty(QUERIES_ENABLED));
-        queriesTarget            = Target.valueOf(      prop.getProperty(QUERIES_TARGET).toUpperCase().trim());
-        queriesThreads           = Integer.parseInt(    prop.getProperty(QUERIES_THREADS));
-        queriesSharedInstance    = Boolean.parseBoolean(prop.getProperty(QUERIES_SHARED_INSTANCE));
-        queriesDuration          = Integer.parseInt(    prop.getProperty(QUERIES_DURATION));
-        queriesWarmup            = Integer.parseInt(    prop.getProperty(QUERIES_WARMUP));
-        queriesMaxCount          = Integer.parseInt(    prop.getProperty(QUERIES_MAX_COUNT));
-        queriesReportFrequency   = Integer.parseInt(    prop.getProperty(QUERIES_REPORT_FREQUENCY));
-        queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE));
-        queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS));
-        queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS));
+        queriesEnabled           = Boolean.parseBoolean(prop.getProperty(QUERIES_ENABLED, "true"));
+        queriesTarget            = Target.valueOf(      prop.getProperty(QUERIES_TARGET, "influx").toUpperCase().trim());
+        queriesThreads           = Integer.parseInt(    prop.getProperty(QUERIES_THREADS, "1"));
+        queriesSharedInstance    = Boolean.parseBoolean(prop.getProperty(QUERIES_SHARED_INSTANCE, "false"));
+        queriesDuration          = Integer.parseInt(    prop.getProperty(QUERIES_DURATION, "60"));
+        queriesWarmup            = Integer.parseInt(    prop.getProperty(QUERIES_WARMUP, "5"));
+        queriesMaxCount          = Integer.parseInt(    prop.getProperty(QUERIES_MAX_COUNT, "-1"));
+        queriesReportFrequency   = Integer.parseInt(    prop.getProperty(QUERIES_REPORT_FREQUENCY, "20"));
+        queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE, "2019-01-01"));
+        queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1"));
+        queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1"));
         queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2"));
-        queriesRngLambda         = Double.parseDouble(  prop.getProperty(QUERIES_RNG_LAMBDA));
-        queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY));
-        queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK));
-        queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH));
-        queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR));
-        queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN));
-        queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX));
+        queriesRngLambda         = Double.parseDouble(  prop.getProperty(QUERIES_RNG_LAMBDA, "1"));
+        queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY, "0.5"));
+        queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK, "1"));
+        queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH, "2"));
+        queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR, "3"));
+        queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN, "21600"));
+        queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX, "7776000"));
     }
 
     private String validateConfig(){

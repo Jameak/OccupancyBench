@@ -1,28 +1,23 @@
 package Benchmark.Generator.GeneratedData;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import Benchmark.Config.ConfigFile;
+
+import java.time.*;
 
 /**
  * Represents a single generated entry, ready to be added to a target.
  */
 public class GeneratedEntry{
-    private final String timestamp;
     private final String ap;
     private final int numClients;
-    private final LocalDate date;
-    private final LocalTime time;
+    private final LocalDateTime datetime;
+    private final Instant instant;
 
     public GeneratedEntry(LocalDate date, LocalTime time, String AP, int numClients){
-        this.date = date;
-        this.time = time;
-        this.timestamp = date.toString() + "T" + time.toString() + "Z";
+        this.datetime = date.atTime(time);
+        this.instant = datetime.toInstant(ZoneOffset.ofHours(0));
         this.ap = AP;
         this.numClients = numClients;
-    }
-
-    public String getTimestamp() {
-        return timestamp;
     }
 
     public String getAP() {
@@ -35,14 +30,29 @@ public class GeneratedEntry{
 
     @Override
     public String toString() {
-        return timestamp + ";" + ap + ";" + numClients;
+        return toString(ConfigFile.Granularity.NANOSECOND);
     }
 
-    public LocalDate getDate() {
-        return date;
+    public String toString(ConfigFile.Granularity granularity) {
+        return getTime(granularity) + ";" + ap + ";" + numClients;
     }
 
-    public LocalTime getTime() {
-        return time;
+    public LocalDateTime getDateTime() {
+        return datetime;
+    }
+
+    public long getTime(ConfigFile.Granularity granularity){
+        switch (granularity){
+            case NANOSECOND:
+                return instant.getEpochSecond() * 1_000_000_000 + datetime.getNano();
+            case MILLISECOND:
+                return instant.toEpochMilli();
+            case SECOND:
+                return instant.getEpochSecond();
+            case MINUTE:
+                return instant.getEpochSecond() / 60;
+            default:
+                throw new IllegalStateException("Unexpected value: " + granularity);
+        }
     }
 }

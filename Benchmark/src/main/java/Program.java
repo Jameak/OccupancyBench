@@ -352,14 +352,14 @@ public class Program {
             case INFLUX:
                 return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(),
                         config.getInfluxDBName(), config.getInfluxTable(), recreate, config.getInfluxBatchsize(),
-                        config.getInfluxFlushtime());
+                        config.getInfluxFlushtime(), config.getGeneratorGranularity());
             case FILE:
                 // Not supported for ingestion. Valid config files shouldn't contain FILE as the chosen ingest-target.
-                return new FileTarget(config.getGeneratorDiskTarget());
+                return new FileTarget(config.getGeneratorDiskTarget(), config.getGeneratorGranularity());
             case TIMESCALE:
                 return new TimescaleTarget(config.getTimescaleHost(), config.getTimescaleDBName(),
                         config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleTable(),
-                        recreate, config.getTimescaleBatchSize(), config.reWriteBatchedTimescaleInserts());
+                        recreate, config.getTimescaleBatchSize(), config.reWriteBatchedTimescaleInserts(), config.getGeneratorGranularity());
             default:
                 assert false : "New ingestion target must have been added, but target-switch wasn't updated";
                 throw new IllegalStateException("Unknown ingestion target: " + config.getIngestTarget());

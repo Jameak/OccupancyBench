@@ -50,7 +50,7 @@ public class IngestControl {
         // However, updating that info requires taking a lock, so rarely do that update.
         // TODO: Make this configurable...?
         if(totalCounter % 20000 == 0){
-            dateComm.setNewestTime(entry.getDate(), entry.getTime());
+            dateComm.setNewestTime(entry.getDateTime());
         }
 
         if(!timersStarted) {

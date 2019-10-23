@@ -1,5 +1,6 @@
 package Benchmark.Generator.Targets;
 
+import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.GeneratedEntry;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
@@ -17,10 +18,12 @@ import java.util.concurrent.TimeUnit;
 public class InfluxTarget implements ITarget {
     private final InfluxDB influxDB;
     private final String measurementName;
+    private final ConfigFile.Granularity granularity;
     private boolean errorsOccurred;
 
-    public InfluxTarget(String url, String username, String password, String dbName, String measurementName, boolean recreate, int maxBatchSize, int flushDuration) throws IOException {
+    public InfluxTarget(String url, String username, String password, String dbName, String measurementName, boolean recreate, int maxBatchSize, int flushDuration, ConfigFile.Granularity granularity) throws IOException {
         this.measurementName = measurementName;
+        this.granularity = granularity;
         this.influxDB = InfluxDBFactory.connect(url, username, password);
         if(influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
             influxDB.close();
@@ -41,11 +44,10 @@ public class InfluxTarget implements ITarget {
 
     @Override
     public void add(GeneratedEntry entry) {
-        Instant time = Instant.parse(entry.getTimestamp());
-        long timeNano = time.getEpochSecond() * 1_000_000_000 + time.getNano();
+        long time = entry.getTime(granularity);
         influxDB.write(
                 Point.measurement(measurementName)
-                        .time(timeNano, TimeUnit.NANOSECONDS)
+                        .time(time, granularity.toTimeUnit())
                         .tag("AP", entry.getAP())
                         .addField("clients", entry.getNumClients())
                         .build());

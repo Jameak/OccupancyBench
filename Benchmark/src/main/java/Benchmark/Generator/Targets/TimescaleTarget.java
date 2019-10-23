@@ -1,20 +1,26 @@
 package Benchmark.Generator.Targets;
 
+import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.GeneratedEntry;
 
 import java.sql.*;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Writes the added entries to TimescaleDB with millisecond precision.
  */
 public class TimescaleTarget extends JdbcTarget {
     private final int batchSize;
+    private final ConfigFile.Granularity granularity;
     private int inserts = 0;
     private PreparedStatement stmt;
 
-    public TimescaleTarget(String host, String database, String username, String password, String table, boolean recreate, int batchSize, boolean enableBatchRewrite) throws SQLException {
+    public TimescaleTarget(String host, String database, String username, String password, String table, boolean recreate, int batchSize, boolean enableBatchRewrite, ConfigFile.Granularity granularity) throws SQLException {
         this.batchSize = batchSize;
+        // Note: Postgres doesn't seem to support nano-second timestamps, so set granularity to milliseconds if nanoseconds is set.
+        //       This is mentioned in the config setting for granularity as well.
+        this.granularity = granularity == ConfigFile.Granularity.NANOSECOND ? ConfigFile.Granularity.MILLISECOND : granularity;
 
         DriverManager.registerDriver(new org.postgresql.Driver());
         // TODO: Include SSL-parameter in the connection string?
@@ -56,9 +62,8 @@ public class TimescaleTarget extends JdbcTarget {
 
     @Override
     public void add(GeneratedEntry entry) throws SQLException {
-        // Note: Postgres doesn't seem to support nano-second timestamps, so we're throwing away a tiny bit of
-        // precision here when compared to influx (but we dont actually need nano-second precision...)
-        stmt.setTimestamp(1, new Timestamp(Instant.parse(entry.getTimestamp()).toEpochMilli()));
+        Timestamp timestamp = new Timestamp(padTime(entry));
+        stmt.setTimestamp(1, timestamp);
         stmt.setString(2, entry.getAP());
         stmt.setInt(3, entry.getNumClients());
         stmt.addBatch();
@@ -69,6 +74,13 @@ public class TimescaleTarget extends JdbcTarget {
             int[] counts = stmt.executeBatch();
             noErrors(counts);
         }
+    }
+
+    private long padTime(GeneratedEntry entry){
+        // The Timestamp-constructor expects a long of milliseconds, so we need to pad to that precision regardless of
+        //   the desired granularity, so first we truncate and then pad if needed.
+        long granularTime = entry.getTime(granularity);
+        return granularity.toTimeUnit().convert(granularTime, TimeUnit.MILLISECONDS);
     }
 
     @Override

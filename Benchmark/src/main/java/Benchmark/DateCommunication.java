@@ -8,44 +8,27 @@ import java.time.LocalTime;
  * Facilitates synchronized communication between the ingestion- and queries-threads for date/time metadata.
  */
 public class DateCommunication {
-    private final Object entryLock = new Object();
+    private final Object timeLock = new Object();
     private boolean initial_val_set;
 
-    private LocalDate newestDate;
-    private LocalTime newestTime;
-    private volatile LocalDateTime time;
-    private volatile boolean updated;
+    private volatile LocalDateTime newestDateTime;
 
     public void setInitialDate(LocalDate date, LocalTime time){
         assert !initial_val_set : "DateCommunication::setInitialDate called more than once";
-        newestDate = date;
-        newestTime = time;
+        newestDateTime = date.atTime(time);
         initial_val_set = true;
     }
 
-    public void setNewestTime(LocalDate date, LocalTime time){
-        assert initial_val_set;
-        synchronized (entryLock){
-            if(date.isAfter(newestDate)){
-                updated = false;
-                newestDate = date;
-                newestTime = time;
-            } else if(date.isEqual(newestDate) && time.isAfter(newestTime)){
-                updated = false;
-                newestTime = time;
+    public void setNewestTime(LocalDateTime datetime){
+        assert initial_val_set : "DateCommunication::setInitialDate wasn't called.";
+        synchronized (timeLock){
+            if(datetime.isAfter(newestDateTime)) {
+                newestDateTime = datetime;
             }
         }
     }
 
     public LocalDateTime getNewestTime(){
-        if(updated){
-            return time;
-        }
-
-        synchronized (entryLock){
-            time = LocalDateTime.of(newestDate, newestTime);
-            updated = true;
-            return time;
-        }
+        return newestDateTime;
     }
 }

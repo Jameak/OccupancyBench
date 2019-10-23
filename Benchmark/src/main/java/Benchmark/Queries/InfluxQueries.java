@@ -9,6 +9,7 @@ import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -117,6 +118,17 @@ public class InfluxQueries implements Queries{
         }
 
         return counts;
+    }
+
+    @Override
+    public int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
+        String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time < %d AND time > %d GROUP BY time(1d)",
+                measurement, AP.getAPname(), toTimestamp(end), toTimestamp(start));
+
+        Query query = new Query(queryString);
+        influxDB.query(query);
+
+        return new int[0];
     }
 
     private long toTimestamp(LocalDateTime time){

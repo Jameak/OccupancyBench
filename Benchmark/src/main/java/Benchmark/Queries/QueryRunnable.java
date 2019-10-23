@@ -3,6 +3,7 @@ package Benchmark.Queries;
 import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
 import Benchmark.DateCommunication;
+import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
@@ -12,6 +13,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -23,6 +27,7 @@ public class QueryRunnable implements Runnable {
     private final Random rng;
     private final DateCommunication dateComm;
     private final Floor[] generatedFloors;
+    private final AccessPoint[] allAPs;
     private final Queries queryTarget;
     private final String threadName;
     private final int minTimeInterval;
@@ -30,17 +35,21 @@ public class QueryRunnable implements Runnable {
 
     private final PreciseTimer timerQuery_TotalClients;
     private final PreciseTimer timerQuery_FloorTotal;
+    private final PreciseTimer timerQuery_MaxForAP;
 
     private final int totalThreshold;
     private final int thresholdQuery_TotalClients;
     private final int thresholdQuery_FloorTotal;
+    private final int thresholdQuery_MaxForAP;
 
     private int countFull;
     private int countQuery_TotalClients;
     private int countQuery_FloorTotal;
+    private int countQuery_MaxForAP;
 
     private long timeSpentQuery_TotalClients;
     private long timeSpentQuery_FloorTotal;
+    private long timeSpentQuery_MaxForAP;
 
     public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, Queries queryTarget, String threadName){
         this.config = config;
@@ -51,21 +60,32 @@ public class QueryRunnable implements Runnable {
         this.threadName = threadName;
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
+        this.timerQuery_MaxForAP = new PreciseTimer();
 
         assert this.config.getQueriesWeightTotalClients() >= 0;
         this.thresholdQuery_TotalClients = config.getQueriesWeightTotalClients();
         assert this.config.getQueriesWeightFloorTotals() >= 0;
-        this.thresholdQuery_FloorTotal = config.getQueriesWeightTotalClients() + config.getQueriesWeightFloorTotals();
-        this.totalThreshold = config.getQueriesWeightTotalClients() + config.getQueriesWeightFloorTotals();
+        this.thresholdQuery_FloorTotal = thresholdQuery_TotalClients + config.getQueriesWeightFloorTotals();
+        assert this.config.getQueriesWeightMaxForAP() >= 0;
+        this.thresholdQuery_MaxForAP = thresholdQuery_FloorTotal + config.getQueriesWeightMaxForAP();
+
+        this.totalThreshold = config.getQueriesWeightTotalClients() + config.getQueriesWeightFloorTotals() + config.getQueriesWeightMaxForAP();
 
         this.minTimeInterval = config.getQueriesIntervalMin();
         this.maxTimeInterval = config.getQueriesIntervalMax();
+
+        List<AccessPoint> APs = new ArrayList<>();
+        for(Floor floor : generatedFloors){
+            APs.addAll(Arrays.asList(floor.getAPs()));
+        }
+        allAPs = APs.toArray(new AccessPoint[0]);
     }
 
     private QueryType selectQuery(){
         int val = rng.nextInt(totalThreshold);
         if(val < thresholdQuery_TotalClients) return QueryType.TotalClients;
         else if (val < thresholdQuery_FloorTotal) return QueryType.FloorTotals;
+        else if (val < thresholdQuery_MaxForAP) return QueryType.MaxForAP;
         return QueryType.UNKNOWN;
     }
 
@@ -93,12 +113,30 @@ public class QueryRunnable implements Runnable {
                 }
             }
                 break;
+            case MaxForAP:
+            {
+                LocalDateTime[] time = generateTime();
+                if(!warmUp) timerQuery_MaxForAP.start();
+                //TODO: Select random AP.
+                AccessPoint selectedAP = selectRandomAP();
+                queries.maxPerDayForAP(time[0], time[1], selectedAP);
+                if(!warmUp){
+                    timeSpentQuery_MaxForAP += timerQuery_MaxForAP.elapsedNanoseconds();
+                    countQuery_MaxForAP++;
+                }
+            }
+                break;
+            default:
             case UNKNOWN:
                 assert false;
                 Logger.LOG(threadName + ": WTF. Invalid query probabilities");
                 throw new RuntimeException();
         }
         if(!warmUp) countFull++;
+    }
+
+    private AccessPoint selectRandomAP() {
+        return allAPs[rng.nextInt(allAPs.length)];
     }
 
     private LocalDateTime[] generateTime(){
@@ -180,10 +218,11 @@ public class QueryRunnable implements Runnable {
     private void reportStats(boolean done){
         String prefix = (done ? "DONE " : "RUNNING ") + threadName;
 
-        double totalTime = (timeSpentQuery_TotalClients + timeSpentQuery_FloorTotal) / 1e9;
+        double totalTime = (timeSpentQuery_TotalClients + timeSpentQuery_FloorTotal + timeSpentQuery_MaxForAP) / 1e9;
         Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
         Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
         Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
+        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_MaxForAP, timeSpentQuery_MaxForAP / 1e9, countQuery_MaxForAP  / (timeSpentQuery_MaxForAP  / 1e9) ));
         Logger.LOG(String.format("%s: ----------------|----------|--------------|---------------", prefix));
         Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
     }
@@ -256,6 +295,6 @@ public class QueryRunnable implements Runnable {
     }
 
     private enum QueryType{
-        TotalClients, FloorTotals, UNKNOWN
+        TotalClients, FloorTotals, MaxForAP, UNKNOWN
     }
 }

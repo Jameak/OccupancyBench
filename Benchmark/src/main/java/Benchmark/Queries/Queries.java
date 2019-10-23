@@ -1,6 +1,7 @@
 package Benchmark.Queries;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 
 import java.sql.SQLException;
@@ -15,4 +16,5 @@ public interface Queries {
 
     int computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException;
     int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException;
+    int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException;
 }

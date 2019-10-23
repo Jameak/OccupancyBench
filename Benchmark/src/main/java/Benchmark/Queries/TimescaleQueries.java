@@ -95,4 +95,24 @@ public class TimescaleQueries extends JdbcQueries {
 
         return counts;
     }
+
+    @Override
+    public int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
+        double timeStart = start.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
+        double timeEnd = end.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
+
+        String query = String.format("SELECT time_bucket('1 day', time) AS bucket, MAX(clients) " +
+                "FROM %s " +
+                "WHERE AP='%s' AND time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
+                "GROUP BY bucket ORDER BY bucket ASC", table, AP.getAPname(), timeStart, timeEnd);
+
+        try(Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery(query)){
+            while(results.next()) {
+                // I assume we need to page through the result-set to guarantee that we pull all results from the database.
+            }
+        }
+
+        return new int[0];
+    }
 }

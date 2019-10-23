@@ -393,6 +393,12 @@ public class ConfigFile {
      */
     private static final String QUERIES_WEIGHT_FLOOR_TOTALS      = "queries.weight.floortotals";
     /**
+     * Type: Integer
+     * The weight of the 'Max for AP' query when a random query is selected.
+     * A weight of 0 will prevent this query from being selected.
+     */
+    private static final String QUERIES_WEIGHT_MAX_FOR_AP      = "queries.weight.maxforap";
+    /**
      * Type: Double
      * The value of the lambda-parameter used to generate a random number that follows an exponential distribution.
      */
@@ -457,6 +463,7 @@ public class ConfigFile {
     private LocalDate queriesEarliestValidDate;
     private int       queriesWeightTotalClients;
     private int       queriesWeightFloorTotals;
+    private int       queriesWeightMaxForAP;
     private double    queriesRngLambda;
     private double    queriesRngRangeDay;
     private double    queriesRngRangeWeek;
@@ -472,6 +479,7 @@ public class ConfigFile {
     public enum Target{
         FILE, INFLUX, TIMESCALE
     }
+    
     public enum Granularity{
         NANOSECOND, MILLISECOND, SECOND, MINUTE;
         public TimeUnit toTimeUnit(){
@@ -575,6 +583,7 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, "2019-01-01");
         config.prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1");
+        config.prop.setProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2");
         config.prop.setProperty(QUERIES_RNG_LAMBDA     , "1");
         config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , "0.5");
         config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , "1");
@@ -654,6 +663,7 @@ public class ConfigFile {
         queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE));
         queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS));
         queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS));
+        queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2"));
         queriesRngLambda         = Double.parseDouble(  prop.getProperty(QUERIES_RNG_LAMBDA));
         queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY));
         queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK));
@@ -972,5 +982,9 @@ public class ConfigFile {
 
     public Granularity getGeneratorGranularity() {
         return generatorGranularity;
+    }
+
+    public int getQueriesWeightMaxForAP() {
+        return queriesWeightMaxForAP;
     }
 }

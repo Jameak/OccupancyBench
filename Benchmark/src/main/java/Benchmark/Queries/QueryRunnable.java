@@ -117,7 +117,6 @@ public class QueryRunnable implements Runnable {
             {
                 LocalDateTime[] time = generateTime();
                 if(!warmUp) timerQuery_MaxForAP.start();
-                //TODO: Select random AP.
                 AccessPoint selectedAP = selectRandomAP();
                 queries.maxPerDayForAP(time[0], time[1], selectedAP);
                 if(!warmUp){

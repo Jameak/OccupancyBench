@@ -19,11 +19,9 @@ import java.util.Map;
 public class TimescaleQueries extends JdbcQueries {
     private String table;
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
-    private int timeBetweenReadings;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
-        this.timeBetweenReadings = config.getGeneratorGenerationInterval();
         this.table = config.getTimescaleTable();
 
         DriverManager.registerDriver(new org.postgresql.Driver());
@@ -57,10 +55,10 @@ public class TimescaleQueries extends JdbcQueries {
         double timeStart = start.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
         double timeEnd = end.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
 
-        String query = String.format("SELECT time_bucket('%s seconds', time) AS bucket, SUM(clients) " +
+        String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                 "FROM %s " +
                 "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
-                "GROUP BY bucket ORDER BY bucket ASC", timeBetweenReadings, table, timeStart, timeEnd);
+                "GROUP BY bucket ORDER BY bucket ASC", table, timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery(query)){
@@ -80,10 +78,10 @@ public class TimescaleQueries extends JdbcQueries {
         int[] counts = new int[generatedFloors.length];
         for(int i = 0; i < generatedFloors.length; i++){
             Floor floor = generatedFloors[i];
-            String query = String.format("SELECT time_bucket('%s seconds', time) AS bucket, SUM(clients) " +
+            String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                             "FROM %s " +
                             "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) AND %s",
-                    timeBetweenReadings, table, timeStart, timeEnd, precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
+                    table, timeStart, timeEnd, precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             try(Statement statement = connection.createStatement();
                 ResultSet results = statement.executeQuery(query)){

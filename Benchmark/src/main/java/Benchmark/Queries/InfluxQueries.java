@@ -56,9 +56,7 @@ public class InfluxQueries implements Queries{
                 sb.append("' ");
             }
 
-            sb.append(") GROUP BY time(");
-            sb.append(config.getGeneratorGenerationInterval());
-            sb.append("s)");
+            sb.append(") GROUP BY time(1d)");
             precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
         }
     }
@@ -71,10 +69,8 @@ public class InfluxQueries implements Queries{
     @Override
     public int computeTotalClients(LocalDateTime start, LocalDateTime end) {
         int total = 0;
-        // How do we define the start/end span for points to include at an arbitrary point in time?
-        //   This is the naive option (which is probably fine for the benchmark) but has a small risk of APs appearing more than once.
-        String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d GROUP BY time(%ss)",
-                measurement, toTimestamp(end), toTimestamp(start), config.getGeneratorGenerationInterval());
+        String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d GROUP BY time(1d)",
+                measurement, toTimestamp(end), toTimestamp(start));
 
         Query query = new Query(queryString);
         influxDB.query(query);
@@ -98,8 +94,6 @@ public class InfluxQueries implements Queries{
         for(int i = 0; i < generatedFloors.length; i++){
             Floor floor = generatedFloors[i];
 
-            // How do we define the start/end span for points to include at an arbitrary point in time?
-            //   This is the naive option (which is probably fine for the benchmark) but has a small risk of APs appearing more than once.
             String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d AND %s",
                     measurement, toTimestamp(end), toTimestamp(start), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 

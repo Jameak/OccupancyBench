@@ -45,7 +45,7 @@ public class TimescaleQueries extends JdbcQueries {
                 sb.append("' ");
             }
 
-            sb.append(") GROUP BY bucket ORDER BY bucket ASC");
+            sb.append(") GROUP BY bucket");
             precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
         }
     }
@@ -58,7 +58,7 @@ public class TimescaleQueries extends JdbcQueries {
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                 "FROM %s " +
                 "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
-                "GROUP BY bucket ORDER BY bucket ASC", table, timeStart, timeEnd);
+                "GROUP BY bucket", table, timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery(query)){
@@ -102,7 +102,7 @@ public class TimescaleQueries extends JdbcQueries {
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, MAX(clients) " +
                 "FROM %s " +
                 "WHERE AP='%s' AND time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
-                "GROUP BY bucket ORDER BY bucket ASC", table, AP.getAPname(), timeStart, timeEnd);
+                "GROUP BY bucket", table, AP.getAPname(), timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery(query)){

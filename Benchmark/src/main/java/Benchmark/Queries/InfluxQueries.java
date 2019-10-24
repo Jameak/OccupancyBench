@@ -69,7 +69,7 @@ public class InfluxQueries implements Queries{
     @Override
     public int computeTotalClients(LocalDateTime start, LocalDateTime end) {
         int total = 0;
-        String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d GROUP BY time(1d)",
+        String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",
                 measurement, toTimestamp(end), toTimestamp(start));
 
         Query query = new Query(queryString);
@@ -94,7 +94,7 @@ public class InfluxQueries implements Queries{
         for(int i = 0; i < generatedFloors.length; i++){
             Floor floor = generatedFloors[i];
 
-            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time > %d AND %s",
+            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d AND %s",
                     measurement, toTimestamp(end), toTimestamp(start), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             Query query = new Query(queryString);
@@ -116,7 +116,7 @@ public class InfluxQueries implements Queries{
 
     @Override
     public int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
-        String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time < %d AND time > %d GROUP BY time(1d)",
+        String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time < %d AND time >= %d GROUP BY time(1d)",
                 measurement, AP.getAPname(), toTimestamp(end), toTimestamp(start));
 
         Query query = new Query(queryString);

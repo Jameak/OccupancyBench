@@ -129,8 +129,7 @@ public class Program {
             for(Future queryTask : queryTasks){
                 queryTask.get();
             }
-        } else {
-            assert config.isIngestionEnabled();
+        } else if(config.isIngestionEnabled()) {
             // If we aren't running the queries, but are running ingestion, then we need some other way to determine
             //   how long to run ingestion for. Otherwise they'll just stop immediately.
             boolean timeDuration = config.getIngestionStandaloneDuration() > 0;

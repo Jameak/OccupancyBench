@@ -709,7 +709,7 @@ public class ConfigFile {
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
             if(ingestTarget == Target.FILE) return "Unsupported ingest target 'FILE' (" + INGEST_TARGET + ")";
 
-            if(generatorEnabled){
+            if(generatorEnabled && !ingestTargetRecreate){
                 if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";
             }
 

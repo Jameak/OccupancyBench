@@ -706,9 +706,12 @@ public class ConfigFile {
 
         // ---- Ingest ----
         if(ingestEnabled){
-            if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
             if(ingestTarget == Target.FILE) return "Unsupported ingest target 'FILE' (" + INGEST_TARGET + ")";
+
+            if(generatorEnabled){
+                if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";
+            }
 
             if(!queriesEnabled){
                 if(!(ingestDurationEndDate.isAfter(ingestStartDate))) return "Ingest end-date (" + INGEST_DURATION_END_DATE + ") must be after start-date (" + INGEST_START_DATE + ") for ingestion to run without also running queries.";

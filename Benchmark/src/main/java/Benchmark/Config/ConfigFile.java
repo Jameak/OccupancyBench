@@ -675,8 +675,8 @@ public class ConfigFile {
             if(!generatorEnabled) return "Both serialization (" + SERIALIZE_ENABLED + ") and the generator (" + GENERATOR_ENABLED + ") are disabled. One or both must be enabled to create/load the data needed for ingestion and queries.";
         }
 
-        if(serialize || generatorEnabled){
-            // Serialization doesn't serialize the source-data that ingestion relies on, so still ensure that those paths are valid.
+        if(ingestEnabled || generatorEnabled){
+            // Serialization doesn't serialize the source-data that ingestion relies on, so still ensure that those paths are valid if either the generator or ingestion is enabled.
             if(!Paths.get(generatorIdmap).toFile().exists()) return GENERATOR_IDMAP + ": Path doesn't exist: " + Paths.get(generatorIdmap).toFile().getAbsolutePath();
             if(!Paths.get(generatorMapfolder).toFile().exists()) return GENERATOR_MAP_FOLDER + ": Folder path doesn't exist: " + Paths.get(generatorMapfolder).toFile().getAbsolutePath();
         }

@@ -178,7 +178,7 @@ public class QueryRunnable implements Runnable {
     }
 
     private LocalDateTime generateRandomTime(LocalDateTime newestValue, LocalDateTime earliestValue){
-        double choice = randomValue();
+        double choice = rng.nextDouble();
         if(choice < config.getQueriesRngRangeDay()){
             // Query for some time on the newest date.
             return randomTimeBetween(newestValue.minusDays(1), newestValue, earliestValue);
@@ -206,12 +206,6 @@ public class QueryRunnable implements Runnable {
         assert diffSeconds > 0;
         long randBetween = startSeconds + rng.nextInt(diffSeconds);
         return LocalDateTime.ofEpochSecond(randBetween, 0, ZoneOffset.ofHours(0));
-    }
-
-    private double randomValue(){
-        // Generate a random value that follows an exponential distribution using the inversion method.
-        double lambda = config.getQueriesRngLambda();
-        return Math.log(1 - rng.nextDouble()) / -lambda;
     }
 
     private void reportStats(boolean done){

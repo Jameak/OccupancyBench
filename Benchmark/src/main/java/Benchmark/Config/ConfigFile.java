@@ -401,43 +401,38 @@ public class ConfigFile {
     private static final String QUERIES_WEIGHT_MAX_FOR_AP      = "queries.weight.maxforap";
     /**
      * Type: Double
-     * The value of the lambda-parameter used to generate a random number that follows an exponential distribution.
-     */
-    private static final String QUERIES_RNG_LAMBDA               = "queries.lambdaparameter";
-    /**
-     * Type: Double
-     * If the random number drawn from the exponential distribution is less than this value, then the time-interval
+     * If the random number drawn from X~uniform(0,1) is less than this value, then the time-interval
      * used in the query will at-most range over 24 hours, and will be at-most 24 hours old.
      *
-     * That is, if P(X <= {@code QUERIES_RNG_RANGE_DAY}) then this setting is used for the time-component of queries.
+     * That is, if P(X < {@code QUERIES_RNG_RANGE_DAY}) then this setting is used for the time-component of queries.
      */
     private static final String QUERIES_RNG_RANGE_DAY            = "queries.range.day";
     /**
      * Type: Double
-     * If the random number drawn from the exponential distribution is less than this value and greater than {@code QUERIES_RNG_RANGE_DAY},
-     * then the time-interval used in the query will at-most range over 7 days, and will be at-most 7 days old.
+     * If the random number drawn from X~uniform(0,1) is less than this value and greater than {@code QUERIES_RNG_RANGE_DAY},
+     * then the time-interval used in the query will at-most range over 7 days and will be at-most 7 days old.
      *
-     * That is, if P({@code QUERIES_RNG_RANGE_DAY} <= X <= {@code QUERIES_RNG_RANGE_WEEK}) then this setting is used
+     * That is, if P({@code QUERIES_RNG_RANGE_DAY} <= X < {@code QUERIES_RNG_RANGE_WEEK}) then this setting is used
      * for the time-component of queries.
      */
     private static final String QUERIES_RNG_RANGE_WEEK           = "queries.range.week";
     /**
      * Type: Double
-     * If the random number drawn from the exponential distribution is less than this value and greater than {@code QUERIES_RNG_RANGE_WEEK},
+     * If the random number drawn from X~uniform(0,1) is less than this value and greater than {@code QUERIES_RNG_RANGE_WEEK},
      * then the time-interval used in the query will at-most range over 30 days, and will be at-most 30 days old.
      *
-     * That is, if P({@code QUERIES_RNG_RANGE_WEEK} <= X <= {@code QUERIES_RNG_RANGE_MONTH}) then this setting is used
+     * That is, if P({@code QUERIES_RNG_RANGE_WEEK} <= X < {@code QUERIES_RNG_RANGE_MONTH}) then this setting is used
      * for the time-component of queries.
      */
     private static final String QUERIES_RNG_RANGE_MONTH          = "queries.range.month";
     /**
      * Type: Double
-     * If the random number drawn from the exponential distribution is less than this value and greater than {@code QUERIES_RNG_RANGE_MONTH},
+     * If the random number drawn from X~uniform(0,1) is less than this value and greater than {@code QUERIES_RNG_RANGE_MONTH},
      * then the time-interval used in the query will at-most range over 365 days, and will be at-most 365 days old.
      *
-     * That is, if P({@code QUERIES_RNG_RANGE_MONTH} <= X <= {@code QUERIES_RNG_RANGE_YEAR}) then this setting is used
+     * That is, if P({@code QUERIES_RNG_RANGE_MONTH} <= X < {@code QUERIES_RNG_RANGE_YEAR}) then this setting is used
      * for the time-component of queries.
-     * Values exceeding this value (that is, values where P({@code QUERIES_RNG_RANGE_YEAR} <= X)) may be selected from
+     * Values exceeding this value (that is, values where P({@code QUERIES_RNG_RANGE_YEAR} < X)) may be selected from
      * the entire interval ranging from the newest inserted value to {@code QUERIES_EARLIEST_VALID_DATE}.
      */
     private static final String QUERIES_RNG_RANGE_YEAR           = "queries.range.year";
@@ -465,7 +460,6 @@ public class ConfigFile {
     private int       queriesWeightTotalClients;
     private int       queriesWeightFloorTotals;
     private int       queriesWeightMaxForAP;
-    private double    queriesRngLambda;
     private double    queriesRngRangeDay;
     private double    queriesRngRangeWeek;
     private double    queriesRngRangeMonth;
@@ -585,11 +579,10 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2");
-        config.prop.setProperty(QUERIES_RNG_LAMBDA     , "1");
-        config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , "0.5");
-        config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , "1");
-        config.prop.setProperty(QUERIES_RNG_RANGE_MONTH, "2");
-        config.prop.setProperty(QUERIES_RNG_RANGE_YEAR , "3");
+        config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , "0.4");
+        config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , "0.7");
+        config.prop.setProperty(QUERIES_RNG_RANGE_MONTH, "0.9");
+        config.prop.setProperty(QUERIES_RNG_RANGE_YEAR , "0.95");
         config.prop.setProperty(QUERIES_INTERVAL_MIN   , "21600"); // 6 hours in seconds
         config.prop.setProperty(QUERIES_INTERVAL_MAX   , "7776000"); // 90 days in seconds
 
@@ -665,11 +658,10 @@ public class ConfigFile {
         queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1"));
         queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1"));
         queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2"));
-        queriesRngLambda         = Double.parseDouble(  prop.getProperty(QUERIES_RNG_LAMBDA, "1"));
-        queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY, "0.5"));
-        queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK, "1"));
-        queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH, "2"));
-        queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR, "3"));
+        queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY, "0.4"));
+        queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK, "0.7"));
+        queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH, "0.9"));
+        queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR, "0.95"));
         queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN, "21600"));
         queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX, "7776000"));
     }
@@ -878,10 +870,6 @@ public class ConfigFile {
 
     public LocalDate getQueriesEarliestValidDate() {
         return queriesEarliestValidDate;
-    }
-
-    public double getQueriesRngLambda() {
-        return queriesRngLambda;
     }
 
     public double getQueriesRngRangeDay() {

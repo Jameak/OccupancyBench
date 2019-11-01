@@ -81,6 +81,20 @@ public class ConfigFile {
      */
     private static final String GENERATOR_GRANULARITY             = "generator.data.granularity";
     /**
+     * Type: Integer
+     * A random number from 0 to this value will be multiplied with the probability of each AP and added to the
+     * number of clients connected to it.
+     *
+     * A value of 0 results in data that exactly matches the seasonality and cache-behavior of the seed data (under the
+     * assumption of a 1-1 mapping between seed-APs and generated APs which isn't quite true).
+     * However, if a very small amount of seed data is available, then a value of 0 will generate data whose period is
+     * the amount of data in the seed data. A smart database might be able to discover this period and vastly improve
+     * cache-performance by exploiting it.
+     *
+     * Also used during ingest-generation.
+     */
+    private static final String GENERATOR_JITTER                  = "generator.data.jitter";
+    /**
      * Type: String
      * The path to the mapping-file between ITU AP-names and their assigned ID, as used in the probability-map
      * created by the python script.
@@ -148,6 +162,7 @@ public class ConfigFile {
     private boolean   generatorEnabled;
     private double    generatorScale;
     private Granularity generatorGranularity;
+    private int       generatorJitter;
     private String    generatorIdmap;
     private String    generatorMapfolder;
     private int       generatorSourceInterval;
@@ -524,7 +539,8 @@ public class ConfigFile {
         //Generator
         config.prop.setProperty(GENERATOR_ENABLED, "true");
         config.prop.setProperty(GENERATOR_SCALE, "1.0");
-        config.prop.setProperty(GENERATOR_SCALE, "nanosecond");
+        config.prop.setProperty(GENERATOR_GRANULARITY, "nanosecond");
+        config.prop.setProperty(GENERATOR_JITTER, "100");
         config.prop.setProperty(GENERATOR_IDMAP, "FILE PATH");
         config.prop.setProperty(GENERATOR_MAP_FOLDER, "FOLDER PATH");
         config.prop.setProperty(GENERATOR_SOURCE_INTERVAL, "60");
@@ -603,6 +619,7 @@ public class ConfigFile {
         generatorEnabled               = Boolean.parseBoolean(prop.getProperty(GENERATOR_ENABLED, "true"));
         generatorIdmap                 =                      prop.getProperty(GENERATOR_IDMAP);
         generatorGranularity           = Granularity.valueOf( prop.getProperty(GENERATOR_GRANULARITY, "nanosecond").toUpperCase().trim());
+        generatorJitter                = Integer.parseInt(    prop.getProperty(GENERATOR_JITTER, "100"));
         generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE, "1.0"));
         generatorMapfolder             =                      prop.getProperty(GENERATOR_MAP_FOLDER);
         generatorSourceInterval        = Integer.parseInt(    prop.getProperty(GENERATOR_SOURCE_INTERVAL, "60"));
@@ -691,6 +708,7 @@ public class ConfigFile {
             if(!(generatorScale > 0.0)) return GENERATOR_SCALE + ": Scale must be > 0.0";
             if(!(generatorSourceInterval > 0)) return GENERATOR_SOURCE_INTERVAL + ": Source interval must be > 0";
             if(!(generatorGenerationInterval > 0)) return GENERATOR_GENERATION_INTERVAL + ": Generation interval must be > 0";
+            if(!(generatorJitter >= 0)) return GENERATOR_JITTER + ": Generation jitter must be >= 0";
             if(!(generatorGenerationInterval == generatorSourceInterval ||
                     (generatorGenerationInterval < generatorSourceInterval && generatorSourceInterval % generatorGenerationInterval == 0) ||
                     (generatorGenerationInterval > generatorSourceInterval && generatorGenerationInterval % generatorSourceInterval == 0))) return GENERATOR_SOURCE_INTERVAL + " and " + GENERATOR_GENERATION_INTERVAL + ": Source interval and generation interval must be equal, or one must be evenly divisible by the other";
@@ -978,5 +996,9 @@ public class ConfigFile {
 
     public int getQueriesWeightMaxForAP() {
         return queriesWeightMaxForAP;
+    }
+
+    public int getGeneratorJitter() {
+        return generatorJitter;
     }
 }

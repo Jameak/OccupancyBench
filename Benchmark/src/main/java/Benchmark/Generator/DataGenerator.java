@@ -37,7 +37,7 @@ public class DataGenerator {
         int interval = config.getGeneratorGenerationInterval();
         int loadedInterval = config.getGeneratorSourceInterval();
         double scale = config.getGeneratorScale();
-
+        int jitterMax = config.getGeneratorJitter();
 
         assert interval == loadedInterval || // Intervals match
                 (interval < loadedInterval && loadedInterval % interval == 0) || // Interval to generate is quicker than data-interval. Then the generate-interval must be evenly divisible by the data-interval
@@ -53,14 +53,15 @@ public class DataGenerator {
 
         LocalDate nextDate = startDate;
         while(!nextDate.isAfter(endDate)){ // If we run out of data to generate from, then go back to the beginning.
-            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, APs, sortedEntryKeys, data, rng, scale, outputTarget);
+            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, APs, sortedEntryKeys, data, rng, scale, outputTarget, jitterMax);
             if(nextDate.isEqual(endDate) || outputTarget.shouldStopEarly()) break;
         }
     }
 
     private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval,
                                              int loadedInterval, AccessPoint[] APs, LocalDate[] sortedEntryKeys,
-                                             MapData data, Random rng, double scale, ITarget outputTarget) throws IOException, SQLException {
+                                             MapData data, Random rng, double scale, ITarget outputTarget,
+                                             int jitterMax) throws IOException, SQLException {
         boolean generateFasterThanLoadedData = interval < loadedInterval;
         boolean generateSlowerThanLoadedData = interval > loadedInterval;
 
@@ -87,7 +88,7 @@ public class DataGenerator {
                     skippedEntries = 0;
                 }
 
-                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, scale, outputTarget);
+                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, scale, outputTarget, jitterMax);
 
                 if (generateFasterThanLoadedData) {
                     Entry nextEntry = null;
@@ -111,7 +112,7 @@ public class DataGenerator {
                         for (int j = 0; j < numAdditionalEntriesToInclude; j++) {
                             startTime = startTime.plusSeconds(interval);
                             Entry fakeEntry = CreateFakeEntry(entryOnDay, nextEntry, j, numAdditionalEntriesToInclude);
-                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget);
+                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget, jitterMax);
                         }
                     } else {
                         startTime = startTime.plusSeconds(interval * numAdditionalEntriesToInclude);
@@ -127,7 +128,8 @@ public class DataGenerator {
         return nextDate;
     }
 
-    private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng, LocalDate nextDate, double scale, ITarget outputTarget) throws IOException, SQLException {
+    private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng,
+                                             LocalDate nextDate, double scale, ITarget outputTarget, int jitterMax) throws IOException, SQLException {
         LocalTime previousReadingTime = startTime;
 
         for (AccessPoint AP : APs) {
@@ -144,7 +146,8 @@ public class DataGenerator {
             int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
             LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
 
-            GeneratedEntry genEntry = new GeneratedEntry(nextDate, readingTime, AP.getAPname(), (int) Math.ceil(entryOnDay.getTotal() * scale * probability));
+            int numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+            GeneratedEntry genEntry = new GeneratedEntry(nextDate, readingTime, AP.getAPname(), numClients);
             outputTarget.add(genEntry);
             previousReadingTime = readingTime;
         }

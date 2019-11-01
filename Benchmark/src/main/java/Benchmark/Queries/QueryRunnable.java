@@ -172,6 +172,7 @@ public class QueryRunnable implements Runnable {
             time[1] = time[0].plusSeconds(maxTimeInterval);
         }
 
+        assert time[0].isBefore(time[1]) || time[0].isEqual(time[1]);
         assert !time[0].isBefore(startClamp);
         assert !time[1].isAfter(newestValidDate);
         return time;

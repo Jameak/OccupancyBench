@@ -382,7 +382,10 @@ public class ConfigFile {
     private static final String QUERIES_MAX_COUNT                = "queries.duration.count";
     /**
      * Type: Integer
-     * The number of seconds between queries reporting query-statistics.
+     * The number of seconds between queries reporting query-statistics during query-execution.
+     * In-progress query statistics will report the average query-speeds since the previous report, whereas the
+     * final report prints values over the entire query-duration.
+     *
      * A value of <= 0 will make querying not report any intermediate values.
      */
     private static final String QUERIES_REPORT_FREQUENCY         = "queries.reportfrequency";

@@ -43,13 +43,19 @@ public class QueryRunnable implements Runnable {
     private final int thresholdQuery_MaxForAP;
 
     private int countFull;
-    private int countQuery_TotalClients;
-    private int countQuery_FloorTotal;
-    private int countQuery_MaxForAP;
+    private int countQueryInProg_TotalClients;
+    private int countQueryInProg_FloorTotal;
+    private int countQueryInProg_MaxForAP;
+    private int countQueryDone_TotalClients;
+    private int countQueryDone_FloorTotal;
+    private int countQueryDone_MaxForAP;
 
-    private long timeSpentQuery_TotalClients;
-    private long timeSpentQuery_FloorTotal;
-    private long timeSpentQuery_MaxForAP;
+    private long timeSpentQueryInProg_TotalClients;
+    private long timeSpentQueryInProg_FloorTotal;
+    private long timeSpentQueryInProg_MaxForAP;
+    private long timeSpentQueryDone_TotalClients;
+    private long timeSpentQueryDone_FloorTotal;
+    private long timeSpentQueryDone_MaxForAP;
 
     public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, Queries queryTarget, String threadName){
         this.config = config;
@@ -97,8 +103,8 @@ public class QueryRunnable implements Runnable {
                 if(!warmUp) timerQuery_TotalClients.start();
                 queries.computeTotalClients(time[0], time[1]);
                 if(!warmUp) {
-                    timeSpentQuery_TotalClients += timerQuery_TotalClients.elapsedNanoseconds();
-                    countQuery_TotalClients++;
+                    timeSpentQueryInProg_TotalClients += timerQuery_TotalClients.elapsedNanoseconds();
+                    countQueryInProg_TotalClients++;
                 }
             }
                 break;
@@ -108,8 +114,8 @@ public class QueryRunnable implements Runnable {
                 if(!warmUp) timerQuery_FloorTotal.start();
                 queries.computeFloorTotal(time[0], time[1], generatedFloors);
                 if(!warmUp){
-                    timeSpentQuery_FloorTotal += timerQuery_FloorTotal.elapsedNanoseconds();
-                    countQuery_FloorTotal++;
+                    timeSpentQueryInProg_FloorTotal += timerQuery_FloorTotal.elapsedNanoseconds();
+                    countQueryInProg_FloorTotal++;
                 }
             }
                 break;
@@ -120,8 +126,8 @@ public class QueryRunnable implements Runnable {
                 AccessPoint selectedAP = selectRandomAP();
                 queries.maxPerDayForAP(time[0], time[1], selectedAP);
                 if(!warmUp){
-                    timeSpentQuery_MaxForAP += timerQuery_MaxForAP.elapsedNanoseconds();
-                    countQuery_MaxForAP++;
+                    timeSpentQueryInProg_MaxForAP += timerQuery_MaxForAP.elapsedNanoseconds();
+                    countQueryInProg_MaxForAP++;
                 }
             }
                 break;
@@ -211,14 +217,39 @@ public class QueryRunnable implements Runnable {
 
     private void reportStats(boolean done){
         String prefix = (done ? "DONE " : "RUNNING ") + threadName;
+        int count_TotalClients      = done ? countQueryDone_TotalClients     : countQueryInProg_TotalClients;
+        int count_FloorTotal        = done ? countQueryDone_FloorTotal       : countQueryInProg_FloorTotal;
+        int count_MaxForAP          = done ? countQueryDone_MaxForAP         : countQueryInProg_MaxForAP;
+        long timeSpent_TotalClients = done ? timeSpentQueryDone_TotalClients : timeSpentQueryInProg_TotalClients;
+        long timeSpent_FloorTotal   = done ? timeSpentQueryDone_FloorTotal   : timeSpentQueryInProg_FloorTotal;
+        long timeSpent_MaxForAP     = done ? timeSpentQueryDone_MaxForAP     : timeSpentQueryInProg_MaxForAP;
 
-        double totalTime = (timeSpentQuery_TotalClients + timeSpentQuery_FloorTotal + timeSpentQuery_MaxForAP) / 1e9;
+        if(!done) Logger.LOG(String.format("%s: Average query-speeds from the last %s seconds:", prefix, config.getQueriesReportingFrequency()));
         Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
-        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_TotalClients, timeSpentQuery_TotalClients / 1e9, countQuery_TotalClients / (timeSpentQuery_TotalClients / 1e9) ));
-        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_FloorTotal, timeSpentQuery_FloorTotal / 1e9, countQuery_FloorTotal  / (timeSpentQuery_FloorTotal  / 1e9) ));
-        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, countQuery_MaxForAP, timeSpentQuery_MaxForAP / 1e9, countQuery_MaxForAP  / (timeSpentQuery_MaxForAP  / 1e9) ));
+        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, count_TotalClients, timeSpent_TotalClients / 1e9, count_TotalClients / (timeSpent_TotalClients / 1e9) ));
+        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, count_FloorTotal, timeSpent_FloorTotal / 1e9, count_FloorTotal / (timeSpent_FloorTotal / 1e9) ));
+        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, count_MaxForAP, timeSpent_MaxForAP / 1e9, count_MaxForAP / (timeSpent_MaxForAP / 1e9) ));
         Logger.LOG(String.format("%s: ----------------|----------|--------------|---------------", prefix));
-        Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
+
+        if(!done){
+            countQueryDone_TotalClients += countQueryInProg_TotalClients;
+            countQueryDone_FloorTotal += countQueryInProg_FloorTotal;
+            countQueryDone_MaxForAP += countQueryInProg_MaxForAP;
+            timeSpentQueryDone_TotalClients += timeSpentQueryInProg_TotalClients;
+            timeSpentQueryDone_FloorTotal += timeSpentQueryInProg_FloorTotal;
+            timeSpentQueryDone_MaxForAP += timeSpentQueryInProg_MaxForAP;
+            countQueryInProg_TotalClients = 0;
+            countQueryInProg_FloorTotal = 0;
+            countQueryInProg_MaxForAP = 0;
+            timeSpentQueryInProg_TotalClients = 0;
+            timeSpentQueryInProg_FloorTotal = 0;
+            timeSpentQueryInProg_MaxForAP = 0;
+        }
+
+        if(done){
+            double totalTime = (timeSpentQueryDone_TotalClients + timeSpentQueryDone_FloorTotal + timeSpentQueryDone_MaxForAP) / 1e9;
+            Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
+        }
     }
 
     @Override

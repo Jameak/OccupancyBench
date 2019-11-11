@@ -104,6 +104,7 @@ public class Program {
             // Load the data from previous run
             Logger.LOG("Deserializing floor.");
             generatedFloors = deserializeFloor(config);
+            Logger.LOG(String.format("Floor data: %s floors, %s APs", generatedFloors.length, allAPs(generatedFloors).length));
             Logger.LOG("Deserializing rng.");
             rng = deserializeRandom(config);
         }

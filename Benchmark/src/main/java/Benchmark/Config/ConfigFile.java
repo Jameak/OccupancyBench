@@ -3,9 +3,7 @@ package Benchmark.Config;
 import java.io.*;
 import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.Properties;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -759,6 +757,90 @@ public class ConfigFile {
         try(OutputStream output = new FileOutputStream(filePath)){
             prop.store(output, "Config file for Benchmark");
         }
+    }
+
+    public String getSettings(){
+        SortedMap<String, Object> settings = new TreeMap<>();
+        settings.put(SEED, seed);
+        settings.put(SERIALIZE_ENABLED, serialize);
+        settings.put(SERIALIZE_PATH, serializePath);
+        settings.put(GENERATOR_ENABLED, generatorEnabled);
+        settings.put(GENERATOR_IDMAP, generatorIdmap);
+        settings.put(GENERATOR_GRANULARITY, generatorGranularity);
+        settings.put(GENERATOR_JITTER, generatorJitter);
+        settings.put(GENERATOR_SCALE, generatorScale);
+        settings.put(GENERATOR_MAP_FOLDER, generatorMapfolder);
+        settings.put(GENERATOR_SOURCE_INTERVAL, generatorSourceInterval);
+        settings.put(GENERATOR_GENERATION_INTERVAL, generatorGenerationInterval);
+        settings.put(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, generatorKeepFloorAssociations);
+        settings.put(GENERATOR_START_DATE, generatorStartDate);
+        settings.put(GENERATOR_END_DATE, generatorEndDate);
+        settings.put(GENERATOR_CREATE_DEBUG_TABLES, generatorCreateDebugTables);
+        settings.put(GENERATOR_OUTPUT_TARGETS, generatorOutputTargets);
+        settings.put(GENERATOR_OUTPUT_TO_DISK_TARGET, generatorToDiskTarget);
+        settings.put(INFLUX_URL, influxUrl);
+        settings.put(INFLUX_USERNAME, influxUsername);
+        settings.put(INFLUX_PASSWORD, influxPassword);
+        settings.put(INFLUX_DBNAME, influxDBName);
+        settings.put(INFLUX_TABLE, influxTable);
+        settings.put(INFLUX_BATCHSIZE, influxBatchsize);
+        settings.put(INFLUX_BATCH_FLUSH_TIME, influxFlushtime);
+        settings.put(TIMESCALE_HOST, timescaleHost);
+        settings.put(TIMESCALE_USERNAME, timescaleUsername);
+        settings.put(TIMESCALE_PASSWORD, timescalePassword);
+        settings.put(TIMESCALE_DBNAME, timescaleDBName);
+        settings.put(TIMESCALE_TABLE, timescaleTable);
+        settings.put(TIMESCALE_BATCHSIZE, timescaleBatchSize);
+        settings.put(TIMESCALE_REWRITE_BATCH, timescaleReWriteBatchedInserts);
+        settings.put(INGEST_ENABLED, ingestEnabled);
+        settings.put(INGEST_START_DATE, ingestStartDate);
+        settings.put(INGEST_SPEED, ingestSpeed);
+        settings.put(INGEST_REPORT_FREQUENCY, ingestReportFrequency);
+        settings.put(INGEST_STANDALONE_DURATION, ingestDurationStandalone);
+        settings.put(INGEST_DURATION_END_DATE, ingestDurationEndDate);
+        settings.put(INGEST_TARGET, ingestTarget);
+        settings.put(INGEST_TARGET_RECREATE, ingestTargetRecreate);
+        settings.put(INGEST_SHARED_INSTANCE, ingestTargetSharedInstance);
+        settings.put(INGEST_THREADS, ingestThreads);
+        settings.put(QUERIES_ENABLED, queriesEnabled);
+        settings.put(QUERIES_TARGET, queriesTarget);
+        settings.put(QUERIES_THREADS, queriesThreads);
+        settings.put(QUERIES_SHARED_INSTANCE, queriesSharedInstance);
+        settings.put(QUERIES_DURATION, queriesDuration);
+        settings.put(QUERIES_WARMUP, queriesWarmup);
+        settings.put(QUERIES_MAX_COUNT, queriesMaxCount);
+        settings.put(QUERIES_REPORT_FREQUENCY, queriesReportFrequency);
+        settings.put(QUERIES_EARLIEST_VALID_DATE, queriesEarliestValidDate);
+        settings.put(QUERIES_WEIGHT_TOTAL_CLIENTS, queriesWeightTotalClients);
+        settings.put(QUERIES_WEIGHT_FLOOR_TOTALS, queriesWeightFloorTotals);
+        settings.put(QUERIES_WEIGHT_MAX_FOR_AP, queriesWeightMaxForAP);
+        settings.put(QUERIES_RNG_RANGE_DAY, queriesRngRangeDay);
+        settings.put(QUERIES_RNG_RANGE_WEEK, queriesRngRangeWeek);
+        settings.put(QUERIES_RNG_RANGE_MONTH, queriesRngRangeMonth);
+        settings.put(QUERIES_RNG_RANGE_YEAR, queriesRngRangeYear);
+        settings.put(QUERIES_INTERVAL_MIN, queriesIntervalMin);
+        settings.put(QUERIES_INTERVAL_MAX, queriesIntervalMax);
+
+        StringBuilder sb = new StringBuilder();
+        for(String key : settings.keySet()){
+            Object val = settings.get(key);
+
+            // Pretty-print the target-array, otherwise we end up with [Benchmark...@garbage]
+            if(val instanceof Target[]){
+                Target[] value = (Target[]) val;
+                String out = "";
+                for(int i = 0; i < value.length; i++){
+                    if(i == 0){
+                        out += value[i];
+                    } else {
+                        out += "," + value[i];
+                    }
+                }
+                val = out;
+            }
+            sb.append(key + " = " + settings.get(key) + "\n");
+        }
+        return sb.toString();
     }
 
     public boolean isValidConfig() {

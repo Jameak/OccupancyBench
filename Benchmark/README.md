@@ -30,6 +30,7 @@ generator.data.folder                = FOLDER PATH
 generator.data.generationinterval    = 60
 generator.data.sourceinterval        = 60
 generator.data.scale                 = 1.0
+generator.data.jitter                = 100
 generator.data.startdate             = 2019-01-01
 generator.data.enddate               = 2019-04-01
 generator.data.keepfloorassociations = true
@@ -66,6 +67,7 @@ queries.lambdaparameter       = 1
 queries.reportfrequency       = -1
 queries.interval.min          = 21600
 queries.interval.max          = 7776000
+queries.dateinformation       = 500
 
 influx.dbname          = benchmark
 influx.password        = PASSWORD

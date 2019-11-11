@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public interface Queries {
     void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception;
     void done() throws SQLException;
+    LocalDateTime getNewestTimestamp() throws SQLException;
 
     int computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException;
     int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException;

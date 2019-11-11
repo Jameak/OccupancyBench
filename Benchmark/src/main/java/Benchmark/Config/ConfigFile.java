@@ -464,6 +464,19 @@ public class ConfigFile {
      * biased towards old values.
      */
     private static final String QUERIES_INTERVAL_MAX             = "queries.interval.max";
+    /**
+     * Type: Integer
+     * Specifies how often (in milliseconds) the query-executor queries the database for the newest inserted value.
+     * The returned value will be used as the newest possible value that can be used in a query.
+     *
+     * A value of 0 will make the query-executor retrieve the newest value before each query is run.
+     *
+     * A value less than 0 will make ingestion-threads tell the query-executor what the newest value is directly without
+     * having to ask the database. However, this has the issue of the newest value that was inserted not necessarily
+     * being the newest possible queryable value, potentially making queries on the newest values too easy because no
+     * data is returned.
+     */
+    private static final String QUERIES_DATE_COMM                = "queries.dateinformation";
     private boolean   queriesEnabled;
     private Target    queriesTarget;
     private int       queriesThreads;
@@ -482,6 +495,7 @@ public class ConfigFile {
     private double    queriesRngRangeYear;
     private int       queriesIntervalMin;
     private int       queriesIntervalMax;
+    private int       queriesDateCommIntervalMilliseconds;
 
     private final Properties prop = new Properties();
     private boolean validated;
@@ -602,6 +616,7 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_RNG_RANGE_YEAR , "0.95");
         config.prop.setProperty(QUERIES_INTERVAL_MIN   , "21600"); // 6 hours in seconds
         config.prop.setProperty(QUERIES_INTERVAL_MAX   , "7776000"); // 90 days in seconds
+        config.prop.setProperty(QUERIES_DATE_COMM      , "500");
 
         config.parseProps();
         return config;
@@ -682,6 +697,7 @@ public class ConfigFile {
         queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR, "0.95"));
         queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN, "21600"));
         queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX, "7776000"));
+        queriesDateCommIntervalMilliseconds = Integer.parseInt(prop.getProperty(QUERIES_DATE_COMM, "500"));
     }
 
     private String validateConfig(){
@@ -762,8 +778,10 @@ public class ConfigFile {
     public String getSettings(){
         SortedMap<String, Object> settings = new TreeMap<>();
         settings.put(SEED, seed);
+
         settings.put(SERIALIZE_ENABLED, serialize);
         settings.put(SERIALIZE_PATH, serializePath);
+
         settings.put(GENERATOR_ENABLED, generatorEnabled);
         settings.put(GENERATOR_IDMAP, generatorIdmap);
         settings.put(GENERATOR_GRANULARITY, generatorGranularity);
@@ -778,6 +796,7 @@ public class ConfigFile {
         settings.put(GENERATOR_CREATE_DEBUG_TABLES, generatorCreateDebugTables);
         settings.put(GENERATOR_OUTPUT_TARGETS, generatorOutputTargets);
         settings.put(GENERATOR_OUTPUT_TO_DISK_TARGET, generatorToDiskTarget);
+
         settings.put(INFLUX_URL, influxUrl);
         settings.put(INFLUX_USERNAME, influxUsername);
         settings.put(INFLUX_PASSWORD, influxPassword);
@@ -785,6 +804,7 @@ public class ConfigFile {
         settings.put(INFLUX_TABLE, influxTable);
         settings.put(INFLUX_BATCHSIZE, influxBatchsize);
         settings.put(INFLUX_BATCH_FLUSH_TIME, influxFlushtime);
+
         settings.put(TIMESCALE_HOST, timescaleHost);
         settings.put(TIMESCALE_USERNAME, timescaleUsername);
         settings.put(TIMESCALE_PASSWORD, timescalePassword);
@@ -792,6 +812,7 @@ public class ConfigFile {
         settings.put(TIMESCALE_TABLE, timescaleTable);
         settings.put(TIMESCALE_BATCHSIZE, timescaleBatchSize);
         settings.put(TIMESCALE_REWRITE_BATCH, timescaleReWriteBatchedInserts);
+
         settings.put(INGEST_ENABLED, ingestEnabled);
         settings.put(INGEST_START_DATE, ingestStartDate);
         settings.put(INGEST_SPEED, ingestSpeed);
@@ -802,6 +823,7 @@ public class ConfigFile {
         settings.put(INGEST_TARGET_RECREATE, ingestTargetRecreate);
         settings.put(INGEST_SHARED_INSTANCE, ingestTargetSharedInstance);
         settings.put(INGEST_THREADS, ingestThreads);
+
         settings.put(QUERIES_ENABLED, queriesEnabled);
         settings.put(QUERIES_TARGET, queriesTarget);
         settings.put(QUERIES_THREADS, queriesThreads);
@@ -820,6 +842,7 @@ public class ConfigFile {
         settings.put(QUERIES_RNG_RANGE_YEAR, queriesRngRangeYear);
         settings.put(QUERIES_INTERVAL_MIN, queriesIntervalMin);
         settings.put(QUERIES_INTERVAL_MAX, queriesIntervalMax);
+        settings.put(QUERIES_DATE_COMM, queriesDateCommIntervalMilliseconds);
 
         StringBuilder sb = new StringBuilder();
         for(String key : settings.keySet()){
@@ -838,7 +861,8 @@ public class ConfigFile {
                 }
                 val = out;
             }
-            sb.append(key + " = " + settings.get(key) + "\n");
+
+            sb.append(key + " = " + val + "\n");
         }
         return sb.toString();
     }
@@ -1085,5 +1109,13 @@ public class ConfigFile {
 
     public int getGeneratorJitter() {
         return generatorJitter;
+    }
+
+    public int getQueryDateCommunicationIntervalInMillisec() {
+        return queriesDateCommIntervalMilliseconds;
+    }
+
+    public boolean doDateCommunicationByQueryingDatabase() {
+        return queriesDateCommIntervalMilliseconds >= 0;
     }
 }

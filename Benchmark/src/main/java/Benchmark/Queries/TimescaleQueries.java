@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -48,6 +49,22 @@ public class TimescaleQueries extends JdbcQueries {
             sb.append(") GROUP BY bucket");
             precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
         }
+    }
+
+    @Override
+    public LocalDateTime getNewestTimestamp() throws SQLException {
+        String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", table);
+
+        String time = null;
+        try(Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery(queryString)){
+            while(results.next()) {
+                time = results.getString("time");
+            }
+        }
+
+        assert time != null;
+        return LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
     }
 
     @Override

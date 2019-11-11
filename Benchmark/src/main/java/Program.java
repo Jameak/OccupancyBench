@@ -113,7 +113,7 @@ public class Program {
 
         if(config.isIngestionEnabled()){
             Logger.LOG("Starting ingestion.");
-            startIngestion(config, generatedFloors, parsedData, dateComm, rng);
+            startIngestion(config, generatedFloors, parsedData, dateComm, rng, !config.doDateCommunicationByQueryingDatabase());
             Logger.LOG("Ingestion started.");
         }
 
@@ -187,7 +187,7 @@ public class Program {
         return queryTasks;
     }
 
-    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, DateCommunication dateComm, Random rng) throws IOException, SQLException {
+    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, DateCommunication dateComm, Random rng, boolean doDirectComm) throws IOException, SQLException {
         assert config.getIngestThreadCount() > 0;
         threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
         ingestTasks = new Future[config.getIngestThreadCount()];
@@ -222,7 +222,7 @@ public class Program {
             // If ingestion runs alongside querying then we stop ingestion when we're done querying.
             // However, if querying isn't running then we might want to stop ingestion at some specific date.
             LocalDate ingestEndDate = config.isQueryingEnabled() ? LocalDate.MAX : config.getIngestEndDate();
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, "Ingest " + i, ingestEndDate);
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, "Ingest " + i, ingestEndDate, doDirectComm);
         }
 
         for(int i = 0; i < ingestTasks.length; i++){

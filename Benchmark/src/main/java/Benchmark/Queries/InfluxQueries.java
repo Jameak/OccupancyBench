@@ -7,12 +7,14 @@ import okhttp3.OkHttpClient;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
+import org.influxdb.dto.QueryResult;
 
 import java.io.IOException;
-import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -64,6 +66,27 @@ public class InfluxQueries implements Queries{
     @Override
     public void done() {
         influxDB.close();
+    }
+
+    @Override
+    public LocalDateTime getNewestTimestamp() {
+        String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", measurement);
+
+        Query query = new Query(queryString);
+        QueryResult results = influxDB.query(query);
+
+        String time = null;
+        for(QueryResult.Result result : results.getResults()){
+            assert result.getSeries() != null;
+            for(QueryResult.Series series : result.getSeries()){
+                for(List<Object> entries : series.getValues()){
+                    time = (String) entries.get(series.getColumns().indexOf("time"));
+                }
+            }
+        }
+
+        assert time != null;
+        return LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
     }
 
     @Override

@@ -29,14 +29,14 @@ public class IngestRunnable implements Runnable {
     private final LocalDate endDate;
     private boolean done;
 
-    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, String threadName, LocalDate endDate){
+    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, String threadName, LocalDate endDate, boolean doDirectComm){
         this.config = config;
         this.APs = APs;
         this.data = data;
         this.rng = rng;
         this.threadName = threadName;
         this.endDate = endDate;
-        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), dateComm, threadName);
+        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), dateComm, threadName, doDirectComm);
         this.targetWrapper = new IngestWrapper(outputTarget, ingestControl);
     }
 

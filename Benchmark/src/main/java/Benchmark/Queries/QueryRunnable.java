@@ -57,6 +57,8 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQueryDone_FloorTotal;
     private long timeSpentQueryDone_MaxForAP;
 
+    private LocalDateTime newestValidDate;
+
     public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, Queries queryTarget, String threadName){
         this.config = config;
         this.rng = rng;
@@ -67,6 +69,7 @@ public class QueryRunnable implements Runnable {
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
         this.timerQuery_MaxForAP = new PreciseTimer();
+        this.newestValidDate = dateComm.getNewestTime();
 
         assert this.config.getQueriesWeightTotalClients() >= 0;
         this.thresholdQuery_TotalClients = config.getQueriesWeightTotalClients();
@@ -148,7 +151,6 @@ public class QueryRunnable implements Runnable {
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         LocalDateTime[] time = new LocalDateTime[2];
-        LocalDateTime newestValidDate = dateComm.getNewestTime();
 
         LocalDateTime time1 = generateRandomTime(newestValidDate, startClamp);
         LocalDateTime time2 = generateRandomTime(newestValidDate, startClamp);
@@ -260,6 +262,7 @@ public class QueryRunnable implements Runnable {
         int targetCount = config.getMaxQueryCount();
         CoarseTimer runTimer = new CoarseTimer();
         CoarseTimer reportTimer = new CoarseTimer();
+        PreciseTimer dateCommTimer = new PreciseTimer();
         boolean warmUp = warmUpTime > 0;
         boolean printProgressReports =  reportFrequency > 0;
 
@@ -271,8 +274,11 @@ public class QueryRunnable implements Runnable {
 
         if (warmUp) {
             try {
+                dateCommTimer.start();
                 runTimer.start();
                 while (runTimer.elapsedSeconds() < warmUpTime) {
+                    getTime(dateCommTimer);
+
                     runQueries(queryTarget, true);
                 }
             } catch (SQLException e) {
@@ -283,18 +289,24 @@ public class QueryRunnable implements Runnable {
 
         try {
             if(duration > 0){
+                dateCommTimer.start();
                 runTimer.start();
                 if(printProgressReports) reportTimer.start();
                 while (runTimer.elapsedSeconds() < duration) {
+                    getTime(dateCommTimer);
+
                     runQueries(queryTarget, false);
 
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
             } else {
                 assert targetCount > 0;
+                dateCommTimer.start();
                 if(printProgressReports) reportTimer.start();
                 while (countFull < targetCount) {
-                        runQueries(queryTarget, false);
+                    getTime(dateCommTimer);
+
+                    runQueries(queryTarget, false);
 
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
@@ -316,6 +328,19 @@ public class QueryRunnable implements Runnable {
         if(timer.elapsedSeconds() > frequency){
             Logger.LOG(() -> reportStats(false));
             timer.start();
+        }
+    }
+
+    private void getTime(PreciseTimer dateCommTimer) throws SQLException{
+        if(config.doDateCommunicationByQueryingDatabase()){
+            if(config.getQueryDateCommunicationIntervalInMillisec() == 0){
+                newestValidDate = queryTarget.getNewestTimestamp();
+            } else if(dateCommTimer.elapsedSeconds() * 1000 > config.getQueryDateCommunicationIntervalInMillisec()){
+                newestValidDate = queryTarget.getNewestTimestamp();
+                dateCommTimer.start();
+            }
+        } else {
+             newestValidDate = dateComm.getNewestTime();
         }
     }
 

@@ -24,15 +24,17 @@ public class IngestControl {
     private final int reportFrequencyMillis;
     private final DateCommunication dateComm;
     private final String threadName;
+    private final boolean doDirectComm;
     private long sleepDuration = 0;
 
-    public IngestControl(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName){
+    public IngestControl(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName, boolean doDirectComm){
         this.desiredIngestSpeedPer100Millis = desiredIngestSpeed / 10;
         this.limitSpeed = desiredIngestSpeed > 0;
         this.reportFrequencyMillis = reportFrequency * 1000;
         this.reportIntermediateStats = reportFrequency > 0;
         this.dateComm = dateComm;
         this.threadName = threadName;
+        this.doDirectComm = doDirectComm;
         totalTimer = new CoarseTimer();
         reportTimer = new CoarseTimer();
         speedTimer = new CoarseTimer();
@@ -48,8 +50,7 @@ public class IngestControl {
 
         // Update the info about what the newest entry is, so we can use it in queries.
         // However, updating that info requires taking a lock, so rarely do that update.
-        // TODO: Make this configurable...?
-        if(totalCounter % 20000 == 0){
+        if(doDirectComm && totalCounter % 20000 == 0){
             dateComm.setNewestTime(entry.getDateTime());
         }
 

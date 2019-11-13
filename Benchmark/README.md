@@ -34,7 +34,6 @@ generator.data.jitter                = 100
 generator.data.startdate             = 2019-01-01
 generator.data.enddate               = 2019-04-01
 generator.data.keepfloorassociations = true
-generator.data.createdebugtables     = false
 generator.output.targets             = influx
 generator.output.filepath            = TARGET FILE PATH
 
@@ -58,6 +57,8 @@ queries.duration.warmup       = -1
 queries.duration.count        = -1
 queries.weight.floortotals    = 1
 queries.weight.totalclients   = 1
+queries.weight.maxforap       = 2
+queries.weight.avgoccupancy   = 1
 queries.earliestdate          = 2019-01-01
 queries.range.day             = 0.5
 queries.range.week            = 1
@@ -84,4 +85,7 @@ timescale.table                 = generated
 timescale.host                  = localhost:5432
 timescale.rewritebatchedinserts = true
 timescale.batchsize             = 1000
+
+debug.createprecomputedtables = false
+debug.printallsettings        = false
 ```

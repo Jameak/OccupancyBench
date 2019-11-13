@@ -142,11 +142,6 @@ public class ConfigFile {
      */
     private static final String GENERATOR_END_DATE                = "generator.data.enddate";
     /**
-     * Type: Boolean
-     * Controls whether to generate debug-tables containing pre-computed data for the purposes of debugging and graphing.
-     */
-    private static final String GENERATOR_CREATE_DEBUG_TABLES     = "generator.data.createdebugtables";
-    /**
      * Type: Comma-separated string of accepted values. Accepted values are: FILE, INFLUX, TIMESCALE
      * The outputs to add generated data to. If multiple targets are specified, all targets receive data as it is generated.
      */
@@ -168,7 +163,6 @@ public class ConfigFile {
     private boolean   generatorKeepFloorAssociations;
     private LocalDate generatorStartDate;
     private LocalDate generatorEndDate;
-    private boolean   generatorCreateDebugTables;
     private Target[]  generatorOutputTargets;
     private String    generatorToDiskTarget;
 
@@ -416,6 +410,12 @@ public class ConfigFile {
      */
     private static final String QUERIES_WEIGHT_MAX_FOR_AP      = "queries.weight.maxforap";
     /**
+     * Type: Integer
+     * The weight of the 'Avg occupancy' query when a random query is selected.
+     * A weight of 0 will prevent this query from being selected.
+     */
+    private static final String QUERIES_WEIGHT_AVG_OCCUPANCY      = "queries.weight.avgoccupancy";
+    /**
      * Type: Double
      * If the random number drawn from X~uniform(0,1) is less than this value, then the time-interval
      * used in the query will at-most range over 24 hours, and will be at-most 24 hours old.
@@ -489,6 +489,7 @@ public class ConfigFile {
     private int       queriesWeightTotalClients;
     private int       queriesWeightFloorTotals;
     private int       queriesWeightMaxForAP;
+    private int       queriesWeightAvgOccupancy;
     private double    queriesRngRangeDay;
     private double    queriesRngRangeWeek;
     private double    queriesRngRangeMonth;
@@ -496,6 +497,20 @@ public class ConfigFile {
     private int       queriesIntervalMin;
     private int       queriesIntervalMax;
     private int       queriesDateCommIntervalMilliseconds;
+
+    /**
+     * Type: Boolean
+     * Controls whether to generate tables containing pre-computed data for the purposes of debugging and graphing.
+     */
+    private static final String DEBUG_CREATE_PRECOMPUTED_TABLES = "debug.createprecomputedtables";
+    /**
+     * Type: Boolean
+     * If enabled, all settings are printed at program start. Both those specified in the loaded config and the default
+     * values are printed.
+     */
+    private static final String DEBUG_PRINT_ALL_SETTINGS = "debug.printallsettings";
+    private boolean debugCreatePrecomputedTables;
+    private boolean debugPrintSettings;
 
     private final Properties prop = new Properties();
     private boolean validated;
@@ -563,7 +578,6 @@ public class ConfigFile {
         config.prop.setProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, "true");
         config.prop.setProperty(GENERATOR_START_DATE, "2019-01-01");
         config.prop.setProperty(GENERATOR_END_DATE, "2019-04-01");
-        config.prop.setProperty(GENERATOR_CREATE_DEBUG_TABLES, "false");
         config.prop.setProperty(GENERATOR_OUTPUT_TARGETS, "influx");
         config.prop.setProperty(GENERATOR_OUTPUT_TO_DISK_TARGET, "TARGET FILE PATH");
 
@@ -610,6 +624,7 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2");
+        config.prop.setProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, "1");
         config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , "0.4");
         config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , "0.7");
         config.prop.setProperty(QUERIES_RNG_RANGE_MONTH, "0.9");
@@ -618,11 +633,14 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_INTERVAL_MAX   , "7776000"); // 90 days in seconds
         config.prop.setProperty(QUERIES_DATE_COMM      , "500");
 
+        //Debug
+        config.prop.setProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, "false");
+        config.prop.setProperty(DEBUG_PRINT_ALL_SETTINGS, "false");
+
         config.parseProps();
         return config;
     }
 
-    @SuppressWarnings("DuplicatedCode")
     private void parseProps(){
         //Benchmark
         seed             = Integer.parseInt(    prop.getProperty(SEED, "" + new Random().nextInt(10000)));
@@ -643,7 +661,6 @@ public class ConfigFile {
         generatorKeepFloorAssociations = Boolean.parseBoolean(prop.getProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, "true"));
         generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE, "2019-01-01"));
         generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE, "2019-04-01"));
-        generatorCreateDebugTables     = Boolean.parseBoolean(prop.getProperty(GENERATOR_CREATE_DEBUG_TABLES, "false"));
         generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS, "influx").split(","))
                 .map(String::toUpperCase).map(String::trim).map(Target::valueOf).toArray(Target[]::new);
         generatorToDiskTarget          =                      prop.getProperty(GENERATOR_OUTPUT_TO_DISK_TARGET);
@@ -691,6 +708,7 @@ public class ConfigFile {
         queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, "1"));
         queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1"));
         queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2"));
+        queriesWeightAvgOccupancy= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, "1"));
         queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY, "0.4"));
         queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK, "0.7"));
         queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH, "0.9"));
@@ -698,6 +716,10 @@ public class ConfigFile {
         queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN, "21600"));
         queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX, "7776000"));
         queriesDateCommIntervalMilliseconds = Integer.parseInt(prop.getProperty(QUERIES_DATE_COMM, "500"));
+
+        //Debug
+        debugCreatePrecomputedTables = Boolean.parseBoolean(prop.getProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, "false"));
+        debugPrintSettings           = Boolean.parseBoolean(prop.getProperty(DEBUG_PRINT_ALL_SETTINGS, "false"));
     }
 
     private String validateConfig(){
@@ -752,6 +774,8 @@ public class ConfigFile {
             if(!(queriesDuration > 0 || queriesMaxCount > 0)) return "Query-duration (" + QUERIES_DURATION + ") must be > 0 or max query count (" + QUERIES_MAX_COUNT + ") must be > 0";
             if(!(queriesWeightTotalClients >= 0)) return QUERIES_WEIGHT_TOTAL_CLIENTS + ": Query-weight for 'TotalClients' must be >= 0";
             if(!(queriesWeightFloorTotals >= 0)) return QUERIES_WEIGHT_FLOOR_TOTALS + ": Query-weight for 'FloorTotals' must be >= 0";
+            if(!(queriesWeightMaxForAP >= 0)) return QUERIES_WEIGHT_MAX_FOR_AP + ": Query-weight for 'Max For AP' must be >= 0";
+            if(!(queriesWeightAvgOccupancy >= 0)) return QUERIES_WEIGHT_AVG_OCCUPANCY + ": Query-weight for 'Avg Occupancy' must be >= 0";
             if(!(queriesIntervalMin >= 0)) return QUERIES_INTERVAL_MIN + ": Minimum query interval must be >= 0";
             if(!(queriesIntervalMax >= 0)) return QUERIES_INTERVAL_MAX + ": Maximum query interval must be >= 0";
             if(!(queriesIntervalMin <= queriesIntervalMax)) return QUERIES_INTERVAL_MIN + " and " + QUERIES_INTERVAL_MAX + ": Minimum query interval must be <= maximum query interval";
@@ -793,7 +817,6 @@ public class ConfigFile {
         settings.put(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, generatorKeepFloorAssociations);
         settings.put(GENERATOR_START_DATE, generatorStartDate);
         settings.put(GENERATOR_END_DATE, generatorEndDate);
-        settings.put(GENERATOR_CREATE_DEBUG_TABLES, generatorCreateDebugTables);
         settings.put(GENERATOR_OUTPUT_TARGETS, generatorOutputTargets);
         settings.put(GENERATOR_OUTPUT_TO_DISK_TARGET, generatorToDiskTarget);
 
@@ -836,6 +859,7 @@ public class ConfigFile {
         settings.put(QUERIES_WEIGHT_TOTAL_CLIENTS, queriesWeightTotalClients);
         settings.put(QUERIES_WEIGHT_FLOOR_TOTALS, queriesWeightFloorTotals);
         settings.put(QUERIES_WEIGHT_MAX_FOR_AP, queriesWeightMaxForAP);
+        settings.put(QUERIES_WEIGHT_AVG_OCCUPANCY, queriesWeightAvgOccupancy);
         settings.put(QUERIES_RNG_RANGE_DAY, queriesRngRangeDay);
         settings.put(QUERIES_RNG_RANGE_WEEK, queriesRngRangeWeek);
         settings.put(QUERIES_RNG_RANGE_MONTH, queriesRngRangeMonth);
@@ -843,6 +867,9 @@ public class ConfigFile {
         settings.put(QUERIES_INTERVAL_MIN, queriesIntervalMin);
         settings.put(QUERIES_INTERVAL_MAX, queriesIntervalMax);
         settings.put(QUERIES_DATE_COMM, queriesDateCommIntervalMilliseconds);
+
+        settings.put(DEBUG_CREATE_PRECOMPUTED_TABLES, debugCreatePrecomputedTables);
+        settings.put(DEBUG_PRINT_ALL_SETTINGS, debugPrintSettings);
 
         StringBuilder sb = new StringBuilder();
         for(String key : settings.keySet()){
@@ -951,8 +978,12 @@ public class ConfigFile {
         return generatorKeepFloorAssociations;
     }
 
-    public boolean generatorCreateDebugTables() {
-        return generatorCreateDebugTables;
+    public boolean DEBUG_createPrecomputedTables() {
+        return debugCreatePrecomputedTables;
+    }
+
+    public boolean DEBUG_printSettings() {
+        return debugPrintSettings;
     }
 
     public boolean doSerialization() {
@@ -993,6 +1024,10 @@ public class ConfigFile {
 
     public int getQueriesWeightFloorTotals() {
         return queriesWeightFloorTotals;
+    }
+
+    public int getQueriesWeightAvgOccupancy() {
+        return queriesWeightAvgOccupancy;
     }
 
     public LocalDate getQueriesEarliestValidDate() {

@@ -36,26 +36,32 @@ public class QueryRunnable implements Runnable {
     private final PreciseTimer timerQuery_TotalClients;
     private final PreciseTimer timerQuery_FloorTotal;
     private final PreciseTimer timerQuery_MaxForAP;
+    private final PreciseTimer timerQuery_AvgOccupancy;
 
     private final int totalThreshold;
     private final int thresholdQuery_TotalClients;
     private final int thresholdQuery_FloorTotal;
     private final int thresholdQuery_MaxForAP;
+    private final int thresholdQuery_AvgOccupancy;
 
     private int countFull;
     private int countQueryInProg_TotalClients;
     private int countQueryInProg_FloorTotal;
     private int countQueryInProg_MaxForAP;
+    private int countQueryInProg_AvgOccupancy;
     private int countQueryDone_TotalClients;
     private int countQueryDone_FloorTotal;
     private int countQueryDone_MaxForAP;
+    private int countQueryDone_AvgOccupancy;
 
     private long timeSpentQueryInProg_TotalClients;
     private long timeSpentQueryInProg_FloorTotal;
     private long timeSpentQueryInProg_MaxForAP;
+    private long timeSpentQueryInProg_AvgOccupancy;
     private long timeSpentQueryDone_TotalClients;
     private long timeSpentQueryDone_FloorTotal;
     private long timeSpentQueryDone_MaxForAP;
+    private long timeSpentQueryDone_AvgOccupancy;
 
     private LocalDateTime newestValidDate;
 
@@ -69,16 +75,22 @@ public class QueryRunnable implements Runnable {
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
         this.timerQuery_MaxForAP = new PreciseTimer();
+        this.timerQuery_AvgOccupancy = new PreciseTimer();
         this.newestValidDate = dateComm.getNewestTime();
 
         assert this.config.getQueriesWeightTotalClients() >= 0;
-        this.thresholdQuery_TotalClients = config.getQueriesWeightTotalClients();
         assert this.config.getQueriesWeightFloorTotals() >= 0;
-        this.thresholdQuery_FloorTotal = thresholdQuery_TotalClients + config.getQueriesWeightFloorTotals();
         assert this.config.getQueriesWeightMaxForAP() >= 0;
+        assert this.config.getQueriesWeightAvgOccupancy() >= 0;
+        this.thresholdQuery_TotalClients = config.getQueriesWeightTotalClients();
+        this.thresholdQuery_FloorTotal = thresholdQuery_TotalClients + config.getQueriesWeightFloorTotals();
         this.thresholdQuery_MaxForAP = thresholdQuery_FloorTotal + config.getQueriesWeightMaxForAP();
-
-        this.totalThreshold = config.getQueriesWeightTotalClients() + config.getQueriesWeightFloorTotals() + config.getQueriesWeightMaxForAP();
+        this.thresholdQuery_AvgOccupancy = thresholdQuery_MaxForAP + config.getQueriesWeightAvgOccupancy();
+        this.totalThreshold =
+                config.getQueriesWeightTotalClients() +
+                config.getQueriesWeightFloorTotals() +
+                config.getQueriesWeightMaxForAP() +
+                config.getQueriesWeightAvgOccupancy();
 
         this.minTimeInterval = config.getQueriesIntervalMin();
         this.maxTimeInterval = config.getQueriesIntervalMax();
@@ -95,6 +107,7 @@ public class QueryRunnable implements Runnable {
         if(val < thresholdQuery_TotalClients) return QueryType.TotalClients;
         else if (val < thresholdQuery_FloorTotal) return QueryType.FloorTotals;
         else if (val < thresholdQuery_MaxForAP) return QueryType.MaxForAP;
+        else if (val < thresholdQuery_AvgOccupancy) return QueryType.AvgOccupancy;
         return QueryType.UNKNOWN;
     }
 
@@ -102,7 +115,7 @@ public class QueryRunnable implements Runnable {
         switch (selectQuery()){
             case TotalClients:
             {
-                LocalDateTime[] time = generateTime();
+                LocalDateTime[] time = generateTimeInterval();
                 if(!warmUp) timerQuery_TotalClients.start();
                 queries.computeTotalClients(time[0], time[1]);
                 if(!warmUp) {
@@ -113,7 +126,7 @@ public class QueryRunnable implements Runnable {
                 break;
             case FloorTotals:
             {
-                LocalDateTime[] time = generateTime();
+                LocalDateTime[] time = generateTimeInterval();
                 if(!warmUp) timerQuery_FloorTotal.start();
                 queries.computeFloorTotal(time[0], time[1], generatedFloors);
                 if(!warmUp){
@@ -124,13 +137,24 @@ public class QueryRunnable implements Runnable {
                 break;
             case MaxForAP:
             {
-                LocalDateTime[] time = generateTime();
-                if(!warmUp) timerQuery_MaxForAP.start();
+                LocalDateTime[] time = generateTimeInterval();
                 AccessPoint selectedAP = selectRandomAP();
+                if(!warmUp) timerQuery_MaxForAP.start();
                 queries.maxPerDayForAP(time[0], time[1], selectedAP);
                 if(!warmUp){
                     timeSpentQueryInProg_MaxForAP += timerQuery_MaxForAP.elapsedNanoseconds();
                     countQueryInProg_MaxForAP++;
+                }
+            }
+                break;
+            case AvgOccupancy:
+            {
+                LocalDateTime startTime = generateTime(newestValidDate);
+                if(!warmUp) timerQuery_AvgOccupancy.start();
+                queries.computeAvgOccupancy(startTime, newestValidDate, 5);
+                if(!warmUp){
+                    timeSpentQueryInProg_AvgOccupancy += timerQuery_AvgOccupancy.elapsedNanoseconds();
+                    countQueryInProg_AvgOccupancy++;
                 }
             }
                 break;
@@ -147,7 +171,30 @@ public class QueryRunnable implements Runnable {
         return allAPs[rng.nextInt(allAPs.length)];
     }
 
-    private LocalDateTime[] generateTime(){
+    private LocalDateTime generateTime(LocalDateTime endTime){
+        LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
+        LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
+        // If moving the max interval back from the end-time doesn't surpass the earliest valid date, then we can set
+        // the earliest valid date to the datetime corresponding to the max interval.
+        if(!startClamp.isBefore(endTime.minusSeconds(maxTimeInterval))) {
+            startClamp = endTime.minusSeconds(maxTimeInterval);
+        }
+
+        LocalDateTime startTime = generateRandomTime(newestValidDate, startClamp);
+        assert startTime.isBefore(endTime);
+
+        // Make sure that the interval obeys the min interval size. We know it already obeys the max interval size so
+        //   no need to check that.
+        if(startTime.plusSeconds(minTimeInterval).isAfter(endTime)){
+            startTime = endTime.minusSeconds(minTimeInterval);
+
+            if(startTime.isBefore(startClamp)) startTime = startClamp;
+        }
+
+        return startTime;
+    }
+
+    private LocalDateTime[] generateTimeInterval(){
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         LocalDateTime[] time = new LocalDateTime[2];
@@ -165,7 +212,8 @@ public class QueryRunnable implements Runnable {
         if(time[0].isBefore(startClamp))     time[0] = startClamp;
         if(time[1].isAfter(newestValidDate)) time[1] = newestValidDate;
 
-        // Make sure that the interval obeys the minimum size. If the interval is smaller than minimum size, then we bias towards the newest values.
+        // Make sure that the interval obeys the minimum size. If the interval is smaller than minimum size,
+        // then we bias towards the newest values.
         if(time[0].plusSeconds(minTimeInterval).isAfter(time[1])){
             time[1] = time[0].plusSeconds(minTimeInterval);
             if(time[1].isAfter(newestValidDate)) {
@@ -175,7 +223,8 @@ public class QueryRunnable implements Runnable {
             }
         }
 
-        // Make sure that the interval obeys the maximum size. If the interval is larger than the maximum size, then we bias towards the oldest values.
+        // Make sure that the interval obeys the maximum size. If the interval is larger than the maximum size,
+        // then we bias towards the oldest values.
         if(time[0].plusSeconds(maxTimeInterval).isBefore(time[1])){
             time[1] = time[0].plusSeconds(maxTimeInterval);
         }
@@ -222,34 +271,46 @@ public class QueryRunnable implements Runnable {
         int count_TotalClients      = done ? countQueryDone_TotalClients     : countQueryInProg_TotalClients;
         int count_FloorTotal        = done ? countQueryDone_FloorTotal       : countQueryInProg_FloorTotal;
         int count_MaxForAP          = done ? countQueryDone_MaxForAP         : countQueryInProg_MaxForAP;
+        int count_AvgOccupancy      = done ? countQueryDone_AvgOccupancy     : countQueryInProg_AvgOccupancy;
         long timeSpent_TotalClients = done ? timeSpentQueryDone_TotalClients : timeSpentQueryInProg_TotalClients;
         long timeSpent_FloorTotal   = done ? timeSpentQueryDone_FloorTotal   : timeSpentQueryInProg_FloorTotal;
         long timeSpent_MaxForAP     = done ? timeSpentQueryDone_MaxForAP     : timeSpentQueryInProg_MaxForAP;
+        long timeSpent_AvgOccupancy = done ? timeSpentQueryDone_AvgOccupancy : timeSpentQueryInProg_AvgOccupancy;
 
         if(!done) Logger.LOG(String.format("%s: Average query-speeds from the last %s seconds:", prefix, config.getQueriesReportingFrequency()));
         Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
         Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, count_TotalClients, timeSpent_TotalClients / 1e9, count_TotalClients / (timeSpent_TotalClients / 1e9) ));
         Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, count_FloorTotal, timeSpent_FloorTotal / 1e9, count_FloorTotal / (timeSpent_FloorTotal / 1e9) ));
         Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, count_MaxForAP, timeSpent_MaxForAP / 1e9, count_MaxForAP / (timeSpent_MaxForAP / 1e9) ));
+        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.1f / sec", prefix, count_AvgOccupancy, timeSpent_AvgOccupancy / 1e9, count_AvgOccupancy / (timeSpent_AvgOccupancy / 1e9) ));
         Logger.LOG(String.format("%s: ----------------|----------|--------------|---------------", prefix));
 
         if(!done){
             countQueryDone_TotalClients += countQueryInProg_TotalClients;
             countQueryDone_FloorTotal += countQueryInProg_FloorTotal;
             countQueryDone_MaxForAP += countQueryInProg_MaxForAP;
+            countQueryDone_AvgOccupancy += countQueryInProg_AvgOccupancy;
             timeSpentQueryDone_TotalClients += timeSpentQueryInProg_TotalClients;
             timeSpentQueryDone_FloorTotal += timeSpentQueryInProg_FloorTotal;
             timeSpentQueryDone_MaxForAP += timeSpentQueryInProg_MaxForAP;
+            timeSpentQueryDone_AvgOccupancy += timeSpentQueryInProg_AvgOccupancy;
             countQueryInProg_TotalClients = 0;
             countQueryInProg_FloorTotal = 0;
             countQueryInProg_MaxForAP = 0;
+            countQueryInProg_AvgOccupancy = 0;
             timeSpentQueryInProg_TotalClients = 0;
             timeSpentQueryInProg_FloorTotal = 0;
             timeSpentQueryInProg_MaxForAP = 0;
+            timeSpentQueryInProg_AvgOccupancy = 0;
         }
 
         if(done){
-            double totalTime = (timeSpentQueryDone_TotalClients + timeSpentQueryDone_FloorTotal + timeSpentQueryDone_MaxForAP) / 1e9;
+            double totalTime = (
+                    timeSpentQueryDone_TotalClients +
+                    timeSpentQueryDone_FloorTotal +
+                    timeSpentQueryDone_MaxForAP +
+                    timeSpentQueryDone_AvgOccupancy
+                ) / 1e9;
             Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
         }
     }
@@ -345,6 +406,6 @@ public class QueryRunnable implements Runnable {
     }
 
     private enum QueryType{
-        TotalClients, FloorTotals, MaxForAP, UNKNOWN
+        TotalClients, FloorTotals, MaxForAP, AvgOccupancy, UNKNOWN
     }
 }

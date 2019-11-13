@@ -8,10 +8,10 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -19,11 +19,13 @@ import java.util.Map;
  */
 public class TimescaleQueries extends JdbcQueries {
     private String table;
+    private int sampleRate;
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
         this.table = config.getTimescaleTable();
+        this.sampleRate = config.getGeneratorGenerationInterval();
 
         DriverManager.registerDriver(new org.postgresql.Driver());
         // TODO: Include SSL-parameter in the connection string?
@@ -64,13 +66,14 @@ public class TimescaleQueries extends JdbcQueries {
         }
 
         assert time != null;
-        return LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
+        String[] parts = time.split(" ");
+        return LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
     }
 
     @Override
     public int computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException {
-        double timeStart = start.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
-        double timeEnd = end.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
+        double timeStart = toTimestamp(start);
+        double timeEnd = toTimestamp(end);
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                 "FROM %s " +
@@ -89,8 +92,8 @@ public class TimescaleQueries extends JdbcQueries {
 
     @Override
     public int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException {
-        double timeStart = start.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
-        double timeEnd = end.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
+        double timeStart = toTimestamp(start);
+        double timeEnd = toTimestamp(end);
 
         int[] counts = new int[generatedFloors.length];
         for(int i = 0; i < generatedFloors.length; i++){
@@ -113,8 +116,8 @@ public class TimescaleQueries extends JdbcQueries {
 
     @Override
     public int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
-        double timeStart = start.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
-        double timeEnd = end.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
+        double timeStart = toTimestamp(start);
+        double timeEnd = toTimestamp(end);
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, MAX(clients) " +
                 "FROM %s " +
@@ -129,5 +132,82 @@ public class TimescaleQueries extends JdbcQueries {
         }
 
         return new int[0];
+    }
+
+    @Override
+    public List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws SQLException {
+        StringBuilder sb1 = new StringBuilder();
+        StringBuilder sb2 = new StringBuilder();
+
+        {
+            LocalDateTime date = end;
+            boolean firstLoop = true;
+            do{
+                if(firstLoop) firstLoop = false;
+                else sb1.append(" OR ");
+
+                String time = String.format("(time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s))", toTimestamp(date), toTimestamp(date.minusMinutes(windowSizeInMin)));
+                sb1.append(time);
+
+                date = date.minusDays(1);
+            } while(!date.isBefore(start));
+        }
+        {
+            LocalDateTime date = end;
+            boolean firstLoop = true;
+            do{
+                if(firstLoop) firstLoop = false;
+                else sb2.append(" OR ");
+
+                String time = String.format("(time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s))", toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date));
+                sb2.append(time);
+
+                date = date.minusDays(1);
+            } while(!date.isBefore(start));
+        }
+
+        String query = String.format(
+                "SELECT now.AP, " +
+                        "FIRST(now.client_entry, now.time) AS current_clients, " +
+                        "AVG(now_stat.avg_clients) AS historical_clients_now, " +
+                        "AVG(past_soon.avg_clients) AS historical_clients_soon " +
+                "FROM (" +
+                        "SELECT AP, AVG(clients) AS avg_clients " +
+                        "FROM %s " +
+                        "WHERE %s " +
+                        "GROUP BY AP " +
+                ") AS now_stat " +
+                "INNER JOIN (" +
+                        "SELECT AP, AVG(clients) as avg_clients " +
+                        "FROM %s " +
+                        "WHERE %s " +
+                        "GROUP BY AP " +
+                ") AS past_soon " +
+                "ON now_stat.ap = past_soon.ap " +
+                "INNER JOIN (" +
+                        "SELECT AP, clients as client_entry, time " +
+                        "FROM %s " +
+                        "WHERE time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s) " +
+                ") AS now " +
+                "ON now.ap = now_stat.ap " +
+                "GROUP BY now.AP", table, sb1.toString(), table, sb2.toString(), table, toTimestamp(end), toTimestamp(end.minusSeconds(sampleRate)));
+
+        List<AvgOccupancy> output = new ArrayList<>();
+        try(Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery(query)){
+            while(results.next()) {
+                String AP = results.getString("AP");
+                int currentClients = results.getInt("current_clients");
+                double historicalClientsNow = results.getDouble("historical_clients_now");
+                double historicalClientsSoon = results.getDouble("historical_clients_soon");
+                output.add(new AvgOccupancy(AP, currentClients, historicalClientsNow, historicalClientsSoon));
+            }
+        }
+
+        return output;
+    }
+
+    private double toTimestamp(LocalDateTime time){
+        return time.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
     }
 }

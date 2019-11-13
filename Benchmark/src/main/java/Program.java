@@ -70,6 +70,10 @@ public class Program {
             return;
         }
 
+        if(config.DEBUG_printSettings()){
+            System.out.println(config.getSettings());
+        }
+
         try {
             new Program().run(config);
         } catch (Exception e) {
@@ -280,7 +284,7 @@ public class Program {
             if(target != null) target.close();
         }
 
-        if(config.generatorCreateDebugTables()){
+        if(config.DEBUG_createPrecomputedTables()){
             Logger.LOG("DEBUG: Filling precomputation tables.");
             Precomputation.ComputeTotals(config.getGeneratorGenerationInterval(), generatedFloors, config);
         }

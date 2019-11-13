@@ -216,6 +216,7 @@ public class InfluxQueries implements Queries{
         }
 
         for(QueryResult.Result result : resQ3.getResults()){
+            if(result.getSeries() == null) continue; // There were no results at all for the query.
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     String AP = (String) entries.get(series.getColumns().indexOf("AP"));

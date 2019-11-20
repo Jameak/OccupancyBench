@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -176,11 +177,12 @@ public class QueryRunnable implements Runnable {
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         // If moving the max interval back from the end-time doesn't surpass the earliest valid date, then we can set
         // the earliest valid date to the datetime corresponding to the max interval.
-        if(!startClamp.isBefore(endTime.minusSeconds(maxTimeInterval))) {
-            startClamp = endTime.minusSeconds(maxTimeInterval);
+        LocalDateTime farthestBack = endTime.minusSeconds(maxTimeInterval);
+        if(farthestBack.isBefore(startClamp)){
+            farthestBack = startClamp;
         }
 
-        LocalDateTime startTime = generateRandomTime(newestValidDate, startClamp);
+        LocalDateTime startTime = generateRandomTime(newestValidDate, farthestBack);
         assert startTime.isBefore(endTime);
 
         // Make sure that the interval obeys the min interval size. We know it already obeys the max interval size so
@@ -191,6 +193,8 @@ public class QueryRunnable implements Runnable {
             if(startTime.isBefore(startClamp)) startTime = startClamp;
         }
 
+        assert ChronoUnit.SECONDS.between(startTime, endTime) <= maxTimeInterval : "generateTime: Interval between times exceeds the max interval. Start: " + startTime + ", end: " + endTime;
+        assert ChronoUnit.SECONDS.between(startTime, endTime) >= minTimeInterval : "generateTime: Interval between times is slower than the min interval. Start: " + startTime + ", end: " + endTime;;
         return startTime;
     }
 
@@ -232,6 +236,9 @@ public class QueryRunnable implements Runnable {
         assert time[0].isBefore(time[1]) || time[0].isEqual(time[1]);
         assert !time[0].isBefore(startClamp);
         assert !time[1].isAfter(newestValidDate);
+        assert ChronoUnit.SECONDS.between(time[0], time[1]) <= maxTimeInterval : "generateTimeInterval: Interval between times exceeds the max interval. Start: " + time[0] + ", end: " + time[1];
+        assert ChronoUnit.SECONDS.between(time[0], time[1]) >= minTimeInterval : "generateTimeInterval: Interval between times is slower than the min interval. Start: " + time[0] + ", end: " + time[1];;
+
         return time;
     }
 

@@ -276,17 +276,15 @@ public class QueryRunnable implements Runnable {
     private void reportStats(boolean done){
         String prefix = (done ? "DONE " : "RUNNING ") + threadName;
 
-        if(!done){
-            // Update total counters with latest in-progress results.
-            countQueryDone_TotalClients += countQueryInProg_TotalClients;
-            countQueryDone_FloorTotal +=   countQueryInProg_FloorTotal;
-            countQueryDone_MaxForAP +=     countQueryInProg_MaxForAP;
-            countQueryDone_AvgOccupancy += countQueryInProg_AvgOccupancy;
-            timeSpentQueryDone_TotalClients += timeSpentQueryInProg_TotalClients;
-            timeSpentQueryDone_FloorTotal +=   timeSpentQueryInProg_FloorTotal;
-            timeSpentQueryDone_MaxForAP +=     timeSpentQueryInProg_MaxForAP;
-            timeSpentQueryDone_AvgOccupancy += timeSpentQueryInProg_AvgOccupancy;
-        }
+        // Update total counters with latest in-progress results.
+        countQueryDone_TotalClients += countQueryInProg_TotalClients;
+        countQueryDone_FloorTotal +=   countQueryInProg_FloorTotal;
+        countQueryDone_MaxForAP +=     countQueryInProg_MaxForAP;
+        countQueryDone_AvgOccupancy += countQueryInProg_AvgOccupancy;
+        timeSpentQueryDone_TotalClients += timeSpentQueryInProg_TotalClients;
+        timeSpentQueryDone_FloorTotal +=   timeSpentQueryInProg_FloorTotal;
+        timeSpentQueryDone_MaxForAP +=     timeSpentQueryInProg_MaxForAP;
+        timeSpentQueryDone_AvgOccupancy += timeSpentQueryInProg_AvgOccupancy;
 
         int count_TotalClients      = done ? countQueryDone_TotalClients     : countQueryInProg_TotalClients;
         int count_FloorTotal        = done ? countQueryDone_FloorTotal       : countQueryInProg_FloorTotal;

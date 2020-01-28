@@ -4,6 +4,7 @@ import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 
+import java.security.Timestamp;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -67,13 +68,18 @@ public class TimescaleQueries extends JdbcQueries {
 
         assert time != null;
         String[] parts = time.split(" ");
-        return LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
+        LocalDateTime dbTime = LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
+        // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
+        //   what seems to be off-by-one errors in the query-results.
+        // To avoid this, we add a single second to the returned time to move slightly beyond the newest value.
+        return dbTime.plusSeconds(1);
     }
 
     @Override
-    public int computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException {
-        double timeStart = toTimestamp(start);
-        double timeEnd = toTimestamp(end);
+    public List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException {
+        long timeStart = toTimestamp(start);
+        long timeEnd = toTimestamp(end);
+        List<Total> totals = new ArrayList<>();
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                 "FROM %s " +
@@ -83,41 +89,45 @@ public class TimescaleQueries extends JdbcQueries {
         try(Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery(query)){
             while(results.next()) {
-                // I assume we need to page through the result-set to guarantee that we pull all results from the database.
+                String time = results.getString("bucket");
+                int total = results.getInt("sum");
+                totals.add(new Total(time, total));
             }
         }
 
-        return 0;
+        return totals;
     }
 
     @Override
-    public int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException {
-        double timeStart = toTimestamp(start);
-        double timeEnd = toTimestamp(end);
+    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException {
+        long timeStart = toTimestamp(start);
+        long timeEnd = toTimestamp(end);
+        List<FloorTotal> floorTotals = new ArrayList<>();
 
-        int[] counts = new int[generatedFloors.length];
-        for(int i = 0; i < generatedFloors.length; i++){
-            Floor floor = generatedFloors[i];
+        for (Floor floor : generatedFloors) {
             String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                             "FROM %s " +
                             "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) AND %s",
                     table, timeStart, timeEnd, precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
-            try(Statement statement = connection.createStatement();
-                ResultSet results = statement.executeQuery(query)){
-                while(results.next()) {
-                    // I assume we need to page through the result-set to guarantee that we pull all results from the database.
+            try (Statement statement = connection.createStatement();
+                 ResultSet results = statement.executeQuery(query)) {
+                while (results.next()) {
+                    String time = results.getString("bucket");
+                    int total = results.getInt("sum");
+                    floorTotals.add(new FloorTotal(floor.getFloorNumber(), time, total));
                 }
             }
         }
 
-        return counts;
+        return floorTotals;
     }
 
     @Override
-    public int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
-        double timeStart = toTimestamp(start);
-        double timeEnd = toTimestamp(end);
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
+        long timeStart = toTimestamp(start);
+        long timeEnd = toTimestamp(end);
+        List<MaxForAP> max = new ArrayList<>();
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, MAX(clients) " +
                 "FROM %s " +
@@ -127,11 +137,13 @@ public class TimescaleQueries extends JdbcQueries {
         try(Statement statement = connection.createStatement();
             ResultSet results = statement.executeQuery(query)){
             while(results.next()) {
-                // I assume we need to page through the result-set to guarantee that we pull all results from the database.
+                String time = results.getString("bucket");
+                int maxVal = results.getInt("max");
+                max.add(new MaxForAP(AP.getAPname(), time, maxVal));
             }
         }
 
-        return new int[0];
+        return max;
     }
 
     @Override
@@ -207,7 +219,8 @@ public class TimescaleQueries extends JdbcQueries {
         return output;
     }
 
-    private double toTimestamp(LocalDateTime time){
-        return time.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3;
+    private long toTimestamp(LocalDateTime time){
+        // Timestamps in Timescale (when using TO_TIMESTAMP) expect second precision
+        return (long) (time.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3);
     }
 }

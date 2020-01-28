@@ -510,8 +510,22 @@ public class ConfigFile {
      * values are printed.
      */
     private static final String DEBUG_PRINT_ALL_SETTINGS = "debug.printallsettings";
+    /**
+     * Type: Boolean
+     * If enabled, all values returned by the executed queries will be written to disk to facilitate easy inspection.
+     *
+     * Files will be written to {@code DEBUG_SAVE_QUERY_RESULTS_PATH}.
+     */
+    private static final String DEBUG_SAVE_QUERY_RESULTS = "debug.savequeryresults";
+    /**
+     * Type: String
+     * The path to write the query results to.
+     */
+    private static final String DEBUG_SAVE_QUERY_RESULTS_PATH = "debug.savequeryresults.path";
     private boolean debugCreatePrecomputedTables;
     private boolean debugPrintSettings;
+    private boolean debugSaveQueryResults;
+    private String  debugSaveQueryResultsPath;
 
     private final Properties prop = new Properties();
     private boolean validated;
@@ -637,6 +651,8 @@ public class ConfigFile {
         //Debug
         config.prop.setProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, "false");
         config.prop.setProperty(DEBUG_PRINT_ALL_SETTINGS, "false");
+        config.prop.setProperty(DEBUG_SAVE_QUERY_RESULTS, "false");
+        config.prop.setProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, "TARGET FOLDER PATH");
 
         config.parseProps();
         return config;
@@ -721,6 +737,8 @@ public class ConfigFile {
         //Debug
         debugCreatePrecomputedTables = Boolean.parseBoolean(prop.getProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, "false"));
         debugPrintSettings           = Boolean.parseBoolean(prop.getProperty(DEBUG_PRINT_ALL_SETTINGS, "false"));
+        debugSaveQueryResults        = Boolean.parseBoolean(prop.getProperty(DEBUG_SAVE_QUERY_RESULTS, "false"));
+        debugSaveQueryResultsPath    =                      prop.getProperty(DEBUG_SAVE_QUERY_RESULTS_PATH);
     }
 
     private String validateConfig(){
@@ -871,6 +889,8 @@ public class ConfigFile {
 
         settings.put(DEBUG_CREATE_PRECOMPUTED_TABLES, debugCreatePrecomputedTables);
         settings.put(DEBUG_PRINT_ALL_SETTINGS, debugPrintSettings);
+        settings.put(DEBUG_SAVE_QUERY_RESULTS, debugSaveQueryResults);
+        settings.put(DEBUG_SAVE_QUERY_RESULTS_PATH, debugSaveQueryResultsPath);
 
         StringBuilder sb = new StringBuilder();
         for(String key : settings.keySet()){
@@ -985,6 +1005,14 @@ public class ConfigFile {
 
     public boolean DEBUG_printSettings() {
         return debugPrintSettings;
+    }
+
+    public boolean DEBUG_saveQueryResults() {
+        return debugSaveQueryResults;
+    }
+
+    public String DEBUG_saveQueryResultsPath() {
+        return debugSaveQueryResultsPath;
     }
 
     public boolean doSerialization() {

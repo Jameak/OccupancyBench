@@ -8,6 +8,9 @@ import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,7 +28,7 @@ import java.util.Random;
  */
 public class QueryRunnable implements Runnable {
     private final ConfigFile config;
-    private final Random rng;
+    private final Random rngQueries;
     private final DateCommunication dateComm;
     private final Floor[] generatedFloors;
     private final AccessPoint[] allAPs;
@@ -33,6 +36,10 @@ public class QueryRunnable implements Runnable {
     private final String threadName;
     private final int minTimeInterval;
     private final int maxTimeInterval;
+
+    private final boolean saveQueryResults;
+    private List<QueryResult> queryResults = new ArrayList<>();
+    private int resultId = 0;
 
     private final PreciseTimer timerQuery_TotalClients;
     private final PreciseTimer timerQuery_FloorTotal;
@@ -68,7 +75,7 @@ public class QueryRunnable implements Runnable {
 
     public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, Queries queryTarget, String threadName){
         this.config = config;
-        this.rng = rng;
+        this.rngQueries = rng;
         this.dateComm = dateComm;
         this.generatedFloors = generatedFloors;
         this.queryTarget = queryTarget;
@@ -78,6 +85,7 @@ public class QueryRunnable implements Runnable {
         this.timerQuery_MaxForAP = new PreciseTimer();
         this.timerQuery_AvgOccupancy = new PreciseTimer();
         this.newestValidDate = dateComm.getNewestTime();
+        this.saveQueryResults = config.DEBUG_saveQueryResults();
 
         assert this.config.getQueriesWeightTotalClients() >= 0;
         assert this.config.getQueriesWeightFloorTotals() >= 0;
@@ -103,7 +111,7 @@ public class QueryRunnable implements Runnable {
         allAPs = APs.toArray(new AccessPoint[0]);
     }
 
-    private QueryType selectQuery(){
+    private QueryType selectQuery(Random rng){
         int val = rng.nextInt(totalThreshold);
         if(val < thresholdQuery_TotalClients) return QueryType.TotalClients;
         else if (val < thresholdQuery_FloorTotal) return QueryType.FloorTotals;
@@ -112,55 +120,79 @@ public class QueryRunnable implements Runnable {
         return QueryType.UNKNOWN;
     }
 
-    private void runQueries(Queries queries, boolean warmUp) throws SQLException{
-        switch (selectQuery()){
+    private void runQueries(Queries queries, boolean warmUp, Random rng) throws SQLException{
+        switch (selectQuery(rng)){
             case TotalClients:
             {
-                LocalDateTime[] time = generateTimeInterval();
+                LocalDateTime[] time = generateTimeInterval(rng);
                 if(!warmUp) timerQuery_TotalClients.start();
-                queries.computeTotalClients(time[0], time[1]);
+
+                List<Queries.Total> result = queries.computeTotalClients(time[0], time[1]);
+
                 if(!warmUp) {
                     timeSpentQueryInProg_TotalClients += timerQuery_TotalClients.elapsedNanoseconds();
                     countQueryInProg_TotalClients++;
+                }
+
+                if(saveQueryResults && !warmUp) {
+                    queryResults.add(new QueryResult(resultId++, QueryType.TotalClients, result));
                 }
             }
                 break;
             case FloorTotals:
             {
-                LocalDateTime[] time = generateTimeInterval();
+                LocalDateTime[] time = generateTimeInterval(rng);
                 if(!warmUp) timerQuery_FloorTotal.start();
-                queries.computeFloorTotal(time[0], time[1], generatedFloors);
+
+                List<Queries.FloorTotal> result = queries.computeFloorTotal(time[0], time[1], generatedFloors);
+
                 if(!warmUp){
                     timeSpentQueryInProg_FloorTotal += timerQuery_FloorTotal.elapsedNanoseconds();
                     countQueryInProg_FloorTotal++;
+                }
+
+                if(saveQueryResults && !warmUp) {
+                    queryResults.add(new QueryResult(resultId++, QueryType.FloorTotals, result));
                 }
             }
                 break;
             case MaxForAP:
             {
-                LocalDateTime[] time = generateTimeInterval();
-                AccessPoint selectedAP = selectRandomAP();
+                LocalDateTime[] time = generateTimeInterval(rng);
+                AccessPoint selectedAP = selectRandomAP(rng);
                 if(!warmUp) timerQuery_MaxForAP.start();
-                queries.maxPerDayForAP(time[0], time[1], selectedAP);
+
+                List<Queries.MaxForAP> result = queries.maxPerDayForAP(time[0], time[1], selectedAP);
+
                 if(!warmUp){
                     timeSpentQueryInProg_MaxForAP += timerQuery_MaxForAP.elapsedNanoseconds();
                     countQueryInProg_MaxForAP++;
+                }
+
+                if(saveQueryResults && !warmUp) {
+                    queryResults.add(new QueryResult(resultId++, QueryType.MaxForAP, result));
                 }
             }
                 break;
             case AvgOccupancy:
             {
-                LocalDateTime startTime = generateTime(newestValidDate);
+                LocalDateTime startTime = generateTime(newestValidDate, rng);
                 if(!warmUp) timerQuery_AvgOccupancy.start();
-                queries.computeAvgOccupancy(startTime, newestValidDate, 5);
+
+                List<Queries.AvgOccupancy> result = queries.computeAvgOccupancy(startTime, newestValidDate, 5);
+
                 if(!warmUp){
                     timeSpentQueryInProg_AvgOccupancy += timerQuery_AvgOccupancy.elapsedNanoseconds();
                     countQueryInProg_AvgOccupancy++;
                 }
+
+                if(saveQueryResults && !warmUp) {
+                    queryResults.add(new QueryResult(resultId++, QueryType.AvgOccupancy, result));
+                }
             }
                 break;
-            default:
             case UNKNOWN:
+            default:
                 assert false;
                 Logger.LOG(threadName + ": WTF. Invalid query probabilities");
                 throw new RuntimeException();
@@ -168,11 +200,11 @@ public class QueryRunnable implements Runnable {
         if(!warmUp) countFull++;
     }
 
-    private AccessPoint selectRandomAP() {
+    private AccessPoint selectRandomAP(Random rng) {
         return allAPs[rng.nextInt(allAPs.length)];
     }
 
-    private LocalDateTime generateTime(LocalDateTime endTime){
+    private LocalDateTime generateTime(LocalDateTime endTime, Random rng){
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         // If moving the max interval back from the end-time doesn't surpass the earliest valid date, then we can set
@@ -182,7 +214,7 @@ public class QueryRunnable implements Runnable {
             farthestBack = startClamp;
         }
 
-        LocalDateTime startTime = generateRandomTime(newestValidDate, farthestBack);
+        LocalDateTime startTime = generateRandomTime(newestValidDate, farthestBack, rng);
         assert startTime.isBefore(endTime);
 
         // Make sure that the interval obeys the min interval size. We know it already obeys the max interval size so
@@ -198,13 +230,13 @@ public class QueryRunnable implements Runnable {
         return startTime;
     }
 
-    private LocalDateTime[] generateTimeInterval(){
+    private LocalDateTime[] generateTimeInterval(Random rng){
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
         LocalDateTime[] time = new LocalDateTime[2];
 
-        LocalDateTime time1 = generateRandomTime(newestValidDate, startClamp);
-        LocalDateTime time2 = generateRandomTime(newestValidDate, startClamp);
+        LocalDateTime time1 = generateRandomTime(newestValidDate, startClamp, rng);
+        LocalDateTime time2 = generateRandomTime(newestValidDate, startClamp, rng);
         if(time1.isBefore(time2)){
             time[0] = time1;
             time[1] = time2;
@@ -242,27 +274,27 @@ public class QueryRunnable implements Runnable {
         return time;
     }
 
-    private LocalDateTime generateRandomTime(LocalDateTime newestValue, LocalDateTime earliestValue){
+    private LocalDateTime generateRandomTime(LocalDateTime newestValue, LocalDateTime earliestValue, Random rng){
         double choice = rng.nextDouble();
         if(choice < config.getQueriesRngRangeDay()){
             // Query for some time on the newest date.
-            return randomTimeBetween(newestValue.minusDays(1), newestValue, earliestValue);
+            return randomTimeBetween(newestValue.minusDays(1), newestValue, earliestValue, rng);
         } else if(choice < config.getQueriesRngRangeWeek()){
             // Query for some time within the last 7 days.
-            return randomTimeBetween(newestValue.minusDays(6), newestValue, earliestValue);
+            return randomTimeBetween(newestValue.minusDays(6), newestValue, earliestValue, rng);
         } else if(choice < config.getQueriesRngRangeMonth()){
             // Query: within the last 30 days
-            return randomTimeBetween(newestValue.minusDays(29), newestValue, earliestValue);
+            return randomTimeBetween(newestValue.minusDays(29), newestValue, earliestValue, rng);
         } else if(choice < config.getQueriesRngRangeYear()){
             // Query: within the last 365 days
-            return randomTimeBetween(newestValue.minusDays(364), newestValue, earliestValue);
+            return randomTimeBetween(newestValue.minusDays(364), newestValue, earliestValue, rng);
         } else {
             // Query: any value within the valid interval
-            return randomTimeBetween(earliestValue, newestValue, earliestValue);
+            return randomTimeBetween(earliestValue, newestValue, earliestValue, rng);
         }
     }
 
-    private LocalDateTime randomTimeBetween(LocalDateTime start, LocalDateTime end, LocalDateTime clamp){
+    private LocalDateTime randomTimeBetween(LocalDateTime start, LocalDateTime end, LocalDateTime clamp, Random rng){
         if(start.isBefore(clamp)) start = clamp;
         assert start.isBefore(end);
         assert clamp.isBefore(start) || clamp.isEqual(start);
@@ -334,7 +366,8 @@ public class QueryRunnable implements Runnable {
         CoarseTimer reportTimer = new CoarseTimer();
         PreciseTimer dateCommTimer = new PreciseTimer();
         boolean warmUp = warmUpTime > 0;
-        boolean printProgressReports =  reportFrequency > 0;
+        boolean printProgressReports = reportFrequency > 0;
+        Random rngWarmup = new Random(rngQueries.nextInt());
 
         try {
             queryTarget.prepare(config, generatedFloors);
@@ -346,10 +379,11 @@ public class QueryRunnable implements Runnable {
             try {
                 dateCommTimer.start();
                 runTimer.start();
+                getTime(dateCommTimer, true);
                 while (runTimer.elapsedSeconds() < warmUpTime) {
-                    getTime(dateCommTimer);
+                    getTime(dateCommTimer, false);
 
-                    runQueries(queryTarget, true);
+                    runQueries(queryTarget, true, rngWarmup);
                 }
             } catch (SQLException e) {
                 Logger.LOG(threadName + ": SQL Exception during querying warmup.");
@@ -361,22 +395,24 @@ public class QueryRunnable implements Runnable {
             if(duration > 0){
                 dateCommTimer.start();
                 runTimer.start();
+                getTime(dateCommTimer, true);
                 if(printProgressReports) reportTimer.start();
                 while (runTimer.elapsedSeconds() < duration) {
-                    getTime(dateCommTimer);
+                    getTime(dateCommTimer, false);
 
-                    runQueries(queryTarget, false);
+                    runQueries(queryTarget, false, rngQueries);
 
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
             } else {
                 assert targetCount > 0;
                 dateCommTimer.start();
+                getTime(dateCommTimer, true);
                 if(printProgressReports) reportTimer.start();
                 while (countFull < targetCount) {
-                    getTime(dateCommTimer);
+                    getTime(dateCommTimer, false);
 
-                    runQueries(queryTarget, false);
+                    runQueries(queryTarget, false, rngQueries);
 
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
@@ -392,6 +428,10 @@ public class QueryRunnable implements Runnable {
             e.printStackTrace();
         }
         Logger.LOG(() -> reportStats(true));
+
+        if(saveQueryResults){
+            saveQueryResults();
+        }
     }
 
     private void progressReport(CoarseTimer timer, int frequency){
@@ -401,9 +441,9 @@ public class QueryRunnable implements Runnable {
         }
     }
 
-    private void getTime(PreciseTimer dateCommTimer) throws SQLException{
+    private void getTime(PreciseTimer dateCommTimer, boolean firstGrab) throws SQLException{
         if(config.doDateCommunicationByQueryingDatabase()){
-            if(config.getQueryDateCommunicationIntervalInMillisec() == 0){
+            if(config.getQueryDateCommunicationIntervalInMillisec() == 0 || firstGrab){ // On the first time-grab we dont want to wait for the timer.
                 newestValidDate = queryTarget.getNewestTimestamp();
             } else if(dateCommTimer.elapsedSeconds() * 1000 > config.getQueryDateCommunicationIntervalInMillisec()){
                 newestValidDate = queryTarget.getNewestTimestamp();
@@ -414,7 +454,76 @@ public class QueryRunnable implements Runnable {
         }
     }
 
+    private void saveQueryResults(){
+        Path path = Paths.get(config.DEBUG_saveQueryResultsPath());
+        // Create a unique folder to save our config results in. Folder starting with '-' are inconvenient to cd into, so abs it.
+        String folderName = Math.abs(config.getSettings().hashCode()) + "";
+        Path outPath = path.resolve(folderName);
+
+        if (outPath.toFile().exists()){
+            try {
+                deleteDirectory(outPath);
+            } catch (IOException e) {
+                Logger.LOG("DEBUG: Error deleting dir " + outPath.toString());
+                e.printStackTrace();
+                assert false : "Failed to delete old directory";
+            }
+        }
+
+        boolean madeTargetDir = outPath.toFile().mkdirs();
+        if(madeTargetDir){
+            Logger.LOG("DEBUG: Writing query results to " + outPath);
+        } else {
+            Logger.LOG("DEBUG: Failed to create directory " + outPath + " to write query results to");
+            assert false : "Failed to create directory";
+            return;
+        }
+
+        try {
+            List<String> settingsPrint = new ArrayList<>();
+            settingsPrint.add(config.getSettings());
+            Files.write(outPath.resolve("config.txt"), settingsPrint, StandardCharsets.UTF_8);
+
+            for (QueryResult result : queryResults){
+                String filename = String.format("%04d_%s.csv", result.id, result.type);
+                Path outFile = outPath.resolve(filename);
+                List<String> content = new ArrayList<>();
+                for(Queries.Result qRes : result.result){
+                    content.add(qRes.toString());
+                }
+                Files.write(outFile, content, StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            Logger.LOG("Error writing to dir " + outPath.toString());
+            e.printStackTrace();
+            assert false : "Failed to write to directory";
+        }
+    }
+
+    private void deleteDirectory(Path path) throws IOException {
+        if(Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)){
+            try (DirectoryStream<Path> values = Files.newDirectoryStream(path)) {
+                for (Path value : values){
+                    deleteDirectory(value);
+                }
+            }
+        }
+        Files.delete(path);
+    }
+
     private enum QueryType{
         TotalClients, FloorTotals, MaxForAP, AvgOccupancy, UNKNOWN
+    }
+
+    static class QueryResult{
+        final int id;
+        final QueryType type;
+        final List<? extends Queries.Result> result;
+
+        QueryResult(int id, QueryType type, List<? extends Queries.Result> result){
+            this.id = id;
+            this.type = type;
+            this.result = result;
+        }
     }
 }

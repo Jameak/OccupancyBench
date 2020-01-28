@@ -87,66 +87,99 @@ public class InfluxQueries implements Queries{
         }
 
         assert time != null;
-        return LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
+        LocalDateTime dbTime = LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
+        // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
+        //   what seems to be off-by-one errors in the query-results.
+        // To avoid this, we add a single second to the returned time to move slightly beyond the newest value.
+        return dbTime.plusSeconds(1);
     }
 
     @Override
-    public int computeTotalClients(LocalDateTime start, LocalDateTime end) {
-        int total = 0;
+    public List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) {
+        List<Total> totals = new ArrayList<>();
         String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",
                 measurement, toTimestamp(end), toTimestamp(start));
 
         Query query = new Query(queryString);
         influxDB.query(query);
-        //QueryResult results = influxDB.query(query);
-        //for(QueryResult.Result result : results.getResults()){
-        //    if(result.getSeries() == null) continue; // No results. Caused by hole in data.
-        //    assert result.getSeries().size() == 1;
-        //    for(QueryResult.Series series : result.getSeries()){
-        //        for(List<Object> entries : series.getValues()){
-        //            total = (int)Math.round((Double)entries.get(series.getColumns().indexOf("sum")));
-        //        }
-        //    }
-        //}
 
-        return total;
+        QueryResult results = influxDB.query(query);
+        for(QueryResult.Result result : results.getResults()){
+            if(result.getSeries() == null) continue; // No results. Caused by hole in data.
+            assert result.getSeries().size() == 1;
+            for(QueryResult.Series series : result.getSeries()){
+                for(List<Object> entries : series.getValues()){
+                    String time = (String) entries.get(series.getColumns().indexOf("time"));
+                    int total = (int)Math.round((Double)entries.get(series.getColumns().indexOf("sum")));
+
+                    totals.add(new Total(time, total));
+                }
+            }
+        }
+
+        return totals;
     }
 
     @Override
-    public int[] computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) {
-        int[] counts = new int[generatedFloors.length];
-        for(int i = 0; i < generatedFloors.length; i++){
-            Floor floor = generatedFloors[i];
+    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) {
+        List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
+        for (Floor floor : generatedFloors) {
             String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d AND %s",
                     measurement, toTimestamp(end), toTimestamp(start), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             Query query = new Query(queryString);
             influxDB.query(query);
-            //QueryResult results = influxDB.query(query);
-            //for(QueryResult.Result result : results.getResults()){
-            //    if(result.getSeries() == null) continue; // No results. Caused by hole in data.
-            //    assert result.getSeries().size() == 1;
-            //    for(QueryResult.Series series : result.getSeries()){
-            //        for(List<Object> entries : series.getValues()){
-            //            counts[i] += (int)Math.round((Double)entries.get(series.getColumns().indexOf("sum")));
-            //        }
-            //    }
-            //}
+            QueryResult results = influxDB.query(query);
+            for (QueryResult.Result result : results.getResults()) {
+                if (result.getSeries() == null) continue; // No results. Caused by hole in data.
+                assert result.getSeries().size() == 1;
+                for (QueryResult.Series series : result.getSeries()) {
+                    for (List<Object> entries : series.getValues()) {
+                        int sum = (int) Math.round((Double) entries.get(series.getColumns().indexOf("sum")));
+                        String timestamp = (String) entries.get(series.getColumns().indexOf("time"));
+                        counts.add(new FloorTotal(floor.getFloorNumber(), timestamp, sum));
+                    }
+                }
+            }
         }
 
         return counts;
     }
 
     @Override
-    public int[] maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
+        List<MaxForAP> max = new ArrayList<>();
+
         String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time < %d AND time >= %d GROUP BY time(1d)",
                 measurement, AP.getAPname(), toTimestamp(end), toTimestamp(start));
 
         Query query = new Query(queryString);
         influxDB.query(query);
 
-        return new int[0];
+        QueryResult results = influxDB.query(query);
+        for(QueryResult.Result result : results.getResults()){
+            if(result.getSeries() == null) continue; // No results. Caused by hole in data.
+            assert result.getSeries().size() == 1;
+            for(QueryResult.Series series : result.getSeries()){
+                for(List<Object> entries : series.getValues()){
+                    String time = (String) entries.get(series.getColumns().indexOf("time"));
+                    int maxIndex = series.getColumns().indexOf("max");
+                    Object maxValue = entries.get(maxIndex);
+
+                    // If the access point is missing from the data (e.g. because that particular AP crashed),
+                    // then the returned value will be null.
+                    if(maxValue == null){
+                        continue;
+                    }
+
+                    int maxVal = (int)Math.round((Double)maxValue);
+                    max.add(new MaxForAP(AP.getAPname(), time, maxVal));
+                }
+            }
+        }
+
+        return max;
     }
 
     /**
@@ -180,9 +213,9 @@ public class InfluxQueries implements Queries{
             do{
                 Query query = new Query(String.format(
                         "SELECT MEAN(clients) AS avg_clients " +
-                                "FROM %s " +
-                                "WHERE time <= %s AND time > %s " +
-                                "GROUP BY \"AP\"", measurement, toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date)));
+                        "FROM %s " +
+                        "WHERE time <= %s AND time > %s " +
+                        "GROUP BY \"AP\"", measurement, toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date)));
                 pastSoonStatQueries.add(query);
 
                 date = date.minusDays(1);
@@ -228,40 +261,33 @@ public class InfluxQueries implements Queries{
 
         List<AvgOccupancy> output = new ArrayList<>();
         for(String AP : parsedQ3.keySet()){
+            if(!(parsedQ1.containsKey(AP) && parsedQ2.containsKey(AP))){
+                //We're modeling an inner join, so Q1, Q2 and Q3 must contain the AP.
+                continue;
+            }
+
             int currentClients = parsedQ3.get(AP);
-            double historicalClientsNow;
-            double historicalClientsSoon;
-
-            // Average the results
-            List<Double> Q1 = parsedQ1.getOrDefault(AP, null);
-            if(Q1 == null || Q1.isEmpty()) historicalClientsNow = 0.0;
-            else {
-                int count = 0;
-                Double total = 0.0;
-                for(Double val : Q1){
-                    count++;
-                    total += val;
-                }
-                historicalClientsNow = total / count;
-            }
-
-            // Average the results
-            List<Double> Q2 = parsedQ2.getOrDefault(AP, null);
-            if(Q2 == null || Q2.isEmpty()) historicalClientsSoon = 0.0;
-            else {
-                int count = 0;
-                Double total = 0.0;
-                for(Double val : Q2){
-                    count++;
-                    total += val;
-                }
-                historicalClientsSoon = total / count;
-            }
+            double historicalClientsNow = averageHistoricalClients(parsedQ1, AP);
+            double historicalClientsSoon = averageHistoricalClients(parsedQ2, AP);
 
             output.add(new AvgOccupancy(AP, currentClients, historicalClientsNow, historicalClientsSoon));
         }
 
         return output;
+    }
+
+    private double averageHistoricalClients(Map<String, List<Double>> results, String AP) {
+        double historicalClients;
+        List<Double> queryResults = results.get(AP);
+        int count = 0;
+        Double total = 0.0;
+        for(Double val : queryResults){
+            count++;
+            total += val;
+        }
+        assert count > 0 : "Cant divide by zero";
+        historicalClients = total / count;
+        return historicalClients;
     }
 
     private void parseAvgQuery(QueryResult queryResult, Map<String, List<Double>> target){
@@ -282,6 +308,7 @@ public class InfluxQueries implements Queries{
     }
 
     private long toTimestamp(LocalDateTime time){
+        // Timestamps in Influx expect nanosecond precision
         return time.toEpochSecond(ZoneOffset.ofHours(0)) * 1_000_000_000;
     }
 }

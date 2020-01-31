@@ -103,6 +103,7 @@ public class Program {
         Floor[] generatedFloors;
         if(config.isGeneratorEnabled()){
             generatedFloors = generateFloorData(config, rng, parsedData);
+            Logger.LOG(String.format("Generated %s floors and %s APs", generatedFloors.length, Floor.allAPsOnFloors(generatedFloors).length));
         } else {
             assert config.doSerialization();
             // Load the data from previous run

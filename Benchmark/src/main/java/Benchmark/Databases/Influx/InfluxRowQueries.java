@@ -23,9 +23,11 @@ import java.util.Map;
 public class InfluxRowQueries extends AbstractInfluxQueries {
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
     private int sampleRate;
+    private Floor[] generatedFloors;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+        this.generatedFloors = generatedFloors;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
@@ -66,7 +68,7 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     }
 
     @Override
-    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) {
+    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) {
         List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
         for (Floor floor : generatedFloors) {

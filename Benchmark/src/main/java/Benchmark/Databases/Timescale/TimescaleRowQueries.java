@@ -24,12 +24,14 @@ import java.util.Map;
 public class TimescaleRowQueries extends AbstractTimescaleQueries {
     private int sampleRate;
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
+    private Floor[] generatedFloors;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+        this.generatedFloors = generatedFloors;
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
-        connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
+        this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
 
         for(Floor floor : generatedFloors){
             String precomp = QueryHelper.buildRowSchemaFloorTotalQueryPrecomputation(floor.getAPs());
@@ -61,7 +63,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
     }
 
     @Override
-    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException {
+    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) throws SQLException {
         long timeStart = toTimestamp(start);
         long timeEnd = toTimestamp(end);
         List<FloorTotal> floorTotals = new ArrayList<>();

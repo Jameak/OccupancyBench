@@ -145,7 +145,7 @@ public class QueryRunnable implements Runnable {
                 LocalDateTime[] time = generateTimeInterval(rng);
                 if(!warmUp) timerQuery_FloorTotal.start();
 
-                List<FloorTotal> result = queries.computeFloorTotal(time[0], time[1], generatedFloors);
+                List<FloorTotal> result = queries.computeFloorTotal(time[0], time[1]);
 
                 if(!warmUp){
                     timeSpentQueryInProg_FloorTotal += timerQuery_FloorTotal.elapsedNanoseconds();
@@ -277,7 +277,7 @@ public class QueryRunnable implements Runnable {
         assert !time[0].isBefore(startClamp);
         assert !time[1].isAfter(newestValidDate);
         assert ChronoUnit.SECONDS.between(time[0], time[1]) <= maxTimeInterval : "generateTimeInterval: Interval between times exceeds the max interval. Start: " + time[0] + ", end: " + time[1];
-        assert ChronoUnit.SECONDS.between(time[0], time[1]) >= minTimeInterval : "generateTimeInterval: Interval between times is slower than the min interval. Start: " + time[0] + ", end: " + time[1];;
+        assert ChronoUnit.SECONDS.between(time[0], time[1]) >= minTimeInterval : "generateTimeInterval: Interval between times is slower than the min interval. Start: " + time[0] + ", end: " + time[1];
 
         if(config.DEBUG_truncateQueryTimestamps()){
             //Truncating here slightly risks going over/under the min/max interval, but it's by such a small amount

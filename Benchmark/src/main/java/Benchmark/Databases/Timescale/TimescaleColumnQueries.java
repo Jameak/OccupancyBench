@@ -28,12 +28,14 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
     private String precomputedAvgOccupancyPart2;
     private AccessPoint[] allAPs;
     private int sampleRate;
+    private Floor[] generatedFloors;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+        this.generatedFloors = generatedFloors;
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
-        connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
+        this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
         this.allAPs = Floor.allAPsOnFloors(generatedFloors);
 
         precomputedTotalClientsPart = QueryHelper.buildColumnSchemaTotalClientsQueryPrecomputation(allAPs);
@@ -66,7 +68,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
     }
 
     @Override
-    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) throws SQLException {
+    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) throws SQLException {
         long timeStart = toTimestamp(start);
         long timeEnd = toTimestamp(end);
         List<FloorTotal> floorTotals = new ArrayList<>();

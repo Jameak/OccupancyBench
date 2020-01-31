@@ -17,8 +17,8 @@ public class InfluxHelper {
      * @param url The url of the influx-database to connect to. Must have the protocol specified (e.g. starts with "http://")
      */
     public static InfluxDB openConnection(String url, String username, String password) throws IOException {
-        // Some queries take too long to execute on my laptop machine with the default timeout.
-        // And if a query times out an exception is thrown which stops the queries. So we increase the timeout here.
+        // Some queries take too long to execute on my dev-laptop with the default timeout.
+        // If a query times out an exception is thrown which stops the queries, so increase the timeout here.
         OkHttpClient.Builder httpClientBuilder = new OkHttpClient.Builder().readTimeout(60, TimeUnit.SECONDS);
         InfluxDB db = InfluxDBFactory.connect(url, username, password, httpClientBuilder);
 

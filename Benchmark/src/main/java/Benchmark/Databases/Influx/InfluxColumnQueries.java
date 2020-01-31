@@ -27,9 +27,11 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     private String precomputedFloorTotalPart;
     private String precomputedAvgOccupancyPart1;
     private String precomputedAvgOccupancyPart2;
+    private Floor[] generatedFloors;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+        this.generatedFloors = generatedFloors;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
@@ -72,7 +74,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     }
 
     @Override
-    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end, Floor[] generatedFloors) {
+    public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) {
         List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
         String queryString = String.format("SELECT %s FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",

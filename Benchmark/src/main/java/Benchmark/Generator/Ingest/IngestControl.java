@@ -2,7 +2,7 @@ package Benchmark.Generator.Ingest;
 
 import Benchmark.CoarseTimer;
 import Benchmark.DateCommunication;
-import Benchmark.Generator.GeneratedData.GeneratedEntry;
+import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
 
@@ -45,7 +45,7 @@ public class IngestControl {
         Logger.LOG(String.format("DONE %s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
-    public void add(GeneratedEntry entry) {
+    public void add(IGeneratedEntry entry) {
         totalCounter++;
 
         // Update the info about what the newest entry is, so we can use it in queries.

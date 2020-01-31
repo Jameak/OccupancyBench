@@ -1,6 +1,9 @@
 import Benchmark.Analysis.Precomputation;
 import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
+import Benchmark.Databases.DBTargets;
+import Benchmark.Databases.DatabaseTargetFactory;
+import Benchmark.Databases.DatabaseQueriesFactory;
 import Benchmark.DateCommunication;
 import Benchmark.Generator.*;
 import Benchmark.Generator.GeneratedData.AccessPoint;
@@ -10,10 +13,8 @@ import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.*;
 import Benchmark.Logger;
 import Benchmark.Loader.MapParser;
-import Benchmark.Queries.InfluxQueries;
-import Benchmark.Queries.Queries;
+import Benchmark.Queries.IQueries;
 import Benchmark.Queries.QueryRunnable;
-import Benchmark.Queries.TimescaleQueries;
 
 import java.io.*;
 import java.nio.file.FileSystems;
@@ -23,7 +24,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -108,7 +108,7 @@ public class Program {
             // Load the data from previous run
             Logger.LOG("Deserializing floor.");
             generatedFloors = deserializeFloor(config);
-            Logger.LOG(String.format("Floor data: %s floors, %s APs", generatedFloors.length, allAPs(generatedFloors).length));
+            Logger.LOG(String.format("Floor data: %s floors, %s APs", generatedFloors.length, Floor.allAPsOnFloors(generatedFloors).length));
             Logger.LOG("Deserializing rng.");
             rng = deserializeRandom(config);
         }
@@ -177,13 +177,13 @@ public class Program {
         assert config.getQueriesThreadCount() > 0;
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
-        Queries queryInstance = null;
-        if(config.useSharedQueriesInstance()) queryInstance = createQueryTargetInstance(config);
+        IQueries queryInstance = null;
+        if(config.useSharedQueriesInstance()) queryInstance = DatabaseQueriesFactory.createQueriesInstance(config);
 
         Future[] queryTasks = new Future[config.getQueriesThreadCount()];
         for(int i = 0; i < config.getQueriesThreadCount(); i++){
             Random queryRng = new Random(rng.nextInt());
-            if(!config.useSharedQueriesInstance()) queryInstance = createQueryTargetInstance(config);
+            if(!config.useSharedQueriesInstance()) queryInstance = DatabaseQueriesFactory.createQueriesInstance(config);
 
             QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i);
             queryTasks[i] = threadPoolQueries.submit(queryRunnable);
@@ -196,11 +196,12 @@ public class Program {
         threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
         ingestTasks = new Future[config.getIngestThreadCount()];
         ingestRunnables = new IngestRunnable[config.getIngestThreadCount()];
+        AccessPoint[] allAPs = Floor.allAPsOnFloors(generatedFloors);
 
         ingestTargets = new ITarget[config.useSharedIngestInstance() ? 1 : config.getIngestThreadCount()];
-        if(config.useSharedIngestInstance()) ingestTargets[0] = createTargetInstance(config.getIngestTarget(), config, config.recreateIngestTarget());
+        if(config.useSharedIngestInstance()) ingestTargets[0] = DatabaseTargetFactory.createDatabaseTarget(config.getIngestTarget(), config, config.recreateIngestTarget(), allAPs);
 
-        AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs(generatedFloors), config.getIngestThreadCount());
+        AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs, config.getIngestThreadCount());
         boolean firstCreatedTarget = true;
         //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
         //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
@@ -219,7 +220,7 @@ public class Program {
                     recreate = config.recreateIngestTarget();
                     firstCreatedTarget = false;
                 }
-                ingestTarget = createTargetInstance(config.getIngestTarget(), config, recreate);
+                ingestTarget = DatabaseTargetFactory.createDatabaseTarget(config.getIngestTarget(), config, recreate, allAPs);
                 ingestTargets[i] = ingestTarget;
             }
 
@@ -266,15 +267,16 @@ public class Program {
         Generator.PrepareDataForGeneration(generatedFloors, parsedData);
 
         Logger.LOG("Setting up targets.");
+        AccessPoint[] allAPs = Floor.allAPsOnFloors(generatedFloors);
+
         ITarget target = null;
         try{
             target = new BaseTarget();
-            for(ConfigFile.Target configTarget : config.saveGeneratedDataTargets()){
-                target = new MultiTarget(target, createTargetInstance(configTarget, config, true));
+            for(DBTargets configTarget : config.saveGeneratedDataTargets()){
+                target = new MultiTarget(target, DatabaseTargetFactory.createDatabaseTarget(configTarget, config, true, allAPs));
             }
 
             Logger.LOG("Generating data");
-            AccessPoint[] allAPs = allAPs(generatedFloors);
             DataGenerator.Generate(allAPs, parsedData, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
 
             if(target.shouldStopEarly()){
@@ -326,14 +328,6 @@ public class Program {
         return rng;
     }
 
-    private AccessPoint[] allAPs(Floor[] generatedFloors){
-        List<AccessPoint> APs = new ArrayList<>();
-        for(Floor floor : generatedFloors){
-            APs.addAll(Arrays.asList(floor.getAPs()));
-        }
-        return APs.toArray(new AccessPoint[0]);
-    }
-
     private AccessPoint[][] evenlyPartitionAPs(AccessPoint[] allAPs, int partitions){
         List<List<AccessPoint>> results = new ArrayList<>(partitions);
         for(int i = 0; i < partitions; i++){
@@ -349,39 +343,5 @@ public class Program {
         }
 
         return out;
-    }
-
-    private ITarget createTargetInstance(ConfigFile.Target target, ConfigFile config, boolean recreate) throws IOException, SQLException {
-        switch (target){
-            case INFLUX:
-                return new InfluxTarget(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(),
-                        config.getInfluxDBName(), config.getInfluxTable(), recreate, config.getInfluxBatchsize(),
-                        config.getInfluxFlushtime(), config.getGeneratorGranularity());
-            case FILE:
-                // Not supported for ingestion. Valid config files shouldn't contain FILE as the chosen ingest-target.
-                return new FileTarget(config.getGeneratorDiskTarget(), config.getGeneratorGranularity());
-            case TIMESCALE:
-                return new TimescaleTarget(config.getTimescaleHost(), config.getTimescaleDBName(),
-                        config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleTable(),
-                        recreate, config.getTimescaleBatchSize(), config.reWriteBatchedTimescaleInserts(), config.getGeneratorGranularity());
-            default:
-                assert false : "New ingestion target must have been added, but target-switch wasn't updated";
-                throw new IllegalStateException("Unknown ingestion target: " + config.getIngestTarget());
-        }
-    }
-
-    private Queries createQueryTargetInstance(ConfigFile config){
-        switch (config.getQueriesTarget()){
-            case INFLUX:
-                return new InfluxQueries();
-            case TIMESCALE:
-                return new TimescaleQueries();
-            case FILE:
-                assert false;
-                throw new IllegalStateException("Unsupported query target: " + config.getQueriesTarget());
-            default:
-                assert false : "New query target must have been added, but query-switch wasn't updated";
-                throw new IllegalStateException("Unknown query target: " + config.getQueriesTarget());
-        }
     }
 }

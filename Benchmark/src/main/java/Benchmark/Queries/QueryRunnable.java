@@ -7,6 +7,7 @@ import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Logger;
 import Benchmark.PreciseTimer;
+import Benchmark.Queries.Results.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,7 +33,7 @@ public class QueryRunnable implements Runnable {
     private final DateCommunication dateComm;
     private final Floor[] generatedFloors;
     private final AccessPoint[] allAPs;
-    private final Queries queryTarget;
+    private final IQueries queryTarget;
     private final String threadName;
     private final int minTimeInterval;
     private final int maxTimeInterval;
@@ -73,7 +74,7 @@ public class QueryRunnable implements Runnable {
 
     private LocalDateTime newestValidDate;
 
-    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, Queries queryTarget, String threadName){
+    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, IQueries queryTarget, String threadName){
         this.config = config;
         this.rngQueries = rng;
         this.dateComm = dateComm;
@@ -120,14 +121,14 @@ public class QueryRunnable implements Runnable {
         return QueryType.UNKNOWN;
     }
 
-    private void runQueries(Queries queries, boolean warmUp, Random rng) throws SQLException{
+    private void runQueries(IQueries queries, boolean warmUp, Random rng) throws SQLException{
         switch (selectQuery(rng)){
             case TotalClients:
             {
                 LocalDateTime[] time = generateTimeInterval(rng);
                 if(!warmUp) timerQuery_TotalClients.start();
 
-                List<Queries.Total> result = queries.computeTotalClients(time[0], time[1]);
+                List<Total> result = queries.computeTotalClients(time[0], time[1]);
 
                 if(!warmUp) {
                     timeSpentQueryInProg_TotalClients += timerQuery_TotalClients.elapsedNanoseconds();
@@ -144,7 +145,7 @@ public class QueryRunnable implements Runnable {
                 LocalDateTime[] time = generateTimeInterval(rng);
                 if(!warmUp) timerQuery_FloorTotal.start();
 
-                List<Queries.FloorTotal> result = queries.computeFloorTotal(time[0], time[1], generatedFloors);
+                List<FloorTotal> result = queries.computeFloorTotal(time[0], time[1], generatedFloors);
 
                 if(!warmUp){
                     timeSpentQueryInProg_FloorTotal += timerQuery_FloorTotal.elapsedNanoseconds();
@@ -162,7 +163,7 @@ public class QueryRunnable implements Runnable {
                 AccessPoint selectedAP = selectRandomAP(rng);
                 if(!warmUp) timerQuery_MaxForAP.start();
 
-                List<Queries.MaxForAP> result = queries.maxPerDayForAP(time[0], time[1], selectedAP);
+                List<MaxForAP> result = queries.maxPerDayForAP(time[0], time[1], selectedAP);
 
                 if(!warmUp){
                     timeSpentQueryInProg_MaxForAP += timerQuery_MaxForAP.elapsedNanoseconds();
@@ -179,7 +180,7 @@ public class QueryRunnable implements Runnable {
                 LocalDateTime startTime = generateTime(newestValidDate, rng);
                 if(!warmUp) timerQuery_AvgOccupancy.start();
 
-                List<Queries.AvgOccupancy> result = queries.computeAvgOccupancy(startTime, newestValidDate, 5);
+                List<AvgOccupancy> result = queries.computeAvgOccupancy(startTime, newestValidDate, 5);
 
                 if(!warmUp){
                     timeSpentQueryInProg_AvgOccupancy += timerQuery_AvgOccupancy.elapsedNanoseconds();
@@ -226,7 +227,14 @@ public class QueryRunnable implements Runnable {
         }
 
         assert ChronoUnit.SECONDS.between(startTime, endTime) <= maxTimeInterval : "generateTime: Interval between times exceeds the max interval. Start: " + startTime + ", end: " + endTime;
-        assert ChronoUnit.SECONDS.between(startTime, endTime) >= minTimeInterval : "generateTime: Interval between times is slower than the min interval. Start: " + startTime + ", end: " + endTime;;
+        assert ChronoUnit.SECONDS.between(startTime, endTime) >= minTimeInterval : "generateTime: Interval between times is slower than the min interval. Start: " + startTime + ", end: " + endTime;
+
+        if(config.DEBUG_truncateQueryTimestamps()){
+            //Truncating here slightly risks going over/under the min/max interval, but it's by such a small amount
+            //  that I dont care since this is a debug-option. This is much simpler code.
+            startTime = startTime.truncatedTo(ChronoUnit.MINUTES);
+        }
+
         return startTime;
     }
 
@@ -270,6 +278,13 @@ public class QueryRunnable implements Runnable {
         assert !time[1].isAfter(newestValidDate);
         assert ChronoUnit.SECONDS.between(time[0], time[1]) <= maxTimeInterval : "generateTimeInterval: Interval between times exceeds the max interval. Start: " + time[0] + ", end: " + time[1];
         assert ChronoUnit.SECONDS.between(time[0], time[1]) >= minTimeInterval : "generateTimeInterval: Interval between times is slower than the min interval. Start: " + time[0] + ", end: " + time[1];;
+
+        if(config.DEBUG_truncateQueryTimestamps()){
+            //Truncating here slightly risks going over/under the min/max interval, but it's by such a small amount
+            //  that I dont care since this is a debug-option. This is much simpler code.
+            time[0] = time[0].truncatedTo(ChronoUnit.MINUTES);
+            time[1] = time[1].truncatedTo(ChronoUnit.MINUTES);
+        }
 
         return time;
     }
@@ -488,7 +503,7 @@ public class QueryRunnable implements Runnable {
                 String filename = String.format("%04d_%s.csv", result.id, result.type);
                 Path outFile = outPath.resolve(filename);
                 List<String> content = new ArrayList<>();
-                for(Queries.Result qRes : result.result){
+                for(AbstractResult qRes : result.result){
                     content.add(qRes.toString());
                 }
                 Files.write(outFile, content, StandardCharsets.UTF_8);
@@ -518,9 +533,9 @@ public class QueryRunnable implements Runnable {
     static class QueryResult{
         final int id;
         final QueryType type;
-        final List<? extends Queries.Result> result;
+        final List<? extends AbstractResult> result;
 
-        QueryResult(int id, QueryType type, List<? extends Queries.Result> result){
+        QueryResult(int id, QueryType type, List<? extends AbstractResult> result){
             this.id = id;
             this.type = type;
             this.result = result;

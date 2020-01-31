@@ -1,6 +1,9 @@
 package Benchmark.Generator.GeneratedData;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,5 +41,13 @@ public class Floor implements Serializable {
         System.arraycopy(existingAdj, 0, newAdj, 0, existingAdj.length);
         newAdj[existingAdj.length] = APtoAdd;
         adjacency.put(existingAP, newAdj);
+    }
+
+    public static AccessPoint[] allAPsOnFloors(Floor[] generatedFloors){
+        List<AccessPoint> APs = new ArrayList<>();
+        for(Floor floor : generatedFloors){
+            APs.addAll(Arrays.asList(floor.getAPs()));
+        }
+        return APs.toArray(new AccessPoint[0]);
     }
 }

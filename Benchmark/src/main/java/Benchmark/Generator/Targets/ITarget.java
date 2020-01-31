@@ -1,6 +1,6 @@
 package Benchmark.Generator.Targets;
 
-import Benchmark.Generator.GeneratedData.GeneratedEntry;
+import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -11,6 +11,6 @@ import java.sql.SQLException;
  * Since a target might hold handles/resources that need to be released, they must also be AutoCloseable.
  */
 public interface ITarget extends AutoCloseable {
-    void add(GeneratedEntry entry) throws IOException, SQLException;
+    void add(IGeneratedEntry entry) throws IOException, SQLException;
     boolean shouldStopEarly();
 }

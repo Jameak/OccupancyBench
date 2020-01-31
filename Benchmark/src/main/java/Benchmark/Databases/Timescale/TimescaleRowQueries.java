@@ -1,11 +1,14 @@
-package Benchmark.Queries;
+package Benchmark.Databases.Timescale;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Queries.QueryHelper;
+import Benchmark.Queries.Results.AvgOccupancy;
+import Benchmark.Queries.Results.FloorTotal;
+import Benchmark.Queries.Results.MaxForAP;
+import Benchmark.Queries.Results.Total;
 
-import java.security.Timestamp;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -16,10 +19,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An implementation of the benchmark-queries for TimescaleDB.
+ * An implementation of the benchmark-queries for TimescaleDB when using the row-schema.
  */
-public class TimescaleQueries extends JdbcQueries {
-    private String table;
+public class TimescaleRowQueries extends AbstractTimescaleQueries {
     private int sampleRate;
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
 
@@ -27,52 +29,12 @@ public class TimescaleQueries extends JdbcQueries {
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
+        connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
 
-        DriverManager.registerDriver(new org.postgresql.Driver());
-        // TODO: Include SSL-parameter in the connection string?
-        String db = String.format("jdbc:postgresql://%s/%s", config.getTimescaleHost(), config.getTimescaleDBName());
-        connection = DriverManager.getConnection(db, config.getTimescaleUsername(), config.getTimescalePassword());
-
-        //Pre-computations of the strings needed for the 'FloorTotal' query to minimize time spent in Java code versus on the query itself:
         for(Floor floor : generatedFloors){
-            StringBuilder sb = new StringBuilder();
-            sb.append("(");
-            boolean first = true;
-            for(AccessPoint AP : floor.getAPs()){
-                if(first){
-                    first = false;
-                } else {
-                    sb.append("OR");
-                }
-                sb.append(" AP='");
-                sb.append(AP.getAPname());
-                sb.append("' ");
-            }
-
-            sb.append(") GROUP BY bucket");
-            precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
+            String precomp = QueryHelper.buildRowSchemaFloorTotalQueryPrecomputation(floor.getAPs());
+            precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), precomp);
         }
-    }
-
-    @Override
-    public LocalDateTime getNewestTimestamp() throws SQLException {
-        String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", table);
-
-        String time = null;
-        try(Statement statement = connection.createStatement();
-            ResultSet results = statement.executeQuery(queryString)){
-            while(results.next()) {
-                time = results.getString("time");
-            }
-        }
-
-        assert time != null;
-        String[] parts = time.split(" ");
-        LocalDateTime dbTime = LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
-        // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
-        //   what seems to be off-by-one errors in the query-results.
-        // To avoid this, we add a single second to the returned time to move slightly beyond the newest value.
-        return dbTime.plusSeconds(1);
     }
 
     @Override
@@ -107,16 +69,17 @@ public class TimescaleQueries extends JdbcQueries {
         for (Floor floor : generatedFloors) {
             String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                             "FROM %s " +
-                            "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) AND %s",
+                            "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) AND %s " +
+                            "GROUP BY bucket",
                     table, timeStart, timeEnd, precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             try (Statement statement = connection.createStatement();
                  ResultSet results = statement.executeQuery(query)) {
-                while (results.next()) {
+                 while (results.next()) {
                     String time = results.getString("bucket");
                     int total = results.getInt("sum");
                     floorTotals.add(new FloorTotal(floor.getFloorNumber(), time, total));
-                }
+                 }
             }
         }
 
@@ -150,33 +113,7 @@ public class TimescaleQueries extends JdbcQueries {
     public List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws SQLException {
         StringBuilder sb1 = new StringBuilder();
         StringBuilder sb2 = new StringBuilder();
-
-        {
-            LocalDateTime date = end;
-            boolean firstLoop = true;
-            do{
-                if(firstLoop) firstLoop = false;
-                else sb1.append(" OR ");
-
-                String time = String.format("(time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s))", toTimestamp(date), toTimestamp(date.minusMinutes(windowSizeInMin)));
-                sb1.append(time);
-
-                date = date.minusDays(1);
-            } while(!date.isBefore(start));
-        }
-        {
-            LocalDateTime date = end;
-            boolean firstLoop = true;
-            do{
-                if(firstLoop) firstLoop = false;
-                else sb2.append(" OR ");
-
-                String time = String.format("(time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s))", toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date));
-                sb2.append(time);
-
-                date = date.minusDays(1);
-            } while(!date.isBefore(start));
-        }
+        buildAvgOccupancyTimeranges(start, end, sb1, sb2, windowSizeInMin);
 
         String query = String.format(
                 "SELECT now.AP, " +
@@ -217,10 +154,5 @@ public class TimescaleQueries extends JdbcQueries {
         }
 
         return output;
-    }
-
-    private long toTimestamp(LocalDateTime time){
-        // Timestamps in Timescale (when using TO_TIMESTAMP) expect second precision
-        return (long) (time.toInstant(ZoneOffset.ofHours(0)).toEpochMilli() / 1e3);
     }
 }

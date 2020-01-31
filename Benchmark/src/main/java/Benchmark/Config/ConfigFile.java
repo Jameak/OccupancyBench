@@ -1,5 +1,8 @@
 package Benchmark.Config;
 
+import Benchmark.Databases.DBTargets;
+import Benchmark.Databases.SchemaFormats;
+
 import java.io.*;
 import java.nio.file.Paths;
 import java.time.LocalDate;
@@ -28,6 +31,13 @@ public class ConfigFile {
      */
     private static final String SEED = "benchmark.rngseed";
     private int seed;
+
+    /**
+     * Type: A single accepted value. Accepted values are: ROW, COLUMN
+     * The schema-format to use for data generation and querying.
+     */
+    private static final String SCHEMA = "benchmark.schema";
+    private SchemaFormats schema;
 
     /**
      * Type: Boolean
@@ -142,13 +152,13 @@ public class ConfigFile {
      */
     private static final String GENERATOR_END_DATE                = "generator.data.enddate";
     /**
-     * Type: Comma-separated string of accepted values. Accepted values are: FILE, INFLUX, TIMESCALE
+     * Type: Comma-separated string of accepted values. Accepted values are: CSV, INFLUX, TIMESCALE
      * The outputs to add generated data to. If multiple targets are specified, all targets receive data as it is generated.
      */
     private static final String GENERATOR_OUTPUT_TARGETS          = "generator.output.targets";
     /**
      * Type: String
-     * If FILE is specified in {@code GENERATOR_OUTPUT_TARGETS} then this is the path of the file that the generated
+     * If CSV is specified in {@code GENERATOR_OUTPUT_TARGETS} then this is the path of the file that the generated
      * data is written to.
      */
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET   = "generator.output.filepath";
@@ -163,7 +173,7 @@ public class ConfigFile {
     private boolean   generatorKeepFloorAssociations;
     private LocalDate generatorStartDate;
     private LocalDate generatorEndDate;
-    private Target[]  generatorOutputTargets;
+    private DBTargets[] generatorOutputTargets;
     private String    generatorToDiskTarget;
 
     /**
@@ -327,7 +337,7 @@ public class ConfigFile {
     private int       ingestReportFrequency;
     private int       ingestDurationStandalone;
     private LocalDate ingestDurationEndDate;
-    private Target    ingestTarget;
+    private DBTargets ingestTarget;
     private boolean   ingestTargetRecreate;
     private boolean   ingestTargetSharedInstance;
     private int       ingestThreads;
@@ -479,7 +489,7 @@ public class ConfigFile {
      */
     private static final String QUERIES_DATE_COMM                = "queries.dateinformation";
     private boolean   queriesEnabled;
-    private Target    queriesTarget;
+    private DBTargets queriesTarget;
     private int       queriesThreads;
     private boolean   queriesSharedInstance;
     private int       queriesDuration;
@@ -522,19 +532,44 @@ public class ConfigFile {
      * The path to write the query results to.
      */
     private static final String DEBUG_SAVE_QUERY_RESULTS_PATH = "debug.savequeryresults.path";
+    /**
+     * Type: Boolean
+     * Governs whether to synchronize the rng state for data generation across both ROW and COLUMN schemes.
+     * The effect of this ensures that the exact same data is generated for both, making them directly comparable at
+     * the cost of slightly more generation overhead.
+     */
+    private static final String DEBUG_SYNCHRONIZE_RNG_STATE = "debug.synchronizerngstate";
+    /**
+     * Type: Boolean
+     * Governs whether to truncate the timestamps used in queries to minutes.
+     *
+     * This is useful for comparing query-results between row- and column-schemas. Specifically, this ensures that
+     * if we have the following entries in the row- and column-databases:
+     * ROW DB:    TIME (HH:MM:SS) | AP   | CLIENTS
+     *            10:00:01        | AP-1 | 5
+     *            10:00:02        | AP-2 | 10
+     *            10:00:03        | AP-3 | 15
+     * COLUMN DB: TIME (HH:MM:SS) | AP-1 | AP-2 | AP-3
+     *            10:00:03        | 5    | 10   | 15
+     * then a randomly generated query-timerange of "start: 10:00:02" and "end: 10:10:00" will be truncated to querying
+     * "start: 10:00:00" which ensures that the query grabs the entirety of the row-entries instead of only some of them.
+     *
+     * For row- vs column-schema queries to be comparable we need to always grab either all entries or none, which
+     * enabling this setting ensures that we do. If we dont care about them being comparable (such as during normal
+     * benchmark operation) then comparability doesn't really matter and this can be turned off.
+     */
+    private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS = "debug.truncatequerytimestamps";
     private boolean debugCreatePrecomputedTables;
     private boolean debugPrintSettings;
     private boolean debugSaveQueryResults;
     private String  debugSaveQueryResultsPath;
+    private boolean debugSynchronizeRngState;
+    private boolean debugTruncateQueryTimestamps;
 
     private final Properties prop = new Properties();
     private boolean validated;
     private String validationError = "NO ERROR";
 
-    public enum Target{
-        FILE, INFLUX, TIMESCALE
-    }
-    
     public enum Granularity{
         NANOSECOND, MILLISECOND, SECOND, MINUTE;
         public TimeUnit toTimeUnit(){
@@ -576,6 +611,7 @@ public class ConfigFile {
 
         //Benchmark
         config.prop.setProperty(SEED, "1234");
+        config.prop.setProperty(SCHEMA, "ROW");
 
         //Serialization
         config.prop.setProperty(SERIALIZE_ENABLED, "false");
@@ -653,6 +689,8 @@ public class ConfigFile {
         config.prop.setProperty(DEBUG_PRINT_ALL_SETTINGS, "false");
         config.prop.setProperty(DEBUG_SAVE_QUERY_RESULTS, "false");
         config.prop.setProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, "TARGET FOLDER PATH");
+        config.prop.setProperty(DEBUG_SYNCHRONIZE_RNG_STATE, "false");
+        config.prop.setProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, "false");
 
         config.parseProps();
         return config;
@@ -660,7 +698,8 @@ public class ConfigFile {
 
     private void parseProps(){
         //Benchmark
-        seed             = Integer.parseInt(    prop.getProperty(SEED, "" + new Random().nextInt(10000)));
+        seed             = Integer.parseInt(     prop.getProperty(SEED, "" + new Random().nextInt(10000)));
+        schema           = SchemaFormats.valueOf(prop.getProperty(SCHEMA, "ROW").toUpperCase().trim());
 
         //Serialization
         serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED, "false"));
@@ -679,11 +718,12 @@ public class ConfigFile {
         generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE, "2019-01-01"));
         generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE, "2019-04-01"));
         generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS, "influx").split(","))
-                .map(String::toUpperCase).map(String::trim).map(Target::valueOf).toArray(Target[]::new);
+                .map(String::toUpperCase).map(String::trim).map(DBTargets::valueOf).toArray(DBTargets[]::new);
         generatorToDiskTarget          =                      prop.getProperty(GENERATOR_OUTPUT_TO_DISK_TARGET);
 
         //Influx
-        influxUrl       = "http://" +      prop.getProperty(INFLUX_URL, "localhost:8086");
+        String influxUrlInput =            prop.getProperty(INFLUX_URL, "localhost:8086");
+        influxUrl       =                  influxUrlInput.startsWith("http://") || influxUrlInput.startsWith("https://") ? influxUrlInput : "http://" + influxUrlInput;
         influxUsername  =                  prop.getProperty(INFLUX_USERNAME);
         influxPassword  =                  prop.getProperty(INFLUX_PASSWORD);
         influxDBName    =                  prop.getProperty(INFLUX_DBNAME, "benchmark");
@@ -707,14 +747,14 @@ public class ConfigFile {
         ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY, "5"));
         ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION, "-1"));
         ingestDurationEndDate      = LocalDate.parse(     prop.getProperty(INGEST_DURATION_END_DATE, "9999-12-31"));
-        ingestTarget               = Target.valueOf(      prop.getProperty(INGEST_TARGET, "influx").toUpperCase().trim());
+        ingestTarget               = DBTargets.valueOf(   prop.getProperty(INGEST_TARGET, "influx").toUpperCase().trim());
         ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE, "false"));
         ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE, "false"));
         ingestThreads              = Integer.parseInt(    prop.getProperty(INGEST_THREADS, "1"));
 
         //Queries
         queriesEnabled           = Boolean.parseBoolean(prop.getProperty(QUERIES_ENABLED, "true"));
-        queriesTarget            = Target.valueOf(      prop.getProperty(QUERIES_TARGET, "influx").toUpperCase().trim());
+        queriesTarget            = DBTargets.valueOf(   prop.getProperty(QUERIES_TARGET, "influx").toUpperCase().trim());
         queriesThreads           = Integer.parseInt(    prop.getProperty(QUERIES_THREADS, "1"));
         queriesSharedInstance    = Boolean.parseBoolean(prop.getProperty(QUERIES_SHARED_INSTANCE, "false"));
         queriesDuration          = Integer.parseInt(    prop.getProperty(QUERIES_DURATION, "60"));
@@ -739,6 +779,8 @@ public class ConfigFile {
         debugPrintSettings           = Boolean.parseBoolean(prop.getProperty(DEBUG_PRINT_ALL_SETTINGS, "false"));
         debugSaveQueryResults        = Boolean.parseBoolean(prop.getProperty(DEBUG_SAVE_QUERY_RESULTS, "false"));
         debugSaveQueryResultsPath    =                      prop.getProperty(DEBUG_SAVE_QUERY_RESULTS_PATH);
+        debugSynchronizeRngState     = Boolean.parseBoolean(prop.getProperty(DEBUG_SYNCHRONIZE_RNG_STATE, "false"));
+        debugTruncateQueryTimestamps = Boolean.parseBoolean(prop.getProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, "false"));
     }
 
     private String validateConfig(){
@@ -775,7 +817,6 @@ public class ConfigFile {
         // ---- Ingest ----
         if(ingestEnabled){
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
-            if(ingestTarget == Target.FILE) return "Unsupported ingest target 'FILE' (" + INGEST_TARGET + ")";
 
             if(generatorEnabled && !ingestTargetRecreate){
                 if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";
@@ -788,7 +829,7 @@ public class ConfigFile {
 
         // ---- Queries ----
         if(queriesEnabled){
-            if(queriesTarget == Target.FILE) return "Unsupported query target 'FILE' (" + QUERIES_TARGET + ")";
+            if(queriesTarget == DBTargets.CSV) return "Unsupported query target 'CSV' (" + QUERIES_TARGET + ")";
             if(!(queriesThreads > 0)) return QUERIES_THREADS + ": Query threads must be > 0";
             if(!(queriesDuration > 0 || queriesMaxCount > 0)) return "Query-duration (" + QUERIES_DURATION + ") must be > 0 or max query count (" + QUERIES_MAX_COUNT + ") must be > 0";
             if(!(queriesWeightTotalClients >= 0)) return QUERIES_WEIGHT_TOTAL_CLIENTS + ": Query-weight for 'TotalClients' must be >= 0";
@@ -821,6 +862,7 @@ public class ConfigFile {
     public String getSettings(){
         SortedMap<String, Object> settings = new TreeMap<>();
         settings.put(SEED, seed);
+        settings.put(SCHEMA, schema);
 
         settings.put(SERIALIZE_ENABLED, serialize);
         settings.put(SERIALIZE_PATH, serializePath);
@@ -891,14 +933,16 @@ public class ConfigFile {
         settings.put(DEBUG_PRINT_ALL_SETTINGS, debugPrintSettings);
         settings.put(DEBUG_SAVE_QUERY_RESULTS, debugSaveQueryResults);
         settings.put(DEBUG_SAVE_QUERY_RESULTS_PATH, debugSaveQueryResultsPath);
+        settings.put(DEBUG_SYNCHRONIZE_RNG_STATE, debugSynchronizeRngState);
+        settings.put(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, debugTruncateQueryTimestamps);
 
         StringBuilder sb = new StringBuilder();
         for(String key : settings.keySet()){
             Object val = settings.get(key);
 
-            // Pretty-print the target-array, otherwise we end up with [Benchmark...@garbage]
-            if(val instanceof Target[]){
-                Target[] value = (Target[]) val;
+            // Pretty-print the DBTargets-array, otherwise we end up with [Benchmark...@garbage]
+            if(val instanceof DBTargets[]){
+                DBTargets[] value = (DBTargets[]) val;
                 String out = "";
                 for(int i = 0; i < value.length; i++){
                     if(i == 0){
@@ -967,7 +1011,7 @@ public class ConfigFile {
         return generatorEndDate;
     }
 
-    public Target[] saveGeneratedDataTargets() {
+    public DBTargets[] saveGeneratedDataTargets() {
         return generatorOutputTargets;
     }
 
@@ -1013,6 +1057,14 @@ public class ConfigFile {
 
     public String DEBUG_saveQueryResultsPath() {
         return debugSaveQueryResultsPath;
+    }
+
+    public boolean DEBUG_synchronizeRngState() {
+        return debugSynchronizeRngState;
+    }
+
+    public boolean DEBUG_truncateQueryTimestamps() {
+        return debugTruncateQueryTimestamps;
     }
 
     public boolean doSerialization() {
@@ -1107,11 +1159,11 @@ public class ConfigFile {
         return queriesReportFrequency;
     }
 
-    public Target getIngestTarget() {
+    public DBTargets getIngestTarget() {
         return ingestTarget;
     }
 
-    public Target getQueriesTarget() {
+    public DBTargets getQueriesTarget() {
         return queriesTarget;
     }
 
@@ -1181,5 +1233,9 @@ public class ConfigFile {
 
     public boolean doDateCommunicationByQueryingDatabase() {
         return queriesDateCommIntervalMilliseconds >= 0;
+    }
+
+    public SchemaFormats getSchema(){
+        return schema;
     }
 }

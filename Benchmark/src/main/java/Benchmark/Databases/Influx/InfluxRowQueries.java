@@ -1,30 +1,26 @@
-package Benchmark.Queries;
+package Benchmark.Databases.Influx;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
-import okhttp3.OkHttpClient;
-import org.influxdb.InfluxDB;
-import org.influxdb.InfluxDBFactory;
+import Benchmark.Queries.QueryHelper;
+import Benchmark.Queries.Results.AvgOccupancy;
+import Benchmark.Queries.Results.FloorTotal;
+import Benchmark.Queries.Results.MaxForAP;
+import Benchmark.Queries.Results.Total;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 
-import java.io.IOException;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
- * An implementation of the benchmark-queries for InfluxDB.
+ * An implementation of the benchmark-queries for InfluxDB when using the row-schema.
  */
-public class InfluxQueries implements Queries{
-    private InfluxDB influxDB;
-    private String measurement;
+public class InfluxRowQueries extends AbstractInfluxQueries {
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
     private int sampleRate;
 
@@ -32,66 +28,15 @@ public class InfluxQueries implements Queries{
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
-        // Some queries may take too long on my dev machine. If the connection timed out an exception will be thrown which stops the queries.
-        OkHttpClient.Builder httpClientBuilder = new OkHttpClient.Builder().readTimeout(60, TimeUnit.SECONDS);
-        this.influxDB = InfluxDBFactory.connect(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), httpClientBuilder);
-        if(influxDB.ping().getVersion().equalsIgnoreCase("unknown")) {
-            influxDB.close();
-            throw new IOException("No connection to Influx database.");
-        }
+        this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
 
         influxDB.setDatabase(config.getInfluxDBName());
         //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
 
-        //Pre-computations of the strings needed for the 'FloorTotal' query to minimize time spent in Java code versus on the query itself:
         for(Floor floor : generatedFloors){
-            StringBuilder sb = new StringBuilder();
-            sb.append("(");
-            boolean first = true;
-            for(AccessPoint AP : floor.getAPs()){
-                if(first){
-                    first = false;
-                } else {
-                    sb.append("OR");
-                }
-                sb.append(" AP='");
-                sb.append(AP.getAPname());
-                sb.append("' ");
-            }
-
-            sb.append(") GROUP BY time(1d)");
-            precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), sb.toString());
+            String precomp = QueryHelper.buildRowSchemaFloorTotalQueryPrecomputation(floor.getAPs());
+            precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), precomp);
         }
-    }
-
-    @Override
-    public void done() {
-        influxDB.close();
-    }
-
-    @Override
-    public LocalDateTime getNewestTimestamp() {
-        String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", measurement);
-
-        Query query = new Query(queryString);
-        QueryResult results = influxDB.query(query);
-
-        String time = null;
-        for(QueryResult.Result result : results.getResults()){
-            assert result.getSeries() != null;
-            for(QueryResult.Series series : result.getSeries()){
-                for(List<Object> entries : series.getValues()){
-                    time = (String) entries.get(series.getColumns().indexOf("time"));
-                }
-            }
-        }
-
-        assert time != null;
-        LocalDateTime dbTime = LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
-        // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
-        //   what seems to be off-by-one errors in the query-results.
-        // To avoid this, we add a single second to the returned time to move slightly beyond the newest value.
-        return dbTime.plusSeconds(1);
     }
 
     @Override
@@ -125,7 +70,7 @@ public class InfluxQueries implements Queries{
         List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
         for (Floor floor : generatedFloors) {
-            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d AND %s",
+            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d AND %s GROUP BY time(1d)",
                     measurement, toTimestamp(end), toTimestamp(start), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             Query query = new Query(queryString);
@@ -136,8 +81,8 @@ public class InfluxQueries implements Queries{
                 assert result.getSeries().size() == 1;
                 for (QueryResult.Series series : result.getSeries()) {
                     for (List<Object> entries : series.getValues()) {
-                        int sum = (int) Math.round((Double) entries.get(series.getColumns().indexOf("sum")));
                         String timestamp = (String) entries.get(series.getColumns().indexOf("time"));
+                        int sum = (int) Math.round((Double) entries.get(series.getColumns().indexOf("sum")));
                         counts.add(new FloorTotal(floor.getFloorNumber(), timestamp, sum));
                     }
                 }
@@ -276,20 +221,6 @@ public class InfluxQueries implements Queries{
         return output;
     }
 
-    private double averageHistoricalClients(Map<String, List<Double>> results, String AP) {
-        double historicalClients;
-        List<Double> queryResults = results.get(AP);
-        int count = 0;
-        Double total = 0.0;
-        for(Double val : queryResults){
-            count++;
-            total += val;
-        }
-        assert count > 0 : "Cant divide by zero";
-        historicalClients = total / count;
-        return historicalClients;
-    }
-
     private void parseAvgQuery(QueryResult queryResult, Map<String, List<Double>> target){
         for(QueryResult.Result result : queryResult.getResults()){
             if(result.getSeries() == null) continue; // There were no results at all for the query.
@@ -305,10 +236,5 @@ public class InfluxQueries implements Queries{
                 }
             }
         }
-    }
-
-    private long toTimestamp(LocalDateTime time){
-        // Timestamps in Influx expect nanosecond precision
-        return time.toEpochSecond(ZoneOffset.ofHours(0)) * 1_000_000_000;
     }
 }

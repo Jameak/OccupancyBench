@@ -1,6 +1,6 @@
 package Benchmark.Generator.Targets;
 
-import Benchmark.Generator.GeneratedData.GeneratedEntry;
+import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Generator.Ingest.IngestControl;
 
 import java.io.IOException;
@@ -28,7 +28,7 @@ public class IngestWrapper implements ITarget {
     }
 
     @Override
-    public void add(GeneratedEntry entry) throws IOException, SQLException {
+    public void add(IGeneratedEntry entry) throws IOException, SQLException {
         wrappedTarget.add(entry);
         ingestControl.add(entry);
     }

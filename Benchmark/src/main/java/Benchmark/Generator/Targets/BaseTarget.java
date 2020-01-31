@@ -1,8 +1,6 @@
 package Benchmark.Generator.Targets;
 
-import Benchmark.Generator.GeneratedData.GeneratedEntry;
-
-import java.io.IOException;
+import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 
 /**
  * A base-implementation of the ITarget interface that does nothing. Exists to be wrapped and to avoid
@@ -10,7 +8,7 @@ import java.io.IOException;
  */
 public class BaseTarget implements ITarget {
     @Override
-    public void add(GeneratedEntry entry) { }
+    public void add(IGeneratedEntry entry) { }
 
     @Override
     public boolean shouldStopEarly() { return false; }

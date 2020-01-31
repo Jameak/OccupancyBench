@@ -1,8 +1,10 @@
 package Benchmark.Generator;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Databases.SchemaFormats;
 import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.GeneratedEntry;
+import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
+import Benchmark.Generator.GeneratedData.GeneratedRowEntry;
 import Benchmark.Loader.Entry;
 import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.ITarget;
@@ -33,7 +35,8 @@ public class DataGenerator {
      * @param config The config file to use.
      * @throws IOException Thrown if the outputTarget throws when data is added.
      */
-    public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng, ITarget outputTarget, ConfigFile config) throws IOException, SQLException {
+    public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng,
+                                ITarget outputTarget, ConfigFile config) throws IOException, SQLException {
         int interval = config.getGeneratorGenerationInterval();
         int loadedInterval = config.getGeneratorSourceInterval();
         double scale = config.getGeneratorScale();
@@ -53,7 +56,7 @@ public class DataGenerator {
 
         LocalDate nextDate = startDate;
         while(!nextDate.isAfter(endDate)){ // If we run out of data to generate from, then go back to the beginning.
-            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, APs, sortedEntryKeys, data, rng, scale, outputTarget, jitterMax);
+            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, APs, sortedEntryKeys, data, rng, scale, outputTarget, jitterMax, config.getSchema(), config.DEBUG_synchronizeRngState());
             if(nextDate.isEqual(endDate) || outputTarget.shouldStopEarly()) break;
         }
     }
@@ -61,7 +64,8 @@ public class DataGenerator {
     private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval,
                                              int loadedInterval, AccessPoint[] APs, LocalDate[] sortedEntryKeys,
                                              MapData data, Random rng, double scale, ITarget outputTarget,
-                                             int jitterMax) throws IOException, SQLException {
+                                             int jitterMax, SchemaFormats schema, boolean DEBUG_sync_rng_state)
+                                             throws IOException, SQLException {
         boolean generateFasterThanLoadedData = interval < loadedInterval;
         boolean generateSlowerThanLoadedData = interval > loadedInterval;
 
@@ -88,7 +92,7 @@ public class DataGenerator {
                     skippedEntries = 0;
                 }
 
-                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, scale, outputTarget, jitterMax);
+                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, scale, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
 
                 if (generateFasterThanLoadedData) {
                     Entry nextEntry = null;
@@ -112,7 +116,7 @@ public class DataGenerator {
                         for (int j = 0; j < numAdditionalEntriesToInclude; j++) {
                             startTime = startTime.plusSeconds(interval);
                             Entry fakeEntry = CreateFakeEntry(entryOnDay, nextEntry, j, numAdditionalEntriesToInclude);
-                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget, jitterMax);
+                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
                         }
                     } else {
                         startTime = startTime.plusSeconds(interval * numAdditionalEntriesToInclude);
@@ -129,27 +133,64 @@ public class DataGenerator {
     }
 
     private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng,
-                                             LocalDate nextDate, double scale, ITarget outputTarget, int jitterMax) throws IOException, SQLException {
-        LocalTime previousReadingTime = startTime;
+                                             LocalDate nextDate, double scale, ITarget outputTarget, int jitterMax,
+                                             SchemaFormats schema, boolean DEBUG_sync_rng_state) throws IOException, SQLException {
+        LocalTime readingTime = startTime;
+        switch (schema){
+            case ROW:
+                for (AccessPoint AP : APs) {
+                    //TODO: For now, this just matches the actual data 1-to-1, but with random AP assignments and scaled as desired.
+                    //  So it completely ignores AP-adjacency, etc. Add the random walk here to introduce more randomness?
 
-        for (AccessPoint AP : APs) {
-            //TODO: For now, this just matches the actual data 1-to-1, but with random AP assignments and scaled as desired.
-            //  So it completely ignores AP-adjacency, etc. Add the random walk here to introduce more randomness.
+                    int APid = AP.getMapID();
+                    if (!entryOnDay.hasData())
+                        continue; // Entry has no data, so generate nothing rather than zeros.
+                    if (entryOnDay.getProbabilities().get(APid) == null)
+                        continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
+                    double probability = entryOnDay.getProbabilities().get(APid);
 
-            int APid = AP.getMapID();
-            if (!entryOnDay.hasData())
-                continue; // Entry has no data, so generate nothing rather than zeros.
-            if (entryOnDay.getProbabilities().get(APid) == null)
-                continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
-            double probability = entryOnDay.getProbabilities().get(APid);
+                    int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
+                    readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
 
-            int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
-            LocalTime readingTime = previousReadingTime.plusNanos(nanoSecondsBetweenReadings);
+                    int numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                    GeneratedRowEntry genEntry = new GeneratedRowEntry(nextDate, readingTime, AP.getAPname(), numClients);
+                    outputTarget.add(genEntry);
+                }
+                break;
+            case COLUMN:
+                HashMap<String, Integer> entries = new HashMap<>();
 
-            int numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
-            GeneratedEntry genEntry = new GeneratedEntry(nextDate, readingTime, AP.getAPname(), numClients);
-            outputTarget.add(genEntry);
-            previousReadingTime = readingTime;
+                if (!DEBUG_sync_rng_state){
+                    int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
+                    readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
+                }
+
+                // NOTE: Not a requirement that all APs are present in the "APs" variable.
+                for (AccessPoint AP : APs) {
+                    int APid = AP.getMapID();
+                    if (!entryOnDay.hasData())
+                        continue; // Entry has no data, so generate nothing (rather than a zero). The code that writes APs to the database needs to handle holes anyway.
+                    if (entryOnDay.getProbabilities().get(APid) == null)
+                        continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
+                    double probability = entryOnDay.getProbabilities().get(APid);
+
+                    // To be able to directly compare generated data between schema-options, we need to keep the rng-state in sync
+                    // and generate our values in the exact same way. This makes no sense from a performance-perspective, so
+                    // only do this if the user explicitly requests it.
+                    if(DEBUG_sync_rng_state){
+                        int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
+                        readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
+                    }
+
+                    int numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                    entries.put(AP.getAPname(), numClients);
+                }
+
+                outputTarget.add(new GeneratedColumnEntry(nextDate, readingTime, entries));
+                break;
+            default:
+                assert false : "A schema was specified that isn't supported by data generator: " + schema;
+                throw new IllegalStateException("Schema specified that isn't supported by data generator: " + schema);
         }
     }
 

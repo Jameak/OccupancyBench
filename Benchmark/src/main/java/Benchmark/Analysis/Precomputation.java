@@ -1,6 +1,7 @@
 package Benchmark.Analysis;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Databases.SchemaFormats;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import org.influxdb.BatchOptions;
@@ -32,6 +33,10 @@ public class Precomputation {
     public static void ComputeTotals(int interval, Floor[] generatedFloors, ConfigFile config) throws IOException {
         InfluxDB writeDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, false);
         InfluxDB readDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, true);
+
+        if(config.getSchema() != SchemaFormats.ROW){
+            throw new IllegalStateException("This debug setting only works with the row-format");
+        }
 
         LocalDate nextDate = config.getGeneratorStartDate();
         while(nextDate.isBefore(config.getGeneratorEndDate())){
@@ -151,7 +156,6 @@ public class Precomputation {
 
 
     private static String ToStringTime(LocalDateTime time){
-        // TODO: For the query used in the benchmark, I assume that passing this as the nano-second precision number would be more performant.
         return String.format("%d-%02d-%02dT%02d:%02d:%02dZ", time.getYear(), time.getMonthValue(), time.getDayOfMonth(), time.getHour(), time.getMinute(), time.getSecond());
     }
 

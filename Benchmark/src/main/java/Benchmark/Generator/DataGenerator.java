@@ -139,9 +139,6 @@ public class DataGenerator {
         switch (schema){
             case ROW:
                 for (AccessPoint AP : APs) {
-                    //TODO: For now, this just matches the actual data 1-to-1, but with random AP assignments and scaled as desired.
-                    //  So it completely ignores AP-adjacency, etc. Add the random walk here to introduce more randomness?
-
                     int APid = AP.getMapID();
                     if (!entryOnDay.hasData())
                         continue; // Entry has no data, so generate nothing rather than zeros.

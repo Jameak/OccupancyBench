@@ -89,8 +89,8 @@ timescale.batchsize             = 1000
 
 debug.createprecomputedtables = false
 debug.printallsettings        = false
-debug.savequeryresults = true
-debug.savequeryresults.path = TARGET PATH
-debug.synchronizerngstate = false
+debug.savequeryresults        = false
+debug.savequeryresults.path   = TARGET PATH
+debug.synchronizerngstate     = false
 debug.truncatequerytimestamps = false
 ```

@@ -35,7 +35,6 @@ public class Generator {
         // Skip generating floor 1 because it's weird
         for(int i = 2; i < numberOfFloors+1; i++){
             floors[i-1] = FloorGenerator.GenerateFloor(i, rng);
-            FloorGenerator.CreateCrossFloorJumps(floors[i-2], floors[i-1]);
         }
 
         return floors;

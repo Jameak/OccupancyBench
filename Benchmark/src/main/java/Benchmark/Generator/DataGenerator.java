@@ -149,7 +149,12 @@ public class DataGenerator {
                     int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
                     readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
 
-                    int numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                    int numClients;
+                    if(jitterMax == 0){
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability));
+                    } else {
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                    }
                     GeneratedRowEntry genEntry = new GeneratedRowEntry(nextDate, readingTime, AP.getAPname(), numClients);
                     outputTarget.add(genEntry);
                 }
@@ -179,7 +184,12 @@ public class DataGenerator {
                         readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
                     }
 
-                    int numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                    int numClients;
+                    if(jitterMax == 0){
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability));
+                    } else {
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                    }
                     entries.put(AP.getAPname(), numClients);
                 }
 

@@ -18,5 +18,10 @@ public enum DBTargets{
      * Writing generated data to TimescaleDB and querying it afterward is supported by the benchmark.
      * The benchmark was tested with Timescale v1.4.0 running on PostgreSQL 11.4
      */
-    TIMESCALE
+    TIMESCALE,
+    /**
+     * Writing generated data to Apache Kudu and querying it afterward is supported by the benchmark.
+     * The benchmark was tested with Apache Kudu built from source. Repo https://github.com/apache/kudu at commit #37f780f
+     */
+    KUDU
 }

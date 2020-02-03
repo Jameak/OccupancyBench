@@ -5,6 +5,7 @@ import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Queries.Results.*;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,31 +24,31 @@ public interface IQueries {
      * This method is called once by the framework, after querying is finished.
      * Use it to cleanup resources.
      */
-    void done() throws SQLException;
+    void done() throws IOException, SQLException;
 
     /**
      * Query the database for the newest available timestamp and return it.
      * This allows the database to make decisions regarding staleness of data.
      */
-    LocalDateTime getNewestTimestamp() throws SQLException;
+    LocalDateTime getNewestTimestamp(LocalDateTime previousNewestTime) throws IOException, SQLException;
 
     /**
      * This query computes the total number of clients connected per day within
      * the specified range.
      */
-    List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) throws SQLException;
+    List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) throws IOException, SQLException;
 
     /**
      * This query computes the total number of clients connected per day within
      * a specified range, on a per-floor basis.
      */
-    List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) throws SQLException;
+    List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) throws IOException, SQLException;
 
     /**
      * This query computes the max number of clients connected to the specified
      * access point point per day within a specified range.
      */
-    List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException;
+    List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws IOException, SQLException;
 
     /**
      * This query computes the following:
@@ -60,5 +61,5 @@ public interface IQueries {
      *
      * The number of days to compute this for, is specified by the range represented by 'start' and 'end'.
      */
-    List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws SQLException;
+    List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws IOException, SQLException;
 }

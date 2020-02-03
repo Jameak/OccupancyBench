@@ -19,7 +19,7 @@ public abstract class AbstractTimescaleQueries implements IQueries {
     protected String table;
 
     @Override
-    public LocalDateTime getNewestTimestamp() throws SQLException {
+    public LocalDateTime getNewestTimestamp(LocalDateTime previousNewestTime) throws SQLException {
         String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", table);
 
         String time = null;

@@ -34,7 +34,7 @@ def normalizeContent(lines, outLines):
         outSplit = []
         
         for elem in split:
-            isTimestamp = re.match("\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[Z\s]", elem)
+            isTimestamp = re.match("\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(:\d{2}[Z\s])?", elem)
             e2 = elem
             if isTimestamp:
                 e2 = normalizeTimestamp(elem)
@@ -53,7 +53,13 @@ def normalizeContent(lines, outLines):
     
 def normalizeTimestamp(timestamp):
     # Influx includes 'Z' and 'T' in the output timestamp while Timescale doesn't, so a straight string-comparison would fail.
-    return timestamp.replace("T", " ").replace("Z","")
+    ts = timestamp.replace("T", " ").replace("Z","")
+
+    # A Java-LocalDateTime object that's been truncated to minutes doesn't print out its seconds-counter, so add it if it's missing.
+    if ts.endswith(" 00:00"):
+        ts = ts + ":00"
+    
+    return ts
 
 def reportContentFail(id, v1, v2, f1, f2):
     print("Content mismatch:")

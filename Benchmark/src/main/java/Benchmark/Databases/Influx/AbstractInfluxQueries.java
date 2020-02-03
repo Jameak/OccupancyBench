@@ -19,7 +19,7 @@ public abstract class AbstractInfluxQueries implements IQueries {
     protected String measurement;
 
     @Override
-    public LocalDateTime getNewestTimestamp() {
+    public LocalDateTime getNewestTimestamp(LocalDateTime previousNewestTime) {
         String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", measurement);
 
         Query query = new Query(queryString);

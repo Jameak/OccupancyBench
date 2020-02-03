@@ -121,7 +121,7 @@ public class QueryRunnable implements Runnable {
         return QueryType.UNKNOWN;
     }
 
-    private void runQueries(IQueries queries, boolean warmUp, Random rng) throws SQLException{
+    private void runQueries(IQueries queries, boolean warmUp, Random rng) throws IOException, SQLException{
         switch (selectQuery(rng)){
             case TotalClients:
             {
@@ -387,7 +387,8 @@ public class QueryRunnable implements Runnable {
         try {
             queryTarget.prepare(config, generatedFloors);
         } catch (Exception e) {
-            e.printStackTrace();
+            Logger.LOG("Exception during 'prepare' call.");
+            throw new RuntimeException(e);
         }
 
         if (warmUp) {
@@ -402,6 +403,9 @@ public class QueryRunnable implements Runnable {
                 }
             } catch (SQLException e) {
                 Logger.LOG(threadName + ": SQL Exception during querying warmup.");
+                e.printStackTrace();
+            } catch (IOException e) {
+                Logger.LOG(threadName + ": IO Exception during querying warmup.");
                 e.printStackTrace();
             }
         }
@@ -435,11 +439,18 @@ public class QueryRunnable implements Runnable {
         } catch (SQLException e) {
             Logger.LOG(threadName + ": SQL Exception during querying.");
             e.printStackTrace();
+        } catch (IOException e) {
+            Logger.LOG(threadName + ": IO Exception during querying.");
+            e.printStackTrace();
         }
 
         try {
             queryTarget.done();
         } catch (SQLException e) {
+            Logger.LOG(threadName + ": SQL Exception during 'done' call.");
+            e.printStackTrace();
+        } catch (IOException e) {
+            Logger.LOG(threadName + ": IO Exception during 'done' call.");
             e.printStackTrace();
         }
         Logger.LOG(() -> reportStats(true));
@@ -456,12 +467,17 @@ public class QueryRunnable implements Runnable {
         }
     }
 
-    private void getTime(PreciseTimer dateCommTimer, boolean firstGrab) throws SQLException{
+    private void getTime(PreciseTimer dateCommTimer, boolean firstGrab) throws IOException, SQLException{
         if(config.doDateCommunicationByQueryingDatabase()){
             if(config.getQueryDateCommunicationIntervalInMillisec() == 0 || firstGrab){ // On the first time-grab we dont want to wait for the timer.
-                newestValidDate = queryTarget.getNewestTimestamp();
+                // The first time that we grab a value, our "newest valid date" is sourced from the config and is a
+                // 'best guess' about what the actual value is. However, since it has no guaranteed relation to the actual
+                // data, we cannot use it here because it may use that timestamp to improve query-performance to grab the
+                // next timestamp value. So for the first call, use a timestamp value that we know will be older than
+                // whatever is in the database
+                newestValidDate = queryTarget.getNewestTimestamp(LocalDateTime.ofEpochSecond(0,0, ZoneOffset.ofHours(0)));
             } else if(dateCommTimer.elapsedSeconds() * 1000 > config.getQueryDateCommunicationIntervalInMillisec()){
-                newestValidDate = queryTarget.getNewestTimestamp();
+                newestValidDate = queryTarget.getNewestTimestamp(newestValidDate);
                 dateCommTimer.start();
             }
         } else {

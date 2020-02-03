@@ -27,6 +27,8 @@ public abstract class AbstractGeneratedEntry implements IGeneratedEntry {
         switch (granularity){
             case NANOSECOND:
                 return instant.getEpochSecond() * 1_000_000_000 + datetime.getNano();
+            case MICROSECOND:
+                return (instant.getEpochSecond() * 1_000_000_000 + datetime.getNano()) / 1000;
             case MILLISECOND:
                 return instant.toEpochMilli();
             case SECOND:

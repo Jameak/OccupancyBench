@@ -3,6 +3,8 @@ package Benchmark.Databases;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.Influx.InfluxColumnQueries;
 import Benchmark.Databases.Influx.InfluxRowQueries;
+import Benchmark.Databases.Kudu.KuduColumnQueries;
+import Benchmark.Databases.Kudu.KuduRowQueries;
 import Benchmark.Databases.Timescale.TimescaleColumnQueries;
 import Benchmark.Databases.Timescale.TimescaleRowQueries;
 import Benchmark.Queries.IQueries;
@@ -23,6 +25,8 @@ public class DatabaseQueriesFactory {
                         return new InfluxRowQueries();
                     case TIMESCALE:
                         return new TimescaleRowQueries();
+                    case KUDU:
+                        return new KuduRowQueries();
                     case CSV:
                         throw new IllegalStateException("The CSV target is only for writing generated data to disk for later loading into databases. Querying the csv files isn't implemented.");
                     default:
@@ -34,6 +38,8 @@ public class DatabaseQueriesFactory {
                         return new InfluxColumnQueries();
                     case TIMESCALE:
                         return new TimescaleColumnQueries();
+                    case KUDU:
+                        return new KuduColumnQueries();
                     case CSV:
                         throw new IllegalStateException("The CSV target is only for writing generated data to disk for later loading into databases. Querying the csv files isn't implemented.");
                     default:

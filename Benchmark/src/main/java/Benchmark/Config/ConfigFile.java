@@ -266,6 +266,47 @@ public class ConfigFile {
     private boolean timescaleReWriteBatchedInserts;
 
     /**
+     * Type: String with single hostname or comma-separated list of masters
+     * The host of the Kudu-database to connect to. Must include a port number.
+     */
+    private static final String KUDU_HOST     = "kudu.host";
+    /**
+     * Type: String
+     * The name of the Kudu-table to generate/query.
+     */
+    private static final String KUDU_TABLE    = "kudu.table";
+    /**
+     * Type: Integer
+     * Max number of columns supported by Kudu.
+     * By default Kudu limits the number of columns to 300. If more columns are desired,
+     * provide Kudu with flags to increase the limit and then set the same value here.
+     */
+    private static final String KUDU_MAX_SUPPORTED_COLUMNS    = "kudu.maxcolumns";
+    /**
+     * Type: Integer
+     * The number of inserts to batch together during generation/ingestion before a flush is issued.
+     */
+    private static final String KUDU_BATCH_SIZE = "kudu.batchsize";
+    /**
+     * Type: Integer
+     * A value defining the size of the 'mutation buffer space' for the Kudu library.
+     *
+     * This does not have a 1-to-1 correlation with the batch size. If the batch size is too
+     * big the buffer might overflow and throw an exception, in which case you'll need to
+     * increase this value.
+     */
+    // NOTE: The internals of the Kudu client library sets this value to 1000 by default, but that's not guaranteed to be a good value.
+    // NOTE: How big this ends up making the buffer (i.e. how many things can be added to the batch before the buffer is filled)
+    //       is apparently not wired together with data-sizes, so e.g. a value of 1000 does not mean that a batch size of 1000 will fit
+    //       (it might only fit 50, or might fit 5000... I'm unsure)
+    private static final String KUDU_MUTATION_BUFFER_SPACE = "kudu.mutationbufferspace";
+    private String kuduMasters;
+    private String kuduTable;
+    private int    kuduMaxColumns;
+    private int    kuduBatchSize;
+    private int    kuduMutationBufferSpace;
+
+    /**
      * Type: Boolean
      * Controls whether ingestion is enabled.
      */
@@ -571,11 +612,13 @@ public class ConfigFile {
     private String validationError = "NO ERROR";
 
     public enum Granularity{
-        NANOSECOND, MILLISECOND, SECOND, MINUTE;
+        NANOSECOND, MICROSECOND, MILLISECOND, SECOND, MINUTE;
         public TimeUnit toTimeUnit(){
             switch (this){
                 case NANOSECOND:
                     return TimeUnit.NANOSECONDS;
+                case MICROSECOND:
+                    return TimeUnit.MICROSECONDS;
                 case MILLISECOND:
                     return TimeUnit.MILLISECONDS;
                 case SECOND:
@@ -649,6 +692,14 @@ public class ConfigFile {
         config.prop.setProperty(TIMESCALE_TABLE, "generated");
         config.prop.setProperty(TIMESCALE_BATCHSIZE, "10000");
         config.prop.setProperty(TIMESCALE_REWRITE_BATCH, "true");
+
+        //Kudu
+        //NOTE: The Kudu-host default value contains the addresses for the Kudu-masters from the Kudu quickstart docker setup.
+        config.prop.setProperty(KUDU_HOST, "localhost:7051,localhost:7151,localhost:7251");
+        config.prop.setProperty(KUDU_TABLE, "generated");
+        config.prop.setProperty(KUDU_MAX_SUPPORTED_COLUMNS, "300");
+        config.prop.setProperty(KUDU_BATCH_SIZE, "1000");
+        config.prop.setProperty(KUDU_MUTATION_BUFFER_SPACE, "1000");
 
         //Ingest
         config.prop.setProperty(INGEST_ENABLED, "true");
@@ -739,6 +790,14 @@ public class ConfigFile {
         timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE, "generated");
         timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE, "10000"));
         timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH, "true"));
+
+        //Kudu
+        //NOTE: The Kudu-host default value contains the addresses for the Kudu-masters from the Kudu quickstart docker setup.
+        kuduMasters             =                  prop.getProperty(KUDU_HOST, "localhost:7051,localhost:7151,localhost:7251");
+        kuduTable               =                  prop.getProperty(KUDU_TABLE, "generated");
+        kuduMaxColumns          = Integer.parseInt(prop.getProperty(KUDU_MAX_SUPPORTED_COLUMNS, "300"));
+        kuduBatchSize           = Integer.parseInt(prop.getProperty(KUDU_BATCH_SIZE, "1000"));
+        kuduMutationBufferSpace = Integer.parseInt(prop.getProperty(KUDU_MUTATION_BUFFER_SPACE, "10000"));
 
         //Ingest
         ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED, "true"));
@@ -896,6 +955,12 @@ public class ConfigFile {
         settings.put(TIMESCALE_TABLE, timescaleTable);
         settings.put(TIMESCALE_BATCHSIZE, timescaleBatchSize);
         settings.put(TIMESCALE_REWRITE_BATCH, timescaleReWriteBatchedInserts);
+
+        settings.put(KUDU_HOST, kuduMasters);
+        settings.put(KUDU_TABLE, kuduTable);
+        settings.put(KUDU_MAX_SUPPORTED_COLUMNS, kuduMaxColumns);
+        settings.put(KUDU_BATCH_SIZE, kuduBatchSize);
+        settings.put(KUDU_MUTATION_BUFFER_SPACE, kuduMutationBufferSpace);
 
         settings.put(INGEST_ENABLED, ingestEnabled);
         settings.put(INGEST_START_DATE, ingestStartDate);
@@ -1237,5 +1302,25 @@ public class ConfigFile {
 
     public SchemaFormats getSchema(){
         return schema;
+    }
+
+    public String getKuduMasters(){
+        return kuduMasters;
+    }
+
+    public String getKuduTable(){
+        return kuduTable;
+    }
+
+    public int getKuduMaxColumns(){
+        return kuduMaxColumns;
+    }
+
+    public int getKuduBatchSize(){
+        return kuduBatchSize;
+    }
+
+    public int getKuduMutationBufferSpace(){
+        return kuduMutationBufferSpace;
     }
 }

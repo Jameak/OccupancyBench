@@ -5,6 +5,8 @@ import Benchmark.Databases.Csv.CsvColumnTarget;
 import Benchmark.Databases.Csv.CsvRowTarget;
 import Benchmark.Databases.Influx.InfluxColumnTarget;
 import Benchmark.Databases.Influx.InfluxRowTarget;
+import Benchmark.Databases.Kudu.KuduColumnTarget;
+import Benchmark.Databases.Kudu.KuduRowTarget;
 import Benchmark.Databases.Timescale.TimescaleColumnTarget;
 import Benchmark.Databases.Timescale.TimescaleRowTarget;
 import Benchmark.Generator.GeneratedData.AccessPoint;
@@ -33,6 +35,8 @@ public class DatabaseTargetFactory {
                         return new CsvRowTarget(config);
                     case TIMESCALE:
                         return new TimescaleRowTarget(config, recreate);
+                    case KUDU:
+                        return new KuduRowTarget(config, recreate);
                 }
 
                 throw new IllegalStateException("Target " + target + " with schema " + config.getSchema() + " has no supported target-implementations.");
@@ -46,6 +50,8 @@ public class DatabaseTargetFactory {
                         return new InfluxColumnTarget(config, recreate, allAPs);
                     case TIMESCALE:
                         return new TimescaleColumnTarget(config, recreate, allAPs);
+                    case KUDU:
+                        return new KuduColumnTarget(config, recreate, allAPs);
                 }
 
                 throw new IllegalStateException("Target " + target + " with schema " + config.getSchema() + " has no supported target-implementations.");

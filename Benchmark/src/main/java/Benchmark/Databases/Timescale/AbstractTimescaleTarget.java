@@ -22,7 +22,7 @@ public abstract class AbstractTimescaleTarget implements ITarget {
     public AbstractTimescaleTarget(ConfigFile config) throws SQLException {
         // Note: Postgres doesn't seem to support nano-second timestamps, so set granularity to milliseconds if nanoseconds is set.
         //       This is mentioned in the config documentation for granularity as well.
-        this.granularity = config.getGeneratorGranularity() == ConfigFile.Granularity.NANOSECOND
+        this.granularity = config.getGeneratorGranularity() == ConfigFile.Granularity.NANOSECOND || config.getGeneratorGranularity() == ConfigFile.Granularity.MICROSECOND
                 ? ConfigFile.Granularity.MILLISECOND : config.getGeneratorGranularity();
 
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(),

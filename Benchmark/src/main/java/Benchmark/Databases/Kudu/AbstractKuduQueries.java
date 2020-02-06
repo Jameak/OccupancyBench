@@ -9,6 +9,8 @@ import org.apache.kudu.client.*;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +36,78 @@ public abstract class AbstractKuduQueries implements IQueries {
                         kuduSchema.getColumn("time"),
                         KuduPredicate.ComparisonOp.GREATER_EQUAL,
                         convertLocalDateTimeToTimestamp(start)));
+    }
+
+    protected interface GroupByCompletion {
+        void run(String timestamp, Integer queryResult);
+    }
+    protected interface GroupByComputation {
+        int run(int previousValue, RowResult result);
+    }
+
+    protected void groupByDayAndCompute(LocalDateTime start, LocalDateTime end, KuduScanner scanner, GroupByComputation computation, GroupByCompletion completion) throws KuduException{
+        //Kudu stores timestamps as microseconds. 1 second = 1_000_000 microseconds
+        final int granularity = 1_000_000;
+
+        assert (int) start.until(end, ChronoUnit.DAYS) == start.until(end, ChronoUnit.DAYS) : "Number of days between start and end overflows an int. WTF are you doing?";
+        LocalDateTime startTrunc = start.truncatedTo(ChronoUnit.DAYS);
+        int dayDiff = (int) startTrunc.until(end, ChronoUnit.DAYS);
+        assert dayDiff >= 0 : "Did you mess up the order of start and end?";
+        dayDiff++;
+
+        long[] dayTimes = new long[dayDiff];
+        LocalDateTime date = startTrunc;
+        int index = 0;
+        // The date.isEqual check is needed to be inclusive on the end-time, for the edge-case where "end == end.truncatedTo(ChronoUnit.DAYS)"
+        while(date.isBefore(end) || date.isEqual(end)){
+            dayTimes[index] = date.toEpochSecond(ZoneOffset.ofHours(0)) * granularity;
+            date = date.plusDays(1);
+            index++;
+        }
+
+        HashMap<Long, Integer> map = new HashMap<>();
+        for (long dayTime : dayTimes) {
+            assert dayTime != 0 : "0 is in the long-array. There is an off-by-one error somewhere";
+            map.put(dayTime, 0);
+        }
+
+        while(scanner.hasMoreRows()){
+            RowResultIterator results = scanner.nextRows();
+            while(results.hasNext()){
+                RowResult result = results.next();
+                assert kuduSchema.getColumnId("time") == 0 : "Has the Kudu schema been changed?";
+                long time = result.getLong(0);
+                // With 1 entry in the array, we only have 1 bucket which must be the correct bucket so this is a safe initial value.
+                long bucket = dayTimes[0];
+                for(int i = 0; i < dayTimes.length - 1; i++){
+                    // We need to be inclusive on the start here because the end value belongs to a different day.
+                    if (time >= dayTimes[i] && time < dayTimes[i+1]) {
+                        bucket = dayTimes[i];
+                        break;
+                    }
+                }
+                // Special case for handling the final day. We could check "last day time <= time < end",
+                // but the database-query already ensured that the last condition holds.
+                //   (in reality the database query ensures that "... time <= end", however that distinction only matters
+                //    in the case where end is exactly midnight, and that has been handled by previous logic since that
+                //    is a new day and in that case "time = end" so we end up being inclusive when it matters)
+                if(dayTimes.length > 1 && dayTimes[dayTimes.length - 1] <= time){
+                    bucket = dayTimes[dayTimes.length-1];
+                }
+
+                assert map.containsKey(bucket) : "Invalid bucket " + bucket + " from time-long " + time +
+                        ". Start " + start.toEpochSecond(ZoneOffset.ofHours(0)) * granularity +
+                        ", end " + end.toEpochSecond(ZoneOffset.ofHours(0)) * granularity;
+                int value = map.get(bucket);
+                int newValue = computation.run(value, result);
+                map.put(bucket, newValue);
+            }
+        }
+
+        for(Map.Entry<Long, Integer> queryResult : map.entrySet()){
+            LocalDateTime stamp = LocalDateTime.ofEpochSecond(queryResult.getKey() / granularity, 0, ZoneOffset.ofHours(0));
+            completion.run(stamp.toString(), queryResult.getValue());
+        }
     }
 
     @Override

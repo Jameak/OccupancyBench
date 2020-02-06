@@ -9,10 +9,7 @@ import Benchmark.Queries.Results.MaxForAP;
 import Benchmark.Queries.Results.Total;
 import org.apache.kudu.client.*;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class KuduRowQueries extends AbstractKuduQueries {
@@ -57,36 +54,6 @@ public class KuduRowQueries extends AbstractKuduQueries {
         kuduClient.close();
     }
 
-    //TODO: This could be refactored with the version in the Column-representation,
-    //      however such a refactor would likely cause a lot of unnecessary boxing.
-    private void groupByDayAndCompute(LocalDateTime start, LocalDateTime end, KuduScanner scanner, QueryComputation computation, QueryCompletion completion) throws KuduException{
-        // TODO: Some of this is quite inefficient... can we refactor our Kudu-schema to just work with simple longs instead of having to create Timestamp-instances?
-        HashMap<Long, Integer> map = new HashMap<>();
-        LocalDateTime date = start.truncatedTo(ChronoUnit.DAYS);
-        while(date.isBefore(end)){
-            map.put(date.toEpochSecond(ZoneOffset.ofHours(0)),0);
-            date = date.plusDays(1);
-        }
-
-        while(scanner.hasMoreRows()){
-            RowResultIterator results = scanner.nextRows();
-            while(results.hasNext()){
-                RowResult result = results.next();
-                Timestamp time = result.getTimestamp("time");
-                int clients = result.getInt("clients");
-
-                Long day = time.toLocalDateTime().truncatedTo(ChronoUnit.DAYS).toEpochSecond(ZoneOffset.ofHours(0));
-                int newVal = computation.run(map.get(day), clients);
-                map.put(day, newVal);
-            }
-        }
-
-        for(Map.Entry<Long, Integer> queryResult : map.entrySet()){
-            LocalDateTime stamp = LocalDateTime.ofEpochSecond(queryResult.getKey(), 0, ZoneOffset.ofHours(0));
-            completion.run(stamp.toString(), queryResult.getValue());
-        }
-    }
-
     @Override
     public List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) throws KuduException {
         List<String> projectedColumns = new ArrayList<>();
@@ -100,7 +67,7 @@ public class KuduRowQueries extends AbstractKuduQueries {
 
         List<Total> totals = new ArrayList<>();
 
-        groupByDayAndCompute(start, end, scanner, Integer::sum,
+        groupByDayAndCompute(start, end, scanner, (previousValue, result) -> previousValue + result.getInt("clients"),
                 (timestamp, queryResult) -> totals.add(new Total(timestamp, queryResult)));
 
         scanner.close();
@@ -124,7 +91,7 @@ public class KuduRowQueries extends AbstractKuduQueries {
                             floorAPs.get(floor.getFloorNumber())))
                     .build();
 
-            groupByDayAndCompute(start, end, scanner, Integer::sum,
+            groupByDayAndCompute(start, end, scanner, (previousValue, result) -> previousValue + result.getInt("clients"),
                     (timestamp, queryResult) -> floorTotals.add(new FloorTotal(floor.getFloorNumber(), timestamp, queryResult)));
 
             scanner.close();
@@ -152,7 +119,7 @@ public class KuduRowQueries extends AbstractKuduQueries {
                 ))
                 .build();
 
-        groupByDayAndCompute(start, end, scanner, Math::max,
+        groupByDayAndCompute(start, end, scanner, (previousValue, result) ->  Math.max(previousValue, result.getInt("clients")),
                 (timestamp, queryResult) -> max.add(new MaxForAP(AP.getAPname(), timestamp, queryResult)));
 
         scanner.close();

@@ -9,10 +9,7 @@ import Benchmark.Queries.Results.MaxForAP;
 import Benchmark.Queries.Results.Total;
 import org.apache.kudu.client.*;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class KuduColumnQueries extends AbstractKuduQueries {
@@ -68,38 +65,6 @@ public class KuduColumnQueries extends AbstractKuduQueries {
         kuduClient.close();
     }
 
-    private interface QueryCompletion {
-        void run(String timestamp, Integer queryResult);
-    }
-    private interface QueryComputation {
-        void run(HashMap<Long, Integer> map, RowResult result);
-    }
-
-    //TODO: This could be refactored with the version in the Row-representation,
-    //      however such a refactor would likely cause a lot of unnecessary boxing.
-    private void groupByDayAndCompute(LocalDateTime start, LocalDateTime end, KuduScanner scanner, QueryComputation computation, QueryCompletion completion) throws KuduException{
-        // TODO: Some of this is quite inefficient... can we refactor our Kudu-schema to just work with simple longs instead of having to create Timestamp-instances?
-        HashMap<Long, Integer> map = new HashMap<>();
-        LocalDateTime date = start.truncatedTo(ChronoUnit.DAYS);
-        while(date.isBefore(end)){
-            map.put(date.toEpochSecond(ZoneOffset.ofHours(0)),0);
-            date = date.plusDays(1);
-        }
-
-        while(scanner.hasMoreRows()){
-            RowResultIterator results = scanner.nextRows();
-            while(results.hasNext()){
-                RowResult result = results.next();
-                computation.run(map, result);
-            }
-        }
-
-        for(Map.Entry<Long, Integer> queryResult : map.entrySet()){
-            LocalDateTime stamp = LocalDateTime.ofEpochSecond(queryResult.getKey(), 0, ZoneOffset.ofHours(0));
-            completion.run(stamp.toString(), queryResult.getValue());
-        }
-    }
-
     @Override
     public List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) throws KuduException {
         KuduScanner.KuduScannerBuilder scannerBuilder = kuduClient.newScannerBuilder(kuduTable);
@@ -109,16 +74,11 @@ public class KuduColumnQueries extends AbstractKuduQueries {
 
         List<Total> totals = new ArrayList<>();
 
-        groupByDayAndCompute(start, end, scanner, (map, result) -> {
-            Timestamp time = result.getTimestamp("time");
-            Long day = time.toLocalDateTime().truncatedTo(ChronoUnit.DAYS).toEpochSecond(ZoneOffset.ofHours(0));
-
-            int total = map.get(day);
+        groupByDayAndCompute(start, end, scanner, (int total, RowResult result) -> {
             for(String AP : allAPs){
                 total += result.getInt(AP);
             }
-
-            map.put(day, total);
+            return total;
         }, (timestamp, queryResult) -> totals.add(new Total(timestamp, queryResult)));
 
         scanner.close();
@@ -135,16 +95,11 @@ public class KuduColumnQueries extends AbstractKuduQueries {
                     .setProjectedColumnNames(floorColumns.get(floor.getFloorNumber()))
                     .build();
 
-            groupByDayAndCompute(start, end, scanner, (map, result) -> {
-                Timestamp time = result.getTimestamp("time");
-                Long day = time.toLocalDateTime().truncatedTo(ChronoUnit.DAYS).toEpochSecond(ZoneOffset.ofHours(0));
-
-                int total = map.get(day);
+            groupByDayAndCompute(start, end, scanner, (int total, RowResult result) -> {
                 for(String AP : floorAPs.get(floor.getFloorNumber())){
                     total += result.getInt(AP);
                 }
-
-                map.put(day, total);
+                return total;
             }, (timestamp, queryResult) -> floorTotals.add(new FloorTotal(floor.getFloorNumber(), timestamp, queryResult)));
 
             scanner.close();
@@ -166,13 +121,7 @@ public class KuduColumnQueries extends AbstractKuduQueries {
                 .setProjectedColumnNames(projectedColumns)
                 .build();
 
-        groupByDayAndCompute(start, end, scanner, (map, result) -> {
-                    Timestamp time = result.getTimestamp("time");
-                    Long day = time.toLocalDateTime().truncatedTo(ChronoUnit.DAYS).toEpochSecond(ZoneOffset.ofHours(0));
-
-                    int maxVal = Math.max(map.get(day), result.getInt(AP.getAPname()));
-                    map.put(day, maxVal);
-                },
+        groupByDayAndCompute(start, end, scanner, (prevValue, result) -> Math.max(prevValue, result.getInt(AP.getAPname())),
                 (timestamp, queryResult) -> max.add(new MaxForAP(AP.getAPname(), timestamp, queryResult)));
 
         scanner.close();

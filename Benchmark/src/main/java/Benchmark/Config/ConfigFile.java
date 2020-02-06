@@ -876,6 +876,7 @@ public class ConfigFile {
         // ---- Ingest ----
         if(ingestEnabled){
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
+            if(ingestThreads > 1 && schema == SchemaFormats.COLUMN) return INGEST_THREADS + ": Column-format does not support multiple ingest threads. (to simplify the implementation)";
 
             if(generatorEnabled && !ingestTargetRecreate){
                 if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";

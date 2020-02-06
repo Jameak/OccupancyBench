@@ -30,7 +30,11 @@ public abstract class AbstractTimescaleQueries implements IQueries {
             }
         }
 
-        assert time != null;
+        // If the database is empty, just return the old value
+        if(time == null){
+            return previousNewestTime;
+        }
+
         String[] parts = time.split(" ");
         LocalDateTime dbTime = LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
         // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in

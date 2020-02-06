@@ -35,7 +35,11 @@ public abstract class AbstractInfluxQueries implements IQueries {
             }
         }
 
-        assert time != null;
+        // If the database is empty, just return the old value
+        if(time == null){
+            return previousNewestTime;
+        }
+
         LocalDateTime dbTime = LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
         // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
         //   what seems to be off-by-one errors in the query-results.

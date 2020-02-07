@@ -1,29 +1,36 @@
 package Benchmark.Databases.Kudu;
 
-import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.GeneratedRowEntry;
+import Benchmark.Config.Granularity;
 import Benchmark.Queries.IQueries;
 import Benchmark.Queries.Results.AvgOccupancy;
 import org.apache.kudu.Schema;
 import org.apache.kudu.client.*;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractKuduQueries implements IQueries {
     protected KuduClient kuduClient;
     protected KuduTable kuduTable;
     protected Schema kuduSchema;
 
-    protected Timestamp convertLocalDateTimeToTimestamp(LocalDateTime dateTime){
-        //TODO: Refactor something so we can easily access the 'padTime' method in KuduRowTarget and
-        //      'getTime' in AbstractGeneratedEntry to convert from the LocalDateTime to the Timestamp-value.
-        long granularTime = new GeneratedRowEntry(dateTime.toLocalDate(), dateTime.toLocalTime(), "N/A", 0).getTime(ConfigFile.Granularity.MILLISECOND);
-        return new Timestamp(ConfigFile.Granularity.MILLISECOND.toTimeUnit().convert(granularTime, TimeUnit.MILLISECONDS));
+    protected long convertLocalDateTimeToMicrosecondLong(LocalDateTime dateTime){
+        return Granularity.MICROSECOND.getTime(dateTime);
+    }
+
+    protected LocalDateTime convertMicrosecondsSinceEpochToLocalDateTime(long time){
+        final int microsInOneSecond = 1_000_000;
+        final int nanosInOneMicrosecond = 1_000;
+
+        long secondsSinceEpoch = time / microsInOneSecond;
+        assert (time - secondsSinceEpoch * microsInOneSecond) * nanosInOneMicrosecond
+                == (int) (time - secondsSinceEpoch * microsInOneSecond) * nanosInOneMicrosecond
+                : "Arithmetic overflow. Should never happen be able to happen.";
+        int nanos = (int) (time - secondsSinceEpoch * microsInOneSecond) * nanosInOneMicrosecond;
+
+        return LocalDateTime.ofEpochSecond(secondsSinceEpoch, nanos, ZoneOffset.ofHours(0));
     }
 
     protected KuduScanner.KuduScannerBuilder addTimeComparisonPredicates(KuduScanner.KuduScannerBuilder builder, LocalDateTime start, LocalDateTime end){
@@ -31,11 +38,11 @@ public abstract class AbstractKuduQueries implements IQueries {
                 .addPredicate(KuduPredicate.newComparisonPredicate(
                         kuduSchema.getColumn("time"),
                         KuduPredicate.ComparisonOp.LESS,
-                        convertLocalDateTimeToTimestamp(end)))
+                        convertLocalDateTimeToMicrosecondLong(end)))
                 .addPredicate(KuduPredicate.newComparisonPredicate(
                         kuduSchema.getColumn("time"),
                         KuduPredicate.ComparisonOp.GREATER_EQUAL,
-                        convertLocalDateTimeToTimestamp(start)));
+                        convertLocalDateTimeToMicrosecondLong(start)));
     }
 
     protected interface GroupByCompletion {
@@ -115,7 +122,7 @@ public abstract class AbstractKuduQueries implements IQueries {
         List<String> projectedColumns = new ArrayList<>();
         projectedColumns.add("time");
 
-        Timestamp oldTime = convertLocalDateTimeToTimestamp(previousNewestTime);
+        long oldTime = convertLocalDateTimeToMicrosecondLong(previousNewestTime);
 
         KuduScanner.KuduScannerBuilder scannerBuilder = kuduClient.newScannerBuilder(kuduTable);
         KuduScanner scanner = scannerBuilder
@@ -127,19 +134,19 @@ public abstract class AbstractKuduQueries implements IQueries {
                 ))
                 .build();
 
-        Timestamp newestTime = oldTime;
+        long newestTime = oldTime;
         while(scanner.hasMoreRows()){
             RowResultIterator results = scanner.nextRows();
             while(results.hasNext()){
                 RowResult result = results.next();
-                Timestamp time = result.getTimestamp("time");
-                if (time.after(newestTime)){
+                long time = result.getLong("time");
+                if (time > newestTime){
                     newestTime = time;
                 }
             }
         }
 
-        LocalDateTime newTime = newestTime.toLocalDateTime();
+        LocalDateTime newTime = convertMicrosecondsSinceEpochToLocalDateTime(newestTime);
         if(newTime.isAfter(previousNewestTime)){
             // Add 1 second to match Timescale and Influx behavior.
             return newTime.plusSeconds(1);

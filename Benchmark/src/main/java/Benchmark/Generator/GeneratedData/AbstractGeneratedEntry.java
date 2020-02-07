@@ -1,6 +1,6 @@
 package Benchmark.Generator.GeneratedData;
 
-import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 
 import java.time.*;
 
@@ -23,20 +23,7 @@ public abstract class AbstractGeneratedEntry implements IGeneratedEntry {
     }
 
     @Override
-    public final long getTime(ConfigFile.Granularity granularity){
-        switch (granularity){
-            case NANOSECOND:
-                return instant.getEpochSecond() * 1_000_000_000 + datetime.getNano();
-            case MICROSECOND:
-                return (instant.getEpochSecond() * 1_000_000_000 + datetime.getNano()) / 1000;
-            case MILLISECOND:
-                return instant.toEpochMilli();
-            case SECOND:
-                return instant.getEpochSecond();
-            case MINUTE:
-                return instant.getEpochSecond() / 60;
-            default:
-                throw new IllegalStateException("Unexpected value: " + granularity);
-        }
+    public final long getTime(Granularity granularity){
+        return granularity.getTime(instant, datetime);
     }
 }

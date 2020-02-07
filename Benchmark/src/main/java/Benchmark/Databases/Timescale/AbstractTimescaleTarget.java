@@ -1,6 +1,7 @@
 package Benchmark.Databases.Timescale;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Generator.Targets.ITarget;
 
@@ -14,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  * convenience functions and a constructor that handles the database-setup that any Timescale-implementation must do.
  */
 public abstract class AbstractTimescaleTarget implements ITarget {
-    protected final ConfigFile.Granularity granularity;
+    protected final Granularity granularity;
     protected PreparedStatement stmt;
     protected Connection connection;
     protected boolean error;
@@ -22,8 +23,8 @@ public abstract class AbstractTimescaleTarget implements ITarget {
     public AbstractTimescaleTarget(ConfigFile config) throws SQLException {
         // Note: Postgres doesn't seem to support nano-second timestamps, so set granularity to milliseconds if nanoseconds is set.
         //       This is mentioned in the config documentation for granularity as well.
-        this.granularity = config.getGeneratorGranularity() == ConfigFile.Granularity.NANOSECOND || config.getGeneratorGranularity() == ConfigFile.Granularity.MICROSECOND
-                ? ConfigFile.Granularity.MILLISECOND : config.getGeneratorGranularity();
+        this.granularity = config.getGeneratorGranularity() == Granularity.NANOSECOND || config.getGeneratorGranularity() == Granularity.MICROSECOND
+                ? Granularity.MILLISECOND : config.getGeneratorGranularity();
 
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(),
                 config.getTimescaleHost(), config.getTimescaleDBName(), config.reWriteBatchedTimescaleInserts());

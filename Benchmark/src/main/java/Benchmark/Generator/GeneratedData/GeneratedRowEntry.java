@@ -1,6 +1,6 @@
 package Benchmark.Generator.GeneratedData;
 
-import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 
 import java.time.*;
 
@@ -27,10 +27,10 @@ public class GeneratedRowEntry extends AbstractGeneratedEntry {
 
     @Override
     public String toString() {
-        return toString(ConfigFile.Granularity.NANOSECOND);
+        return toString(Granularity.NANOSECOND);
     }
 
-    public String toString(ConfigFile.Granularity granularity) {
+    public String toString(Granularity granularity) {
         return getTime(granularity) + ";" + ap + ";" + numClients;
     }
 }

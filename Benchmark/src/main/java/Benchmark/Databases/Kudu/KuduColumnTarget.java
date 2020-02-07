@@ -6,8 +6,6 @@ import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import org.apache.kudu.client.*;
 
-import java.sql.Timestamp;
-
 public class KuduColumnTarget extends AbstractKuduTarget {
     private final KuduClient kuduClient;
     private final AccessPoint[] allAPs;
@@ -39,7 +37,7 @@ public class KuduColumnTarget extends AbstractKuduTarget {
         Insert insert = kuduTable.newInsert();
         PartialRow row = insert.getRow();
         assert insert.getTable().getSchema().getColumnId("time") == 0 : "Has the Kudu row-schema been changed?";
-        row.addTimestamp(0, new Timestamp(padTime(columnEntry)));
+        row.addLong(0, padTime(columnEntry));
         for(AccessPoint AP : allAPs){
             row.addInt(AP.getAPname(), columnEntry.getMapping().getOrDefault(AP.getAPname(), 0));
         }

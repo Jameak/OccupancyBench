@@ -1,6 +1,7 @@
 package Benchmark.Databases.Influx;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 import Benchmark.Generator.Targets.ITarget;
 import org.influxdb.InfluxDB;
 
@@ -15,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class AbstractInfluxTarget implements ITarget {
     protected final InfluxDB influxDB;
     protected final String measurementName;
-    protected final ConfigFile.Granularity granularity;
+    protected final Granularity granularity;
     protected boolean errorsOccurred;
 
     public AbstractInfluxTarget(ConfigFile config, boolean recreate) throws IOException{

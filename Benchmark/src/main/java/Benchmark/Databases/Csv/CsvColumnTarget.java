@@ -1,6 +1,7 @@
 package Benchmark.Databases.Csv;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
@@ -17,7 +18,7 @@ import java.util.HashMap;
 public class CsvColumnTarget implements ITarget {
     private final AccessPoint[] allAPs;
     private final BufferedWriter writer;
-    private final ConfigFile.Granularity granularity;
+    private final Granularity granularity;
 
     public CsvColumnTarget(ConfigFile config, AccessPoint[] allAPs) throws IOException {
         this.allAPs = allAPs;

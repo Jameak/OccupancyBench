@@ -6,7 +6,6 @@ import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import org.apache.kudu.client.*;
 
 import java.io.IOException;
-import java.sql.Timestamp;
 
 public class KuduRowTarget extends AbstractKuduTarget {
     private final KuduClient kuduClient;
@@ -36,7 +35,7 @@ public class KuduRowTarget extends AbstractKuduTarget {
         Insert insert = kuduTable.newInsert();
         PartialRow row = insert.getRow();
         assert insert.getTable().getSchema().getColumnId("time") == 0 : "Has the Kudu row-schema been changed?";
-        row.addTimestamp(0, new Timestamp(padTime(rowEntry)));
+        row.addLong(0, padTime(rowEntry));
         assert insert.getTable().getSchema().getColumnId("AP") == 1 : "Has the Kudu row-schema been changed?";
         row.addString(1, rowEntry.getAP());
         assert insert.getTable().getSchema().getColumnId("clients") == 2 : "Has the Kudu row-schema been changed?";

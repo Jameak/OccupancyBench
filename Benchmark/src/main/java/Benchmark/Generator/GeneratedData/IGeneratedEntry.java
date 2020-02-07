@@ -1,6 +1,6 @@
 package Benchmark.Generator.GeneratedData;
 
-import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 
 import java.time.LocalDateTime;
 
@@ -9,5 +9,5 @@ import java.time.LocalDateTime;
  */
 public interface IGeneratedEntry {
     LocalDateTime getDateTime();
-    long getTime(ConfigFile.Granularity granularity);
+    long getTime(Granularity granularity);
 }

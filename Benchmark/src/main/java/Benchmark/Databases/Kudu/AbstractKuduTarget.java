@@ -1,6 +1,7 @@
 package Benchmark.Databases.Kudu;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Generator.Targets.ITarget;
 import Benchmark.Logger;
@@ -13,17 +14,15 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractKuduTarget implements ITarget {
-    protected final ConfigFile.Granularity granularity;
+    protected final Granularity granularity;
     protected final int batchSize;
     protected boolean errorOccured = false;
     private int inserts = 0;
 
     public AbstractKuduTarget(ConfigFile config){
-        // Note: Kudu column setup is specified as UNIXTIME_MICROS so granularity is microseconds at best.
-        //       However the time-stamp constructor expects milliseconds, so that's our best granularity-option.
-        //       TODO: Mention this in the config documentation for granularity as well.
-        this.granularity = config.getGeneratorGranularity() == ConfigFile.Granularity.NANOSECOND || config.getGeneratorGranularity() == ConfigFile.Granularity.MILLISECOND
-                ? ConfigFile.Granularity.MILLISECOND : config.getGeneratorGranularity();
+        // Kudu granularity is microseconds at best.
+        this.granularity = config.getGeneratorGranularity() == Granularity.NANOSECOND
+                ? Granularity.MICROSECOND : config.getGeneratorGranularity();
 
         this.batchSize = config.getKuduBatchSize();
     }
@@ -59,9 +58,9 @@ public abstract class AbstractKuduTarget implements ITarget {
     }
 
     protected long padTime(IGeneratedEntry entry){
-        // We want a long of milliseconds, so we need to pad to that precision regardless of
+        // We want a long of microseconds, so we need to pad to that precision regardless of
         //   the desired granularity, so first we truncate and then pad if needed.
         long granularTime = entry.getTime(granularity);
-        return granularity.toTimeUnit().convert(granularTime, TimeUnit.MILLISECONDS);
+        return granularity.toTimeUnit().convert(granularTime, TimeUnit.MICROSECONDS);
     }
 }

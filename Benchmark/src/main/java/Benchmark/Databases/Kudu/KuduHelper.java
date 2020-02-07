@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Contains static helper functions used by the Timescale-database implementations.
+ * Contains static helper functions used by the Kudu-database implementations.
  *
  * Documentation for column encodings: https://kudu.apache.org/releases/0.6.0/docs/schema_design.html
  */
@@ -27,8 +27,6 @@ public class KuduHelper {
         String table = config.getKuduTable();
         List<ColumnSchema> columns = new ArrayList<>();
         columns.add(
-                // TODO: UNIXTIME_MICROS seems exactly what the benchmark needs, and looking at the
-                //       'insert-loadgen' Kudu example code, the size of this is the same as INT64
                 new ColumnSchema.ColumnSchemaBuilder("time", Type.UNIXTIME_MICROS)
                         .key(true)
                         //TODO: Is this the best encoding for this? This is the encoding used for the timestamp
@@ -68,8 +66,6 @@ public class KuduHelper {
 
         List<ColumnSchema> columns = new ArrayList<>();
         columns.add(
-                // TODO: UNIXTIME_MICROS seems exactly what the benchmark needs, and looking at the
-                //       'insert-loadgen' Kudu example code, the size of this is the same as INT64
                 new ColumnSchema.ColumnSchemaBuilder("time", Type.UNIXTIME_MICROS)
                         .key(true)
                         //TODO: Is this the best encoding for this? This is the encoding used for the timestamp
@@ -85,7 +81,7 @@ public class KuduHelper {
                             .encoding(ColumnSchema.Encoding.PLAIN_ENCODING)
                             // The other column-schema implementations dont let these be nullable.
                             // We could easily support it, but then databases wouldn't be as comparable
-                            // as having identical nullable behavior-setup.
+                            // as having identical nullable behavior.
                             .nullable(false)
                             .build()
             );

@@ -74,16 +74,21 @@ public class ConfigFile {
      */
     private static final String GENERATOR_SCALE                   = "generator.data.scale";
     /**
-     * Type: A single accepted value. Accepted values are: NANOSECOND, MILLISECOND, SECOND, MINUTE
+     * Type: A single accepted value. Accepted values are: NANOSECOND, MICROSECOND, MILLISECOND, SECOND, MINUTE
      * The granularity of the time-stamps inserted into the target database.
-     * Data will be generated with nanosecond-granularity and then truncated to this value.
+     * Data will be generated with nanosecond-granularity, truncated to this value, and then padded to the internally
+     * supported granularity of the target database.
      *
      * Note that a granularity that is coarser than the specified {@code GENERATOR_GENERATION_INTERVAL} will result in writes
      * to the database that cannot be distinguished from each other because their timestamps will be truncated to the same value.
      *
-     * Note: InfluxDB supports nanosecond-granularity (or coarser). TimescaleDB supports millisecond-granularity
-     *       (or coarser), so values inserted into TimescaleDB will be truncated to milliseconds or coarser,
-     *       even if nanosecond-granularity is specified.
+     * Notes on granularity supported by database implementations:
+     * - InfluxDB supports nanosecond-granularity (or coarser).
+     * - TimescaleDB supports millisecond-granularity (or coarser).
+     * - Apache Kudu supports microsecond-granularity (or coarser).
+     *
+     * If an unsupported granularity for the target database is used, generated values will automatically be truncated
+     * to the expected granularity.
      *
      * Also used during ingest-generation.
      */
@@ -152,7 +157,7 @@ public class ConfigFile {
      */
     private static final String GENERATOR_END_DATE                = "generator.data.enddate";
     /**
-     * Type: Comma-separated string of accepted values. Accepted values are: CSV, INFLUX, TIMESCALE
+     * Type: Comma-separated string of accepted values. Accepted values are: CSV, INFLUX, TIMESCALE, KUDU
      * The outputs to add generated data to. If multiple targets are specified, all targets receive data as it is generated.
      */
     private static final String GENERATOR_OUTPUT_TARGETS          = "generator.output.targets";
@@ -349,7 +354,7 @@ public class ConfigFile {
      */
     private static final String INGEST_DURATION_END_DATE = "ingest.duration.enddate";
     /**
-     * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE
+     * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE, KUDU
      * The target to write generated ingest-data to.
      */
     private static final String INGEST_TARGET              = "ingest.target";
@@ -389,7 +394,7 @@ public class ConfigFile {
      */
     private static final String QUERIES_ENABLED                  = "queries.enabled";
     /**
-     * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE
+     * Type: A single accepted value. Accepted values are: INFLUX, TIMESCALE, KUDU
      * The target to run queries against.
      */
     private static final String QUERIES_TARGET                   = "queries.target";
@@ -610,26 +615,6 @@ public class ConfigFile {
     private final Properties prop = new Properties();
     private boolean validated;
     private String validationError = "NO ERROR";
-
-    public enum Granularity{
-        NANOSECOND, MICROSECOND, MILLISECOND, SECOND, MINUTE;
-        public TimeUnit toTimeUnit(){
-            switch (this){
-                case NANOSECOND:
-                    return TimeUnit.NANOSECONDS;
-                case MICROSECOND:
-                    return TimeUnit.MICROSECONDS;
-                case MILLISECOND:
-                    return TimeUnit.MILLISECONDS;
-                case SECOND:
-                    return TimeUnit.SECONDS;
-                case MINUTE:
-                    return TimeUnit.MINUTES;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + this);
-            }
-        }
-    }
 
     private ConfigFile(){ }
 

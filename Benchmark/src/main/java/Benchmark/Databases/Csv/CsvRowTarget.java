@@ -1,6 +1,7 @@
 package Benchmark.Databases.Csv;
 
 import Benchmark.Config.ConfigFile;
+import Benchmark.Config.Granularity;
 import Benchmark.Generator.GeneratedData.GeneratedRowEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Generator.Targets.ITarget;
@@ -14,7 +15,7 @@ import java.io.IOException;
  */
 public class CsvRowTarget implements ITarget {
     private final BufferedWriter writer;
-    private final ConfigFile.Granularity granularity;
+    private final Granularity granularity;
 
     public CsvRowTarget(ConfigFile config) throws IOException {
         writer = new BufferedWriter(new FileWriter(config.getGeneratorDiskTarget()));

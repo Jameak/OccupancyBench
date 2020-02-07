@@ -19,13 +19,6 @@ public class KuduRowQueries extends AbstractKuduQueries {
     private KuduSession kuduSession;
     private HashMap<Integer, List<String>> floorAPs;
 
-    private interface QueryCompletion {
-        void run(String timestamp, Integer queryResult);
-    }
-    private interface QueryComputation {
-        int run(int previousVal, int currVal);
-    }
-
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
         this.config = config;

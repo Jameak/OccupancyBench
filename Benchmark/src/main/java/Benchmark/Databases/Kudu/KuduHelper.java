@@ -5,6 +5,7 @@ import Benchmark.Generator.GeneratedData.AccessPoint;
 import org.apache.kudu.ColumnSchema;
 import org.apache.kudu.Schema;
 import org.apache.kudu.Type;
+import org.apache.kudu.client.AlterTableOptions;
 import org.apache.kudu.client.CreateTableOptions;
 import org.apache.kudu.client.KuduClient;
 import org.apache.kudu.client.KuduException;
@@ -29,15 +30,13 @@ public class KuduHelper {
         columns.add(
                 new ColumnSchema.ColumnSchemaBuilder("time", Type.UNIXTIME_MICROS)
                         .key(true)
-                        //TODO: Is this the best encoding for this? This is the encoding used for the timestamp
-                        //      in the 'collectl' Kudu example code.
                         .encoding(ColumnSchema.Encoding.BIT_SHUFFLE)
                         .nullable(false)
                         .build()
         );
         columns.add(
                 new ColumnSchema.ColumnSchemaBuilder("AP", Type.STRING)
-                        .key(false)
+                        .key(true)
                         .encoding(ColumnSchema.Encoding.DICT_ENCODING)
                         .nullable(false)
                         .build()
@@ -68,8 +67,6 @@ public class KuduHelper {
         columns.add(
                 new ColumnSchema.ColumnSchemaBuilder("time", Type.UNIXTIME_MICROS)
                         .key(true)
-                        //TODO: Is this the best encoding for this? This is the encoding used for the timestamp
-                        //      in the 'collectl' Kudu example code.
                         .encoding(ColumnSchema.Encoding.BIT_SHUFFLE)
                         .nullable(false)
                         .build()

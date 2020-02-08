@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
  */
 public enum Granularity{
     NANOSECOND, MICROSECOND, MILLISECOND, SECOND, MINUTE;
+
     public TimeUnit toTimeUnit(){
         switch (this){
             case NANOSECOND:

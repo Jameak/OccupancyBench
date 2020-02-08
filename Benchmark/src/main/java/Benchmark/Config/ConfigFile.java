@@ -1,13 +1,14 @@
 package Benchmark.Config;
 
 import Benchmark.Databases.DBTargets;
+import Benchmark.Databases.Kudu.KuduPartitionInterval;
+import Benchmark.Databases.Kudu.KuduPartitionType;
 import Benchmark.Databases.SchemaFormats;
 
 import java.io.*;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The config files accepted by this program is defined by this class.
@@ -305,11 +306,53 @@ public class ConfigFile {
     //       is apparently not wired together with data-sizes, so e.g. a value of 1000 does not mean that a batch size of 1000 will fit
     //       (it might only fit 50, or might fit 5000... I'm unsure)
     private static final String KUDU_MUTATION_BUFFER_SPACE = "kudu.mutationbufferspace";
+    /**
+     * Type: A single accepted value. Accepted values are: NONE, HASH, RANGE, HASH_AND_RANGE
+     *
+     * Controls how the benchmark-table is partitioned.
+     * Read the Kudu-documentation for how hash- and range-partitioning interacts and its effect on the
+     * number of partitions before using HASH_AND_RANGE.
+     *
+     * For the row-schema, all partitioning values are accepted.
+     * For the column-schema, only RANGE is accepted since this schema doesn't have a column for which
+     *   a suitable hash-column exists.
+     */
+    private static final String KUDU_PARTITION_TYPE = "kudu.partitioning.type";
+    /**
+     * Type: Integer
+     *
+     * The number of buckets to hash the "AP" column into when using HASH-partitioning.
+     */
+    private static final String KUDU_HASH_PARTITION_BUCKETS = "kudu.partitioning.hash.buckets";
+    /**
+     * Type: A single accepted value. Accepted values are: WEEKLY, MONTHLY
+     *
+     * The interval of the range-partition created during table-creation.
+     */
+    private static final String KUDU_RANGE_PARTITION_INTERVAL = "kudu.partitioning.range.interval";
+    /**
+     * Type: Integer
+     *
+     * The number of years of range-partitions to pre-create during table-creation.
+     * The benchmark doesn't (currently) support creating new partitions on-the-fly during ingestion to keep
+     * synchronization-overhead down, since Kudu can fill 1 year of data in less than 20 seconds in some configurations.
+     *
+     * Ingestion/generation will warn when the pre-created range-partitions have been exceeded. All writes from then on
+     * land in a final pre-created unbounded partition.
+     *
+     * Be very careful about setting this value too high. A value of 10 should be considered the max, and in that case
+     * a MONTHLY interval should be used to keep tablet-numbers reasonable.
+     */
+    private static final String KUDU_RANGE_PARTITION_PRECREATE_YEARS = "kudu.partitioning.range.precreatedyears";
     private String kuduMasters;
     private String kuduTable;
     private int    kuduMaxColumns;
     private int    kuduBatchSize;
     private int    kuduMutationBufferSpace;
+    private int    kuduHashBuckets;
+    private int    kuduRangePrecreatedNumberOfYears;
+    private KuduPartitionType kuduPartitionType;
+    private KuduPartitionInterval kuduPartitionInterval;
 
     /**
      * Type: Boolean
@@ -685,6 +728,10 @@ public class ConfigFile {
         config.prop.setProperty(KUDU_MAX_SUPPORTED_COLUMNS, "300");
         config.prop.setProperty(KUDU_BATCH_SIZE, "1000");
         config.prop.setProperty(KUDU_MUTATION_BUFFER_SPACE, "1000");
+        config.prop.setProperty(KUDU_PARTITION_TYPE, KuduPartitionType.NONE.toString());
+        config.prop.setProperty(KUDU_HASH_PARTITION_BUCKETS, "4");
+        config.prop.setProperty(KUDU_RANGE_PARTITION_INTERVAL, KuduPartitionInterval.MONTHLY.toString());
+        config.prop.setProperty(KUDU_RANGE_PARTITION_PRECREATE_YEARS, "4");
 
         //Ingest
         config.prop.setProperty(INGEST_ENABLED, "true");
@@ -783,6 +830,10 @@ public class ConfigFile {
         kuduMaxColumns          = Integer.parseInt(prop.getProperty(KUDU_MAX_SUPPORTED_COLUMNS, "300"));
         kuduBatchSize           = Integer.parseInt(prop.getProperty(KUDU_BATCH_SIZE, "1000"));
         kuduMutationBufferSpace = Integer.parseInt(prop.getProperty(KUDU_MUTATION_BUFFER_SPACE, "10000"));
+        kuduHashBuckets         = Integer.parseInt(prop.getProperty(KUDU_HASH_PARTITION_BUCKETS, "4"));
+        kuduRangePrecreatedNumberOfYears = Integer.parseInt(prop.getProperty(KUDU_RANGE_PARTITION_PRECREATE_YEARS, "4"));
+        kuduPartitionInterval   = KuduPartitionInterval.valueOf(prop.getProperty(KUDU_RANGE_PARTITION_INTERVAL, KuduPartitionInterval.MONTHLY.toString()).toUpperCase().trim());
+        kuduPartitionType       = KuduPartitionType.valueOf(prop.getProperty(KUDU_PARTITION_TYPE, KuduPartitionType.NONE.toString()).toUpperCase().trim());
 
         //Ingest
         ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED, "true"));
@@ -947,6 +998,10 @@ public class ConfigFile {
         settings.put(KUDU_MAX_SUPPORTED_COLUMNS, kuduMaxColumns);
         settings.put(KUDU_BATCH_SIZE, kuduBatchSize);
         settings.put(KUDU_MUTATION_BUFFER_SPACE, kuduMutationBufferSpace);
+        settings.put(KUDU_PARTITION_TYPE, kuduPartitionType);
+        settings.put(KUDU_HASH_PARTITION_BUCKETS, kuduHashBuckets);
+        settings.put(KUDU_RANGE_PARTITION_INTERVAL, kuduPartitionInterval);
+        settings.put(KUDU_RANGE_PARTITION_PRECREATE_YEARS, kuduRangePrecreatedNumberOfYears);
 
         settings.put(INGEST_ENABLED, ingestEnabled);
         settings.put(INGEST_START_DATE, ingestStartDate);
@@ -1308,5 +1363,21 @@ public class ConfigFile {
 
     public int getKuduMutationBufferSpace(){
         return kuduMutationBufferSpace;
+    }
+
+    public KuduPartitionInterval getKuduPartitionInterval() {
+        return kuduPartitionInterval;
+    }
+
+    public int getKuduHashBuckets(){
+        return kuduHashBuckets;
+    }
+
+    public KuduPartitionType getKuduPartitionType(){
+        return kuduPartitionType;
+    }
+
+    public int getKuduRangePrecreatedNumberOfYears(){
+        return kuduRangePrecreatedNumberOfYears;
     }
 }

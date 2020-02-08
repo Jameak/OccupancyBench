@@ -10,6 +10,8 @@ import org.apache.kudu.client.KuduException;
 import org.apache.kudu.client.KuduSession;
 import org.apache.kudu.client.OperationResponse;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -18,6 +20,8 @@ public abstract class AbstractKuduTarget implements ITarget {
     protected final int batchSize;
     protected boolean errorOccured = false;
     private int inserts = 0;
+    private final long lastDateWithPartition;
+    private boolean hasWarnedAboutPartitionDate = false;
 
     public AbstractKuduTarget(ConfigFile config){
         // Kudu granularity is microseconds at best.
@@ -25,6 +29,16 @@ public abstract class AbstractKuduTarget implements ITarget {
                 ? Granularity.MICROSECOND : config.getGeneratorGranularity();
 
         this.batchSize = config.getKuduBatchSize();
+
+        // We only pre-create a set number of range partitions, so warn when we exceed them.
+        if(config.getKuduPartitionType() == KuduPartitionType.RANGE || config.getKuduPartitionType() == KuduPartitionType.HASH_AND_RANGE){
+            LocalDate startDate = config.getGeneratorStartDate().isBefore(config.getIngestStartDate()) ? config.getGeneratorStartDate() : config.getIngestStartDate();
+            LocalDateTime lastDate = startDate.atTime(0,0,0).plusYears(config.getKuduRangePrecreatedNumberOfYears());
+            lastDateWithPartition = Granularity.MICROSECOND.getTime(lastDate);
+        } else {
+            lastDateWithPartition = Long.MAX_VALUE;
+        }
+
     }
 
     protected void doInsert(KuduSession session, Insert insert) throws KuduException{
@@ -61,6 +75,11 @@ public abstract class AbstractKuduTarget implements ITarget {
         // We want a long of microseconds, so we need to pad to that precision regardless of
         //   the desired granularity, so first we truncate and then pad if needed.
         long granularTime = entry.getTime(granularity);
-        return granularity.toTimeUnit().convert(granularTime, TimeUnit.MICROSECONDS);
+        long timestamp = granularity.toTimeUnit().convert(granularTime, TimeUnit.MICROSECONDS);
+        if(timestamp > lastDateWithPartition && !hasWarnedAboutPartitionDate){
+            hasWarnedAboutPartitionDate = true;
+            Logger.LOG("Kudu target implementation has exceeded the pre-created range partitions. All further inserts will be put in the last, unbounded partition.");
+        }
+        return timestamp;
     }
 }

@@ -486,7 +486,7 @@ public class ConfigFile {
      * Set this value to the first date in the database if the entire data-set is under consideration,
      * or set it to a later date if values earlier than this date should never be queried.
      */
-    private static final String QUERIES_EARLIEST_VALID_DATE      = "queries.earliestdate";
+    public static final String QUERIES_EARLIEST_VALID_DATE       = "queries.earliestdate";
     /**
      * Type: Integer
      * The weight of the 'Total Clients' query when a random query is selected.

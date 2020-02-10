@@ -28,7 +28,12 @@ public abstract class AbstractInfluxQueries implements IQueries {
 
         String time = null;
         for(QueryResult.Result result : results.getResults()){
-            assert result.getSeries() != null;
+            // Database doesn't exist, is empty, or the table is empty. May happen due to a race-condition between
+            // ingestion and querying during startup caused by ingestion not having finished creating the table before
+            // we try querying it, or ingestion may not have filled the first batch-insert yet to the empty table.
+            // This error is rectified in the QueryRunnable-caller.
+            if(result.getSeries() == null) continue;
+
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     time = (String) entries.get(series.getColumns().indexOf("time"));

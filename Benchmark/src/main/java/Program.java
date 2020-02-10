@@ -186,7 +186,7 @@ public class Program {
             Random queryRng = new Random(rng.nextInt());
             if(!config.useSharedQueriesInstance()) queryInstance = DatabaseQueriesFactory.createQueriesInstance(config);
 
-            QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i);
+            QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i, i);
             queryTasks[i] = threadPoolQueries.submit(queryRunnable);
         }
         return queryTasks;

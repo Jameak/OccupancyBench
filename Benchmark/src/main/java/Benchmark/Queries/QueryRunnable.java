@@ -35,6 +35,7 @@ public class QueryRunnable implements Runnable {
     private final AccessPoint[] allAPs;
     private final IQueries queryTarget;
     private final String threadName;
+    private final int threadNumber;
     private final int minTimeInterval;
     private final int maxTimeInterval;
 
@@ -75,13 +76,14 @@ public class QueryRunnable implements Runnable {
     private LocalDateTime newestValidDate;
     private LocalDateTime unmodifiedNewestValidDate;
 
-    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, IQueries queryTarget, String threadName){
+    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, IQueries queryTarget, String threadName, int threadNumber){
         this.config = config;
         this.rngQueries = rng;
         this.dateComm = dateComm;
         this.generatedFloors = generatedFloors;
         this.queryTarget = queryTarget;
         this.threadName = threadName;
+        this.threadNumber = threadNumber;
         this.timerQuery_TotalClients = new PreciseTimer();
         this.timerQuery_FloorTotal = new PreciseTimer();
         this.timerQuery_MaxForAP = new PreciseTimer();
@@ -240,9 +242,45 @@ public class QueryRunnable implements Runnable {
         return startTime;
     }
 
-    private LocalDateTime[] generateTimeInterval(Random rng){
+    private void checkForConfigError() throws IOException, SQLException {
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
         LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
+
+        if(startClamp.isAfter(newestValidDate)){
+            if(config.isIngestionEnabled()){
+                Logger.LOG(threadName + ": Possible configuration error: The configured date for the setting " + ConfigFile.QUERIES_EARLIEST_VALID_DATE +
+                        " is after the newest timestamp available in the database. The config-value is " +
+                        config.getQueriesEarliestValidDate() + " but the newest timestamp available in the database is "
+                        + unmodifiedNewestValidDate + ". Thread will sleep until the newest timestamp available in the database is " +
+                        "after the configured date.");
+                while(startClamp.isAfter(newestValidDate)){
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    getTime(null, true);
+                }
+                Logger.LOG(threadName + ": Error cleared, continuing.");
+            } else {
+                Logger.LOG(threadName + ": Possible configuration error: The configured date for the setting " + ConfigFile.QUERIES_EARLIEST_VALID_DATE +
+                        " is invalid unless multiple Benchmark-processes are running against the same target. " +
+                        "The config-value is " + config.getQueriesEarliestValidDate() + " but the newest timestamp " +
+                        "available in the database is " + unmodifiedNewestValidDate + ". Thread will sleep for 10 seconds and then " +
+                        "continue on. If the config is actually invalid then expect asserts to be tripped (if enabled).");
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private LocalDateTime[] generateTimeInterval(Random rng) throws IOException, SQLException {
+        LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
+        LocalDateTime startClamp = LocalDateTime.of(earliestValidDate, LocalTime.of(0,0,0));
+
         LocalDateTime[] time = new LocalDateTime[2];
 
         LocalDateTime time1 = generateRandomTime(newestValidDate, startClamp, rng);
@@ -393,7 +431,16 @@ public class QueryRunnable implements Runnable {
             throw new RuntimeException(e);
         }
 
+        // Validate the config-settings that depend on values in the database and cant be validated statically.
+        try {
+            getTime(null, true);
+            checkForConfigError();
+        } catch (IOException | SQLException e) {
+            e.printStackTrace();
+        }
+
         if (warmUp) {
+            Logger.LOG(threadName + ": Query warm-up has started.");
             try {
                 dateCommTimer.start();
                 runTimer.start();
@@ -413,6 +460,7 @@ public class QueryRunnable implements Runnable {
         }
 
         try {
+            Logger.LOG(threadName + ": Queries have started.");
             if(duration > 0){
                 dateCommTimer.start();
                 runTimer.start();
@@ -469,9 +517,9 @@ public class QueryRunnable implements Runnable {
         }
     }
 
-    private void getTime(PreciseTimer dateCommTimer, boolean firstGrab) throws IOException, SQLException{
+    private void getTime(PreciseTimer dateCommTimer, boolean force) throws IOException, SQLException{
         if(config.doDateCommunicationByQueryingDatabase()){
-            if(config.getQueryDateCommunicationIntervalInMillisec() == 0 || firstGrab){ // On the first time-grab we dont want to wait for the timer.
+            if(config.getQueryDateCommunicationIntervalInMillisec() == 0 || force){ // On the first time-grab we dont want to wait for the timer.
                 // The first time that we grab a value, our "newest valid date" is sourced from the config and is a
                 // 'best guess' about what the actual value is. However, since it has no guaranteed relation to the actual
                 // data, we cannot use it here because it may use that timestamp to improve query-performance to grab the
@@ -506,25 +554,25 @@ public class QueryRunnable implements Runnable {
     private void saveQueryResults(){
         Path path = Paths.get(config.DEBUG_saveQueryResultsPath());
         // Create a unique folder to save our config results in. Folder starting with '-' are inconvenient to cd into, so abs it.
-        String folderName = Math.abs(config.getSettings().hashCode()) + "";
+        String folderName = Math.abs(config.getSettings().hashCode()) + "_T" + threadNumber;
         Path outPath = path.resolve(folderName);
 
         if (outPath.toFile().exists()){
             try {
                 deleteDirectory(outPath);
             } catch (IOException e) {
-                Logger.LOG("DEBUG: Error deleting dir " + outPath.toString());
+                Logger.LOG(threadName + ": DEBUG: Error deleting dir " + outPath.toString());
                 e.printStackTrace();
-                assert false : "Failed to delete old directory";
+                assert false : threadName + ": Failed to delete old directory";
             }
         }
 
         boolean madeTargetDir = outPath.toFile().mkdirs();
         if(madeTargetDir){
-            Logger.LOG("DEBUG: Writing query results to " + outPath);
+            Logger.LOG(threadName + ": DEBUG: Writing query results to " + outPath);
         } else {
-            Logger.LOG("DEBUG: Failed to create directory " + outPath + " to write query results to");
-            assert false : "Failed to create directory";
+            Logger.LOG(threadName + ": DEBUG: Failed to create directory " + outPath + " to write query results to");
+            assert false : threadName + ": Failed to create directory";
             return;
         }
 
@@ -543,9 +591,9 @@ public class QueryRunnable implements Runnable {
                 Files.write(outFile, content, StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
-            Logger.LOG("Error writing to dir " + outPath.toString());
+            Logger.LOG(threadName + ": Error writing to dir " + outPath.toString());
             e.printStackTrace();
-            assert false : "Failed to write to directory";
+            assert false : threadName + ": Failed to write to directory";
         }
     }
 

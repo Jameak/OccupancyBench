@@ -50,8 +50,8 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     public List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) {
         List<Total> totals = new ArrayList<>();
 
-        String queryString = String.format("SELECT %s FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",
-                precomputedTotalClientsPart, measurement, toTimestamp(end), toTimestamp(start));
+        String queryString = String.format("SELECT %s FROM %s WHERE time > %d AND time <= %d GROUP BY time(1d)",
+                precomputedTotalClientsPart, measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
         influxDB.query(query);
@@ -77,8 +77,8 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) {
         List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
-        String queryString = String.format("SELECT %s FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",
-                precomputedFloorTotalPart, measurement, toTimestamp(end), toTimestamp(start));
+        String queryString = String.format("SELECT %s FROM %s WHERE time > %d AND time <= %d GROUP BY time(1d)",
+                precomputedFloorTotalPart, measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
         influxDB.query(query);
@@ -104,8 +104,8 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
         List<MaxForAP> max = new ArrayList<>();
 
-        String queryString = String.format("SELECT MAX(\"%s\") FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",
-                AP.getAPname(), measurement, toTimestamp(end), toTimestamp(start));
+        String queryString = String.format("SELECT MAX(\"%s\") FROM %s WHERE time > %d AND time <= %d GROUP BY time(1d)",
+                AP.getAPname(), measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
         influxDB.query(query);
@@ -119,6 +119,11 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                     String time = (String) entries.get(series.getColumns().indexOf("time"));
                     int maxIndex = series.getColumns().indexOf("max");
                     Object maxValue = entries.get(maxIndex);
+
+                    // AP had no values on day within our time-interval.
+                    if(maxValue == null){
+                        continue;
+                    }
 
                     int maxVal = (int)Math.round((Double)maxValue);
                     max.add(new MaxForAP(AP.getAPname(), time, maxVal));
@@ -140,8 +145,8 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 Query query = new Query(String.format(
                         "SELECT %s " +
                         "FROM %s " +
-                        "WHERE time <= %s AND time > %s "
-                        , precomputedAvgOccupancyPart1, measurement, toTimestamp(date), toTimestamp(date.minusMinutes(windowSizeInMin))));
+                        "WHERE time > %s AND time <= %s "
+                        , precomputedAvgOccupancyPart1, measurement, toTimestamp(date.minusMinutes(windowSizeInMin)), toTimestamp(date)));
                 nowStatQueries.add(query);
 
                 date = date.minusDays(1);
@@ -153,8 +158,8 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 Query query = new Query(String.format(
                         "SELECT %s " +
                         "FROM %s " +
-                        "WHERE time <= %s AND time > %s "
-                        , precomputedAvgOccupancyPart1, measurement, toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date)));
+                        "WHERE time > %s AND time <= %s "
+                        , precomputedAvgOccupancyPart1, measurement, toTimestamp(date), toTimestamp(date.plusMinutes(windowSizeInMin))));
                 pastSoonStatQueries.add(query);
 
                 date = date.minusDays(1);
@@ -164,9 +169,9 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
         Query query3 = new Query(String.format(
                 "SELECT %s " +
                 "FROM %s " +
-                "WHERE time <= %s AND time > %s " +
+                "WHERE time > %s AND time <= %s " +
                 "LIMIT 1" // LIMIT shouldn't technically be needed since the time-intervals should limit the interval to just 1 entry.
-                , precomputedAvgOccupancyPart2, measurement, toTimestamp(end), toTimestamp(end.minusSeconds(sampleRate))));
+                , precomputedAvgOccupancyPart2, measurement, toTimestamp(end.minusSeconds(sampleRate)), toTimestamp(end)));
 
         List<QueryResult> resQ1 = new ArrayList<>();
         for(Query query : nowStatQueries){

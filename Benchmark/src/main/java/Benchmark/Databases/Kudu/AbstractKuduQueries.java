@@ -37,11 +37,11 @@ public abstract class AbstractKuduQueries implements IQueries {
         return builder
                 .addPredicate(KuduPredicate.newComparisonPredicate(
                         kuduSchema.getColumn("time"),
-                        KuduPredicate.ComparisonOp.LESS,
+                        KuduPredicate.ComparisonOp.LESS_EQUAL,
                         convertLocalDateTimeToMicrosecondLong(end)))
                 .addPredicate(KuduPredicate.newComparisonPredicate(
                         kuduSchema.getColumn("time"),
-                        KuduPredicate.ComparisonOp.GREATER_EQUAL,
+                        KuduPredicate.ComparisonOp.GREATER,
                         convertLocalDateTimeToMicrosecondLong(start)));
     }
 
@@ -148,10 +148,8 @@ public abstract class AbstractKuduQueries implements IQueries {
 
         LocalDateTime newTime = convertMicrosecondsSinceEpochToLocalDateTime(newestTime);
         if(newTime.isAfter(previousNewestTime)){
-            // Add 1 second to match Timescale and Influx behavior.
-            return newTime.plusSeconds(1);
+            return newTime;
         }
-        // The previous time already has the second added, so dont add another second.
         return previousNewestTime;
     }
 

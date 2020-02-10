@@ -36,11 +36,7 @@ public abstract class AbstractTimescaleQueries implements IQueries {
         }
 
         String[] parts = time.split(" ");
-        LocalDateTime dbTime = LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
-        // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
-        //   what seems to be off-by-one errors in the query-results.
-        // To avoid this, we add a single second to the returned time to move slightly beyond the newest value.
-        return dbTime.plusSeconds(1);
+        return LocalDateTime.of(LocalDate.parse(parts[0]), LocalTime.parse(parts[1]));
     }
 
     @Override
@@ -61,7 +57,7 @@ public abstract class AbstractTimescaleQueries implements IQueries {
                 if(firstLoop) firstLoop = false;
                 else sb1.append(" OR ");
 
-                String time = String.format("(time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s))", toTimestamp(date), toTimestamp(date.minusMinutes(windowSizeInMin)));
+                String time = String.format("(time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s))", toTimestamp(date.minusMinutes(windowSizeInMin)), toTimestamp(date));
                 sb1.append(time);
 
                 date = date.minusDays(1);
@@ -75,7 +71,7 @@ public abstract class AbstractTimescaleQueries implements IQueries {
                 if(firstLoop) firstLoop = false;
                 else sb2.append(" OR ");
 
-                String time = String.format("(time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s))", toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date));
+                String time = String.format("(time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s))", toTimestamp(date), toTimestamp(date.plusMinutes(windowSizeInMin)));
                 sb2.append(time);
 
                 date = date.minusDays(1);

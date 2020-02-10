@@ -47,7 +47,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                 "FROM %s " +
-                "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
+                "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) " +
                 "GROUP BY bucket", table, timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();
@@ -71,7 +71,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
         for (Floor floor : generatedFloors) {
             String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                             "FROM %s " +
-                            "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) AND %s " +
+                            "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) AND %s " +
                             "GROUP BY bucket",
                     table, timeStart, timeEnd, precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
@@ -96,7 +96,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, MAX(clients) " +
                 "FROM %s " +
-                "WHERE AP='%s' AND time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
+                "WHERE AP='%s' AND time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) " +
                 "GROUP BY bucket", table, AP.getAPname(), timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();

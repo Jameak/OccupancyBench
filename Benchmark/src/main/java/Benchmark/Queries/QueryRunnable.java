@@ -73,6 +73,7 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQueryDone_AvgOccupancy;
 
     private LocalDateTime newestValidDate;
+    private LocalDateTime unmodifiedNewestValidDate;
 
     public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, IQueries queryTarget, String threadName){
         this.config = config;
@@ -86,6 +87,7 @@ public class QueryRunnable implements Runnable {
         this.timerQuery_MaxForAP = new PreciseTimer();
         this.timerQuery_AvgOccupancy = new PreciseTimer();
         this.newestValidDate = dateComm.getNewestTime();
+        this.unmodifiedNewestValidDate = newestValidDate;
         this.saveQueryResults = config.DEBUG_saveQueryResults();
 
         assert this.config.getQueriesWeightTotalClients() >= 0;
@@ -475,9 +477,25 @@ public class QueryRunnable implements Runnable {
                 // data, we cannot use it here because it may use that timestamp to improve query-performance to grab the
                 // next timestamp value. So for the first call, use a timestamp value that we know will be older than
                 // whatever is in the database
-                newestValidDate = queryTarget.getNewestTimestamp(LocalDateTime.ofEpochSecond(0,0, ZoneOffset.ofHours(0)));
+                unmodifiedNewestValidDate = queryTarget.getNewestTimestamp(LocalDateTime.ofEpochSecond(0,0, ZoneOffset.ofHours(0)));
+                // The newest valid date stored in the database has whatever granularity that it was saved with.
+                // This granularity may (depending on benchmark config settings) differ between databases
+                // (e.g. Influx can store nanoseconds, while Kudu can store microseconds).
+                // To get consistent query-intervals arguments across databases (and to simplify argument-generation),
+                // time-interval generation uses second-granularity. This has the effect of truncating the returned
+                // timestamp anyway which makes us miss the entries between the raw value and the truncated value.
+                // To get everything, we truncate and then add a second to avoid this issue.
+                newestValidDate = unmodifiedNewestValidDate.truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
             } else if(dateCommTimer.elapsedSeconds() * 1000 > config.getQueryDateCommunicationIntervalInMillisec()){
-                newestValidDate = queryTarget.getNewestTimestamp(newestValidDate);
+                unmodifiedNewestValidDate = queryTarget.getNewestTimestamp(unmodifiedNewestValidDate);
+                // The newest valid date stored in the database has whatever granularity that it was saved with.
+                // This granularity may (depending on benchmark config settings) differ between databases
+                // (e.g. Influx can store nanoseconds, while Kudu can store microseconds).
+                // To get consistent query-intervals arguments across databases (and to simplify argument-generation),
+                // time-interval generation uses second-granularity. This has the effect of truncating the returned
+                // timestamp anyway which makes us miss the entries between the raw value and the truncated value.
+                // To get everything, we truncate and then add a second to avoid this issue.
+                newestValidDate = unmodifiedNewestValidDate.truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
                 dateCommTimer.start();
             }
         } else {

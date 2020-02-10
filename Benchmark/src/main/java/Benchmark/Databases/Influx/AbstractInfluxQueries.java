@@ -8,6 +8,7 @@ import org.influxdb.dto.QueryResult;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -40,11 +41,7 @@ public abstract class AbstractInfluxQueries implements IQueries {
             return previousNewestTime;
         }
 
-        LocalDateTime dbTime = LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
-        // Timescale and Influx seem to have weird behavior regarding exact matches on timestamp values, resulting in
-        //   what seems to be off-by-one errors in the query-results.
-        // To avoid this, we add a single second to the returned time to move slightly beyond the newest value.
-        return dbTime.plusSeconds(1);
+        return LocalDateTime.ofInstant(Instant.parse(time), ZoneOffset.ofHours(0));
     }
 
     @Override

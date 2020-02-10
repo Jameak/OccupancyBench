@@ -52,7 +52,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, %s " +
                 "FROM %s " +
-                "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
+                "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) " +
                 "GROUP BY bucket", precomputedTotalClientsPart, table, timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();
@@ -75,7 +75,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, %s " +
                         "FROM %s " +
-                        "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s)" +
+                        "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s)" +
                         "GROUP BY bucket",
                         precomputedFloorTotalPart, table, timeStart, timeEnd);
 
@@ -101,7 +101,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
 
         String query = String.format("SELECT time_bucket('1 day', time) AS bucket, MAX(\"%s\") " +
                 "FROM %s " +
-                "WHERE time >= TO_TIMESTAMP(%s) AND time < TO_TIMESTAMP(%s) " +
+                "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) " +
                 "GROUP BY bucket", AP.getAPname(), table, timeStart, timeEnd);
 
         try(Statement statement = connection.createStatement();
@@ -137,8 +137,8 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
         String query3 = String.format(
                 "SELECT %s " +
                 "FROM %s " +
-                "WHERE time <= TO_TIMESTAMP(%s) AND time > TO_TIMESTAMP(%s)",
-                precomputedAvgOccupancyPart2, table, toTimestamp(end), toTimestamp(end.minusSeconds(sampleRate)));
+                "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s)",
+                precomputedAvgOccupancyPart2, table, toTimestamp(end.minusSeconds(sampleRate)), toTimestamp(end));
 
         Map<String, Double> parsedQ1 = new HashMap<>();
         Map<String, Double> parsedQ2 = new HashMap<>();

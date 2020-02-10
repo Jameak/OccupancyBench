@@ -44,8 +44,8 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     @Override
     public List<Total> computeTotalClients(LocalDateTime start, LocalDateTime end) {
         List<Total> totals = new ArrayList<>();
-        String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d GROUP BY time(1d)",
-                measurement, toTimestamp(end), toTimestamp(start));
+        String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time > %d AND time <= %d GROUP BY time(1d)",
+                measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
         influxDB.query(query);
@@ -72,8 +72,8 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
         List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
         for (Floor floor : generatedFloors) {
-            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time < %d AND time >= %d AND %s GROUP BY time(1d)",
-                    measurement, toTimestamp(end), toTimestamp(start), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
+            String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time > %d AND time <= %d AND %s GROUP BY time(1d)",
+                    measurement, toTimestamp(start), toTimestamp(end), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             Query query = new Query(queryString);
             influxDB.query(query);
@@ -98,8 +98,8 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
         List<MaxForAP> max = new ArrayList<>();
 
-        String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time < %d AND time >= %d GROUP BY time(1d)",
-                measurement, AP.getAPname(), toTimestamp(end), toTimestamp(start));
+        String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time > %d AND time <= %d GROUP BY time(1d)",
+                measurement, AP.getAPname(), toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
         influxDB.query(query);
@@ -148,8 +148,8 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                 Query query = new Query(String.format(
                         "SELECT MEAN(clients) AS avg_clients " +
                         "FROM %s " +
-                        "WHERE time <= %s AND time > %s " +
-                        "GROUP BY \"AP\"", measurement, toTimestamp(date), toTimestamp(date.minusMinutes(windowSizeInMin))));
+                        "WHERE time > %s AND time <= %s " +
+                        "GROUP BY \"AP\"", measurement, toTimestamp(date.minusMinutes(windowSizeInMin)), toTimestamp(date)));
                 nowStatQueries.add(query);
 
                 date = date.minusDays(1);
@@ -161,8 +161,8 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                 Query query = new Query(String.format(
                         "SELECT MEAN(clients) AS avg_clients " +
                         "FROM %s " +
-                        "WHERE time <= %s AND time > %s " +
-                        "GROUP BY \"AP\"", measurement, toTimestamp(date.plusMinutes(windowSizeInMin)), toTimestamp(date)));
+                        "WHERE time > %s AND time <= %s " +
+                        "GROUP BY \"AP\"", measurement, toTimestamp(date), toTimestamp(date.plusMinutes(windowSizeInMin))));
                 pastSoonStatQueries.add(query);
 
                 date = date.minusDays(1);
@@ -172,7 +172,7 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
         Query query3 = new Query(String.format(
                 "SELECT AP, clients AS client_entry " +
                 "FROM %s " +
-                "WHERE time <= %s AND time > %s ", measurement, toTimestamp(end), toTimestamp(end.minusSeconds(sampleRate))));
+                "WHERE time > %s AND time <= %s ", measurement, toTimestamp(end.minusSeconds(sampleRate)), toTimestamp(end)));
 
         List<QueryResult> resQ1 = new ArrayList<>();
         for(Query query : nowStatQueries){

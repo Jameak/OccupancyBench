@@ -515,6 +515,12 @@ public class ConfigFile {
      */
     private static final String QUERIES_WEIGHT_AVG_OCCUPANCY      = "queries.weight.avgoccupancy";
     /**
+     * Type: Integer
+     * The weight of the 'K-Means' query when a random query is selected.
+     * A weight of 0 will prevent this query from being selected.
+     */
+    private static final String QUERIES_WEIGHT_KMEANS      = "queries.weight.kmeans";
+    /**
      * Type: Double
      * If the random number drawn from X~uniform(0,1) is less than this value, then the time-interval
      * used in the query will at-most range over 24 hours, and will be at-most 24 hours old.
@@ -565,6 +571,28 @@ public class ConfigFile {
     private static final String QUERIES_INTERVAL_MAX             = "queries.interval.max";
     /**
      * Type: Integer
+     * The minimal length of a time-span to query for when running the K-Means query, in seconds.
+     * Spans shorter than this duration will be extended, biased towards new values.
+     */
+    private static final String QUERIES_INTERVAL_MIN_KMEANS      = "queries.interval.min.kmeans";
+    /**
+     * Type: Integer
+     * The maximum length of a time-span to query for when running the K-Means query, in seconds.
+     * Spans longer than this duration will be shortened, biased towards old values.
+     */
+    private static final String QUERIES_INTERVAL_MAX_KMEANS      = "queries.interval.max.kmeans";
+    /**
+     * Type: Integer
+     * The number of clusters to use for the K-Means computation.
+     */
+    private static final String QUERIES_KMEANS_CLUSTERS          = "queries.kmeans.clusters";
+    /**
+     * Type: Integer
+     * The number of iterations to run during the K-Means computation.
+     */
+    private static final String QUERIES_KMEANS_ITERATIONS        = "queries.kmeans.iterations";
+    /**
+     * Type: Integer
      * Specifies how often (in milliseconds) the query-executor queries the database for the newest inserted value.
      * The returned value will be used as the newest possible value that can be used in a query.
      *
@@ -590,12 +618,17 @@ public class ConfigFile {
     private int       queriesWeightFloorTotals;
     private int       queriesWeightMaxForAP;
     private int       queriesWeightAvgOccupancy;
+    private int       queriesWeightKMeans;
     private double    queriesRngRangeDay;
     private double    queriesRngRangeWeek;
     private double    queriesRngRangeMonth;
     private double    queriesRngRangeYear;
     private int       queriesIntervalMin;
     private int       queriesIntervalMax;
+    private int       queriesIntervalMinKMeans;
+    private int       queriesIntervalMaxKMeans;
+    private int       queriesKMeansClusters;
+    private int       queriesKMeansIterations;
     private int       queriesDateCommIntervalMilliseconds;
 
     /**
@@ -759,12 +792,17 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1");
         config.prop.setProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2");
         config.prop.setProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, "1");
+        config.prop.setProperty(QUERIES_WEIGHT_KMEANS, "1");
         config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , "0.4");
         config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , "0.7");
         config.prop.setProperty(QUERIES_RNG_RANGE_MONTH, "0.9");
         config.prop.setProperty(QUERIES_RNG_RANGE_YEAR , "0.95");
         config.prop.setProperty(QUERIES_INTERVAL_MIN   , "21600"); // 6 hours in seconds
         config.prop.setProperty(QUERIES_INTERVAL_MAX   , "7776000"); // 90 days in seconds
+        config.prop.setProperty(QUERIES_INTERVAL_MIN_KMEANS, "21600"); // 6 hours in seconds
+        config.prop.setProperty(QUERIES_INTERVAL_MAX_KMEANS, "86400"); // 24 hours in seconds
+        config.prop.setProperty(QUERIES_KMEANS_CLUSTERS, "5");
+        config.prop.setProperty(QUERIES_KMEANS_ITERATIONS, "10");
         config.prop.setProperty(QUERIES_DATE_COMM      , "500");
 
         //Debug
@@ -861,12 +899,17 @@ public class ConfigFile {
         queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS, "1"));
         queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP, "2"));
         queriesWeightAvgOccupancy= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, "1"));
+        queriesWeightKMeans      = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_KMEANS, "1"));
         queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY, "0.4"));
         queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK, "0.7"));
         queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH, "0.9"));
         queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR, "0.95"));
         queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN, "21600"));
         queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX, "7776000"));
+        queriesIntervalMinKMeans = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN_KMEANS, "21600"));
+        queriesIntervalMaxKMeans = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX_KMEANS, "86400"));
+        queriesKMeansClusters    = Integer.parseInt(    prop.getProperty(QUERIES_KMEANS_CLUSTERS, "5"));
+        queriesKMeansIterations  = Integer.parseInt(    prop.getProperty(QUERIES_KMEANS_ITERATIONS, "10"));
         queriesDateCommIntervalMilliseconds = Integer.parseInt(prop.getProperty(QUERIES_DATE_COMM, "500"));
 
         //Debug
@@ -932,9 +975,15 @@ public class ConfigFile {
             if(!(queriesWeightFloorTotals >= 0)) return QUERIES_WEIGHT_FLOOR_TOTALS + ": Query-weight for 'FloorTotals' must be >= 0";
             if(!(queriesWeightMaxForAP >= 0)) return QUERIES_WEIGHT_MAX_FOR_AP + ": Query-weight for 'Max For AP' must be >= 0";
             if(!(queriesWeightAvgOccupancy >= 0)) return QUERIES_WEIGHT_AVG_OCCUPANCY + ": Query-weight for 'Avg Occupancy' must be >= 0";
+            if(!(queriesWeightKMeans >= 0)) return QUERIES_WEIGHT_KMEANS + ": Query-weight for 'K-Means' must be >= 0";
             if(!(queriesIntervalMin >= 0)) return QUERIES_INTERVAL_MIN + ": Minimum query interval must be >= 0";
             if(!(queriesIntervalMax >= 0)) return QUERIES_INTERVAL_MAX + ": Maximum query interval must be >= 0";
             if(!(queriesIntervalMin <= queriesIntervalMax)) return QUERIES_INTERVAL_MIN + " and " + QUERIES_INTERVAL_MAX + ": Minimum query interval must be <= maximum query interval";
+            if(!(queriesIntervalMinKMeans >= 0)) return QUERIES_INTERVAL_MIN_KMEANS + ": Minimum query interval must be >= 0";
+            if(!(queriesIntervalMaxKMeans >= 0)) return QUERIES_INTERVAL_MAX_KMEANS + ": Maximum query interval must be >= 0";
+            if(!(queriesIntervalMinKMeans <= queriesIntervalMaxKMeans)) return QUERIES_INTERVAL_MIN_KMEANS + " and " + QUERIES_INTERVAL_MAX_KMEANS + ": Minimum query interval must be <= maximum query interval";
+            if(queriesKMeansClusters < 2 || queriesKMeansClusters > 113*generatorScale) return QUERIES_KMEANS_CLUSTERS + ": Cluster-amount must be greater than 1 and less than the approximate number of APs generated at the specified scale.";
+            if(queriesKMeansIterations < 1) return QUERIES_KMEANS_ITERATIONS + ": Number of iterations for K-Means must be at least 1";
         }
 
         if(ingestEnabled && queriesEnabled){
@@ -1027,12 +1076,17 @@ public class ConfigFile {
         settings.put(QUERIES_WEIGHT_FLOOR_TOTALS, queriesWeightFloorTotals);
         settings.put(QUERIES_WEIGHT_MAX_FOR_AP, queriesWeightMaxForAP);
         settings.put(QUERIES_WEIGHT_AVG_OCCUPANCY, queriesWeightAvgOccupancy);
+        settings.put(QUERIES_WEIGHT_KMEANS, queriesWeightKMeans);
         settings.put(QUERIES_RNG_RANGE_DAY, queriesRngRangeDay);
         settings.put(QUERIES_RNG_RANGE_WEEK, queriesRngRangeWeek);
         settings.put(QUERIES_RNG_RANGE_MONTH, queriesRngRangeMonth);
         settings.put(QUERIES_RNG_RANGE_YEAR, queriesRngRangeYear);
         settings.put(QUERIES_INTERVAL_MIN, queriesIntervalMin);
         settings.put(QUERIES_INTERVAL_MAX, queriesIntervalMax);
+        settings.put(QUERIES_INTERVAL_MIN_KMEANS, queriesIntervalMinKMeans);
+        settings.put(QUERIES_INTERVAL_MAX_KMEANS, queriesIntervalMaxKMeans);
+        settings.put(QUERIES_KMEANS_CLUSTERS, queriesKMeansClusters);
+        settings.put(QUERIES_KMEANS_ITERATIONS, queriesKMeansIterations);
         settings.put(QUERIES_DATE_COMM, queriesDateCommIntervalMilliseconds);
 
         settings.put(DEBUG_CREATE_PRECOMPUTED_TABLES, debugCreatePrecomputedTables);
@@ -1217,6 +1271,10 @@ public class ConfigFile {
         return queriesWeightAvgOccupancy;
     }
 
+    public int getQueriesWeightKMeans() {
+        return queriesWeightKMeans;
+    }
+
     public LocalDate getQueriesEarliestValidDate() {
         return queriesEarliestValidDate;
     }
@@ -1243,6 +1301,22 @@ public class ConfigFile {
 
     public int getQueriesIntervalMax() {
         return queriesIntervalMax;
+    }
+
+    public int getQueriesIntervalMinKMeans() {
+        return queriesIntervalMinKMeans;
+    }
+
+    public int getQueriesIntervalMaxKMeans() {
+        return queriesIntervalMaxKMeans;
+    }
+
+    public int getQueriesKMeansClusters() {
+        return queriesKMeansClusters;
+    }
+
+    public int getQueriesKMeansIterations() {
+        return queriesKMeansIterations;
     }
 
     public int getIngestThreadCount() {

@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Random;
 
 /**
  * A shared interface for all Query-implementations.
@@ -18,7 +19,7 @@ public interface IQueries {
      * This method is called once by the framework, before any queries are executed.
      * Use it to perform whatever pre-computations are possible.
      */
-    void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception;
+    void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception;
 
     /**
      * This method is called once by the framework, after querying is finished.
@@ -62,4 +63,6 @@ public interface IQueries {
      * The number of days to compute this for, is specified by the range represented by 'start' and 'end'.
      */
     List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws IOException, SQLException;
+
+    List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws IOException, SQLException;
 }

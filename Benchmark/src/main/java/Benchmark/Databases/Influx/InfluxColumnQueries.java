@@ -3,19 +3,16 @@ package Benchmark.Databases.Influx;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
-import Benchmark.Queries.Results.AvgOccupancy;
-import Benchmark.Queries.Results.FloorTotal;
-import Benchmark.Queries.Results.MaxForAP;
-import Benchmark.Queries.Results.Total;
+import Benchmark.Queries.Results.*;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 /**
  * An implementation of the benchmark-queries for InfluxDB when using the column-schema.
@@ -28,10 +25,12 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     private String precomputedAvgOccupancyPart1;
     private String precomputedAvgOccupancyPart2;
     private Floor[] generatedFloors;
+    private Random rng;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
+        this.rng = rng;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
@@ -54,8 +53,6 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 precomputedTotalClientsPart, measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
-        influxDB.query(query);
-
         QueryResult results = influxDB.query(query);
         for(QueryResult.Result result : results.getResults()){
             if(result.getSeries() == null) continue; // No results. Caused by hole in data.
@@ -81,7 +78,6 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 precomputedFloorTotalPart, measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
-        influxDB.query(query);
         QueryResult results = influxDB.query(query);
         for (QueryResult.Result result : results.getResults()) {
             if (result.getSeries() == null) continue; // No results. Caused by hole in data.
@@ -108,8 +104,6 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 AP.getAPname(), measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
-        influxDB.query(query);
-
         QueryResult results = influxDB.query(query);
         for(QueryResult.Result result : results.getResults()){
             if(result.getSeries() == null) continue; // No results. Caused by hole in data.
@@ -239,5 +233,51 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 }
             }
         }
+    }
+
+    @Override
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) {
+        long secondsInInterval = start.until(end, ChronoUnit.SECONDS);
+        int numEntries = Math.toIntExact(secondsInInterval / sampleRate);
+
+        KMeansImplementation kmeans = new KMeansImplementation(numIterations, numClusters, allAPs, rng, AP -> {
+            String queryString = String.format("SELECT \"%s\" FROM %s WHERE time > %d AND time <= %d",
+                    AP, measurement, toTimestamp(start), toTimestamp(end));
+
+            Instant[] timestamps = new Instant[numEntries];
+            int[] values = new int[numEntries];
+            int index = 0;
+
+            Query query = new Query(queryString);
+            QueryResult results = influxDB.query(query);
+            for(QueryResult.Result result : results.getResults()){
+                if(result.getSeries() == null) continue; // No results. Caused by hole in data.
+                assert result.getSeries().size() == 1;
+                for(QueryResult.Series series : result.getSeries()){
+                    for(List<Object> entries : series.getValues()){
+                        if(index == numEntries) break;
+
+                        String time = (String) entries.get(series.getColumns().indexOf("time"));
+                        int clientsIndex = series.getColumns().indexOf(AP);
+                        Object clientsValue = entries.get(clientsIndex);
+
+                        // For a 'good' K-Means implementation, what should we do when values are missing?
+                        if(clientsValue == null){
+                            index++;
+                            continue;
+                        }
+
+                        int clients = (int)Math.round((Double)clientsValue);
+                        timestamps[index] = Instant.parse(time);
+                        values[index] = clients;
+                        index++;
+                    }
+                }
+            }
+
+            return new KMeansImplementation.TimeSeries(timestamps, values);
+        });
+
+        return kmeans.computeKMeans();
     }
 }

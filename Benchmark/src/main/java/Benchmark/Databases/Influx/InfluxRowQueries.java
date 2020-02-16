@@ -4,18 +4,14 @@ import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Queries.QueryHelper;
-import Benchmark.Queries.Results.AvgOccupancy;
-import Benchmark.Queries.Results.FloorTotal;
-import Benchmark.Queries.Results.MaxForAP;
-import Benchmark.Queries.Results.Total;
+import Benchmark.Queries.Results.*;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * An implementation of the benchmark-queries for InfluxDB when using the row-schema.
@@ -26,7 +22,7 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     private Floor[] generatedFloors;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
@@ -48,8 +44,6 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                 measurement, toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
-        influxDB.query(query);
-
         QueryResult results = influxDB.query(query);
         for(QueryResult.Result result : results.getResults()){
             if(result.getSeries() == null) continue; // No results. Caused by hole in data.
@@ -76,7 +70,6 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                     measurement, toTimestamp(start), toTimestamp(end), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
             Query query = new Query(queryString);
-            influxDB.query(query);
             QueryResult results = influxDB.query(query);
             for (QueryResult.Result result : results.getResults()) {
                 if (result.getSeries() == null) continue; // No results. Caused by hole in data.
@@ -102,8 +95,6 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                 measurement, AP.getAPname(), toTimestamp(start), toTimestamp(end));
 
         Query query = new Query(queryString);
-        influxDB.query(query);
-
         QueryResult results = influxDB.query(query);
         for(QueryResult.Result result : results.getResults()){
             if(result.getSeries() == null) continue; // No results. Caused by hole in data.
@@ -238,5 +229,11 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                 }
             }
         }
+    }
+
+
+    @Override
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws IOException, SQLException {
+        return null;
     }
 }

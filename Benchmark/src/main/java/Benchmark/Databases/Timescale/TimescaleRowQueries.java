@@ -4,19 +4,13 @@ import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Queries.QueryHelper;
-import Benchmark.Queries.Results.AvgOccupancy;
-import Benchmark.Queries.Results.FloorTotal;
-import Benchmark.Queries.Results.MaxForAP;
-import Benchmark.Queries.Results.Total;
+import Benchmark.Queries.Results.*;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * An implementation of the benchmark-queries for TimescaleDB when using the row-schema.
@@ -27,7 +21,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
     private Floor[] generatedFloors;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors) throws Exception {
+    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
@@ -156,5 +150,10 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
         }
 
         return output;
+    }
+
+    @Override
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws SQLException {
+        return null;
     }
 }

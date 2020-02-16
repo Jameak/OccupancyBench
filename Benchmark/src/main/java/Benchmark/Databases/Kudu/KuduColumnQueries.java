@@ -3,10 +3,7 @@ package Benchmark.Databases.Kudu;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
-import Benchmark.Queries.Results.AvgOccupancy;
-import Benchmark.Queries.Results.FloorTotal;
-import Benchmark.Queries.Results.MaxForAP;
-import Benchmark.Queries.Results.Total;
+import Benchmark.Queries.Results.*;
 import org.apache.kudu.client.*;
 
 import java.time.LocalDateTime;
@@ -23,7 +20,7 @@ public class KuduColumnQueries extends AbstractKuduQueries {
     private List<String> allColumns;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors) throws KuduException {
+    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws KuduException {
         this.config = config;
         this.generatedFloors = generatedFloors;
         this.sampleRate = config.getGeneratorGenerationInterval();
@@ -145,5 +142,10 @@ public class KuduColumnQueries extends AbstractKuduQueries {
                 }
             }
         }
+    }
+
+    @Override
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws KuduException {
+        return null;
     }
 }

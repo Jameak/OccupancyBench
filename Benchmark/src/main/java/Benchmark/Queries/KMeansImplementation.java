@@ -4,6 +4,8 @@ import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Logger;
 import Benchmark.Queries.Results.KMeans;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.*;
 
@@ -38,10 +40,10 @@ public class KMeansImplementation {
     }
 
     public interface FetchTimeSeries{
-        TimeSeries fetch(String AP);
+        TimeSeries fetch(String AP) throws SQLException, IOException;
     }
 
-    public List<KMeans> computeKMeans(){
+    public List<KMeans> computeKMeans() throws IOException, SQLException {
         boolean allClustersInitialized = false;
         int clusterInitializationIndex = 0;
         TimeSeries[] clusters = new TimeSeries[numClusters];
@@ -154,13 +156,6 @@ public class KMeansImplementation {
             int j = 0;
 
             while(true){
-                int currentValue = values[i];
-                int otherValue = other.values[j];
-
-                dist += Math.abs(currentValue - otherValue);
-
-                i++;
-                j++;
                 if(i == values.length){
                     for(; j < other.values.length; j++){
                         dist += other.values[j];
@@ -173,6 +168,14 @@ public class KMeansImplementation {
                     }
                     break;
                 }
+
+                int currentValue = values[i];
+                int otherValue = other.values[j];
+
+                dist += Math.abs(currentValue - otherValue);
+
+                i++;
+                j++;
             }
 
             return dist;

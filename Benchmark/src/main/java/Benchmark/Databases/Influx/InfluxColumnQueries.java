@@ -9,6 +9,8 @@ import Benchmark.Queries.Results.*;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -236,12 +238,13 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     }
 
     @Override
-    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) {
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws IOException, SQLException {
         long secondsInInterval = start.until(end, ChronoUnit.SECONDS);
+        //Estimate the number of entries we'll get. We'll probably get slightly less than this number due to outages from the seed data.
         int numEntries = Math.toIntExact(secondsInInterval / sampleRate);
 
         KMeansImplementation kmeans = new KMeansImplementation(numIterations, numClusters, allAPs, rng, AP -> {
-            String queryString = String.format("SELECT \"%s\" FROM %s WHERE time > %d AND time <= %d",
+            String queryString = String.format("SELECT \"%s\" FROM %s WHERE time > %d AND time <= %d ORDER BY time ASC",
                     AP, measurement, toTimestamp(start), toTimestamp(end));
 
             Instant[] timestamps = new Instant[numEntries];
@@ -258,8 +261,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                         if(index == numEntries) break;
 
                         String time = (String) entries.get(series.getColumns().indexOf("time"));
-                        int clientsIndex = series.getColumns().indexOf(AP);
-                        Object clientsValue = entries.get(clientsIndex);
+                        Object clientsValue = entries.get(series.getColumns().indexOf(AP));
 
                         // For a 'good' K-Means implementation, what should we do when values are missing?
                         if(clientsValue == null){

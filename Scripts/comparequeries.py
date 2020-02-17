@@ -261,6 +261,27 @@ for i in range(num_elems):
             fails += 1
         else:
             successes += 1
+    elif first_type == "KMeans":
+        first_lines.sort()
+        second_lines.sort()
+        
+        if len(first_lines) != len(second_lines):
+            reportLengthFail(i, first_lines, second_lines, first_file, second_file)
+            fails += 1
+            continue
+            
+        failure = False
+        for fl, sl in zip(first_lines, second_lines):
+            if fl != sl:
+                reportContentFail(i, fl, sl, first_file, second_file)
+                print("  This may be expected if one execution uses the ROW-schema and the other the COLUMN-schema due to how missing values are handled in the K-Means implementation.")
+                failure = True
+                break
+            
+        if failure:
+            fails += 1
+        else:
+            successes += 1
     else:
         # Something weird is wrong. Complain and exit.
         print("Unknown type: " + first_type)

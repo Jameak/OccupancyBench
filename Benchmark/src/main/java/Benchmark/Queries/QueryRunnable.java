@@ -41,7 +41,7 @@ public class QueryRunnable implements Runnable {
 
     private final boolean saveQueryResults;
     private List<QueryResult> queryResults = new ArrayList<>();
-    private int resultId = 0;
+    private int queryId = 0;
 
     private final PreciseTimer timerQuery_TotalClients;
     private final PreciseTimer timerQuery_FloorTotal;
@@ -151,7 +151,7 @@ public class QueryRunnable implements Runnable {
                 }
 
                 if(saveQueryResults && !warmUp) {
-                    queryResults.add(new QueryResult(resultId++, QueryType.TotalClients, result));
+                    queryResults.add(new QueryResult(queryId, QueryType.TotalClients, result));
                 }
             }
                 break;
@@ -168,7 +168,7 @@ public class QueryRunnable implements Runnable {
                 }
 
                 if(saveQueryResults && !warmUp) {
-                    queryResults.add(new QueryResult(resultId++, QueryType.FloorTotals, result));
+                    queryResults.add(new QueryResult(queryId, QueryType.FloorTotals, result));
                 }
             }
                 break;
@@ -186,7 +186,7 @@ public class QueryRunnable implements Runnable {
                 }
 
                 if(saveQueryResults && !warmUp) {
-                    queryResults.add(new QueryResult(resultId++, QueryType.MaxForAP, result));
+                    queryResults.add(new QueryResult(queryId, QueryType.MaxForAP, result));
                 }
             }
                 break;
@@ -203,7 +203,7 @@ public class QueryRunnable implements Runnable {
                 }
 
                 if(saveQueryResults && !warmUp) {
-                    queryResults.add(new QueryResult(resultId++, QueryType.AvgOccupancy, result));
+                    queryResults.add(new QueryResult(queryId, QueryType.AvgOccupancy, result));
                 }
             }
                 break;
@@ -220,7 +220,7 @@ public class QueryRunnable implements Runnable {
                 }
 
                 if(saveQueryResults && !warmUp) {
-                    queryResults.add(new QueryResult(resultId++, QueryType.KMeans, result));
+                    queryResults.add(new QueryResult(queryId, QueryType.KMeans, result));
                 }
             }
                 break;
@@ -231,6 +231,7 @@ public class QueryRunnable implements Runnable {
                 throw new RuntimeException();
         }
         if(!warmUp) countFull++;
+        queryId++;
     }
 
     private AccessPoint selectRandomAP(Random rng) {

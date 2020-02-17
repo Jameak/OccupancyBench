@@ -3,6 +3,7 @@ package Benchmark.Databases.Influx;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
 import org.influxdb.dto.Query;
@@ -10,7 +11,9 @@ import org.influxdb.dto.QueryResult;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -20,13 +23,17 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
     private int sampleRate;
     private Floor[] generatedFloors;
+    private Random rng;
+    private AccessPoint[] allAPs;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
+        this.rng = rng;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
+        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
 
         influxDB.setDatabase(config.getInfluxDBName());
         //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
@@ -234,6 +241,47 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
 
     @Override
     public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws IOException, SQLException {
-        return null;
+        long secondsInInterval = start.until(end, ChronoUnit.SECONDS);
+        //Estimate the number of entries we'll get. We'll probably get slightly less than this number due to outages from the seed data.
+        int numEntries = Math.toIntExact(secondsInInterval / sampleRate);
+
+        KMeansImplementation kmeans = new KMeansImplementation(numIterations, numClusters, allAPs, rng, AP -> {
+            String queryString = String.format("SELECT clients FROM %s WHERE AP='%s' AND time > %d AND time <= %d ORDER BY time ASC",
+                    measurement, AP, toTimestamp(start), toTimestamp(end));
+
+            Instant[] timestamps = new Instant[numEntries];
+            int[] values = new int[numEntries];
+            int index = 0;
+
+            Query query = new Query(queryString);
+            QueryResult results = influxDB.query(query);
+            for(QueryResult.Result result : results.getResults()){
+                if(result.getSeries() == null) continue; // No results. Caused by hole in data.
+                assert result.getSeries().size() == 1;
+                for(QueryResult.Series series : result.getSeries()){
+                    for(List<Object> entries : series.getValues()){
+                        if(index == numEntries) break;
+
+                        String time = (String) entries.get(series.getColumns().indexOf("time"));
+                        Object clientsValue = entries.get(series.getColumns().indexOf("clients"));
+
+                        // For a 'good' K-Means implementation, what should we do when values are missing?
+                        if(clientsValue == null){
+                            index++;
+                            continue;
+                        }
+
+                        int clients = (int)Math.round((Double)clientsValue);
+                        timestamps[index] = Instant.parse(time);
+                        values[index] = clients;
+                        index++;
+                    }
+                }
+            }
+
+            return new KMeansImplementation.TimeSeries(timestamps, values);
+        });
+
+        return kmeans.computeKMeans();
     }
 }

@@ -3,31 +3,41 @@ package Benchmark.Databases.Kudu;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.Results.*;
 import org.apache.kudu.client.*;
 
+import java.io.IOException;
+import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class KuduColumnQueries extends AbstractKuduQueries {
     private ConfigFile config;
     private Floor[] generatedFloors;
     private int sampleRate;
+    private Random rng;
     private KuduSession kuduSession;
     private HashMap<Integer, List<String>> floorAPs;
     private HashMap<Integer, List<String>> floorColumns;
-    private List<String> allAPs;
+    private List<String> allAPnames;
     private List<String> allColumns;
+    private AccessPoint[] allAPs;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws KuduException {
         this.config = config;
         this.generatedFloors = generatedFloors;
         this.sampleRate = config.getGeneratorGenerationInterval();
+        this.rng = rng;
         this.kuduClient = KuduHelper.openConnection(config);
         this.kuduTable = kuduClient.openTable(config.getKuduTable());
         this.kuduSession = kuduClient.newSession();
         this.kuduSchema = kuduTable.getSchema();
+        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+
         // Makes 'apply' synchronous. No batching will occur.
         kuduSession.setFlushMode(SessionConfiguration.FlushMode.AUTO_FLUSH_SYNC);
 
@@ -45,15 +55,15 @@ public class KuduColumnQueries extends AbstractKuduQueries {
             floorColumns.put(floor.getFloorNumber(), columns);
         }
 
-        allAPs = new ArrayList<>();
+        allAPnames = new ArrayList<>();
         allColumns = new ArrayList<>();
         allColumns.add("time");
         for(Floor floor : generatedFloors){
             for(AccessPoint AP : floor.getAPs()){
-                allAPs.add(AP.getAPname());
+                allAPnames.add(AP.getAPname());
             }
         }
-        allColumns.addAll(allAPs);
+        allColumns.addAll(allAPnames);
     }
 
     @Override
@@ -72,7 +82,7 @@ public class KuduColumnQueries extends AbstractKuduQueries {
         List<Total> totals = new ArrayList<>();
 
         groupByDayAndCompute(start, end, scanner, (int total, RowResult result) -> {
-            for(String AP : allAPs){
+            for(String AP : allAPnames){
                 total += result.getInt(AP);
             }
             return total;
@@ -127,7 +137,7 @@ public class KuduColumnQueries extends AbstractKuduQueries {
 
     @Override
     public List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws KuduException {
-        return computeAvgOccupancyGivenProjectedColumns(start, end, windowSizeInMin, sampleRate, allAPs);
+        return computeAvgOccupancyGivenProjectedColumns(start, end, windowSizeInMin, sampleRate, allAPnames);
     }
 
     @Override
@@ -136,7 +146,7 @@ public class KuduColumnQueries extends AbstractKuduQueries {
             RowResultIterator results = scanner.nextRows();
             while(results.hasNext()){
                 RowResult result = results.next();
-                for(String AP : allAPs){
+                for(String AP : allAPnames){
                     int val = result.getInt(AP);
                     handler.run(val, AP);
                 }
@@ -145,7 +155,45 @@ public class KuduColumnQueries extends AbstractKuduQueries {
     }
 
     @Override
-    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws KuduException {
-        return null;
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws SQLException, IOException {
+        final int numMicrosInOneMilli = 1000;
+
+        KMeansImplementation kmeans = new KMeansImplementation(numIterations, numClusters, allAPs, rng, AP -> {
+            HashMap<Instant, Integer> queryResults = new HashMap<>();
+
+            List<String> projectedColumns = new ArrayList<>();
+            projectedColumns.add("time");
+            projectedColumns.add(AP);
+
+            KuduScanner.KuduScannerBuilder scannerBuilder = kuduClient.newScannerBuilder(kuduTable);
+            KuduScanner scanner = addTimeComparisonPredicates(scannerBuilder, start, end)
+                    .setProjectedColumnNames(projectedColumns)
+                    .build();
+
+            while(scanner.hasMoreRows()){
+                RowResultIterator results = scanner.nextRows();
+                while(results.hasNext()){
+                    RowResult result = results.next();
+                    long time = result.getLong("time");
+                    int clients = result.getInt(AP);
+
+                    queryResults.put(Instant.ofEpochMilli(time / numMicrosInOneMilli), clients);
+                }
+            }
+
+            //Results from Kudu aren't guaranteed to be ordered by the time-entry.
+            Instant[] timestamps = queryResults.keySet().toArray(new Instant[0]);
+            Arrays.sort(timestamps);
+            int[] values = new int[timestamps.length];
+            for (int i = 0; i < timestamps.length; i++) {
+                Instant inst = timestamps[i];
+                values[i] = queryResults.get(inst);
+            }
+
+            scanner.close();
+            return new KMeansImplementation.TimeSeries(timestamps, values);
+        });
+
+        return kmeans.computeKMeans();
     }
 }

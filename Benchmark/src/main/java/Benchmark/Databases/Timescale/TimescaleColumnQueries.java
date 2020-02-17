@@ -3,13 +3,18 @@ package Benchmark.Databases.Timescale;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
 
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -23,10 +28,12 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
     private AccessPoint[] allAPs;
     private int sampleRate;
     private Floor[] generatedFloors;
+    private Random rng;
 
     @Override
     public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
+        this.rng = rng;
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationInterval();
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
@@ -181,7 +188,41 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
     }
 
     @Override
-    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws SQLException {
-        return null;
+    public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws SQLException, IOException {
+        long timeStart = toTimestamp(start);
+        long timeEnd = toTimestamp(end);
+        long secondsInInterval = start.until(end, ChronoUnit.SECONDS);
+        //Estimate the number of entries we'll get. We'll probably get slightly less than this number due to outages from the seed data.
+        int numEntries = Math.toIntExact(secondsInInterval / sampleRate);
+
+        KMeansImplementation kmeans = new KMeansImplementation(numIterations, numClusters, allAPs, rng, AP -> {
+            String query = String.format("SELECT time, \"%s\" " +
+                    "FROM %s " +
+                    "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) " +
+                    "ORDER BY time ASC",
+                    AP, table, timeStart, timeEnd);
+
+            Instant[] timestamps = new Instant[numEntries];
+            int[] values = new int[numEntries];
+            int index = 0;
+
+            try(Statement statement = connection.createStatement();
+                ResultSet results = statement.executeQuery(query)){
+                while(results.next()) {
+                    if(index == numEntries) break;
+
+                    Timestamp time = results.getTimestamp("time");
+                    int clients = results.getInt(AP);
+
+                    timestamps[index] = time.toInstant();
+                    values[index] = clients;
+                    index++;
+                }
+            }
+
+            return new KMeansImplementation.TimeSeries(timestamps, values);
+        });
+
+        return kmeans.computeKMeans();
     }
 }

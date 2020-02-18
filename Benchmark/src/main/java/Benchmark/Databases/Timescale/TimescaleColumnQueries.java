@@ -35,7 +35,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
         this.generatedFloors = generatedFloors;
         this.rng = rng;
         this.table = config.getTimescaleTable();
-        this.sampleRate = config.getGeneratorGenerationInterval();
+        this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
         this.allAPs = Floor.allAPsOnFloors(generatedFloors);
 

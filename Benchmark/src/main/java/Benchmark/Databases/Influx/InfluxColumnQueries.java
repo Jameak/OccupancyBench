@@ -34,7 +34,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
         this.generatedFloors = generatedFloors;
         this.rng = rng;
         this.measurement = config.getInfluxTable();
-        this.sampleRate = config.getGeneratorGenerationInterval();
+        this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
         this.allAPs = Floor.allAPsOnFloors(generatedFloors);
 

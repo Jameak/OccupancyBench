@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -64,6 +65,14 @@ public class Program {
             return;
         }
 
+        Set<String> unknownKeys = config.getUnknownKeysInInput();
+        if(!unknownKeys.isEmpty()){
+            System.out.println("Warning: The following keys in the given config file were not recognized. Did you misspell the key?");
+            for(String key : unknownKeys){
+                System.out.println("    " + key);
+            }
+        }
+
         if(!config.isValidConfig()){
             System.out.println("Config has invalid values: " + config.getValidationError());
             System.out.println("Aborting.");
@@ -71,7 +80,7 @@ public class Program {
         }
 
         if(config.DEBUG_printSettings()){
-            System.out.println(config.getSettings());
+            System.out.println(config.toString());
         }
 
         try {
@@ -289,7 +298,7 @@ public class Program {
 
         if(config.DEBUG_createPrecomputedTables()){
             Logger.LOG("DEBUG: Filling precomputation tables.");
-            Precomputation.ComputeTotals(config.getGeneratorGenerationInterval(), generatedFloors, config);
+            Precomputation.ComputeTotals(config.getGeneratorGenerationSamplerate(), generatedFloors, config);
         }
 
         if(config.doSerialization()){

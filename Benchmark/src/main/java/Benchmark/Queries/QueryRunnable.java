@@ -593,7 +593,7 @@ public class QueryRunnable implements Runnable {
     private void saveQueryResults(){
         Path path = Paths.get(config.DEBUG_saveQueryResultsPath());
         // Create a unique folder to save our config results in. Folder starting with '-' are inconvenient to cd into, so abs it.
-        String folderName = Math.abs(config.getSettings().hashCode()) + "_T" + threadNumber;
+        String folderName = Math.abs(config.toString().hashCode()) + "_T" + threadNumber;
         Path outPath = path.resolve(folderName);
 
         if (outPath.toFile().exists()){
@@ -617,7 +617,7 @@ public class QueryRunnable implements Runnable {
 
         try {
             List<String> settingsPrint = new ArrayList<>();
-            settingsPrint.add(config.getSettings());
+            settingsPrint.add(config.toString());
             Files.write(outPath.resolve("config.txt"), settingsPrint, StandardCharsets.UTF_8);
 
             for (QueryResult result : queryResults){

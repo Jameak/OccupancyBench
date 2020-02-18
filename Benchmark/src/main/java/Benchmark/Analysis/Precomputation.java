@@ -160,7 +160,7 @@ public class Precomputation {
     }
 
     private static String GetTablePrefix(ConfigFile config){
-        String tablePrefix = "Int" + config.getGeneratorGenerationInterval() + "_";
+        String tablePrefix = "Int" + config.getGeneratorGenerationSamplerate() + "_";
         if(!config.keepFloorAssociationsForGenerator()) tablePrefix += "NoAssoc_";
         tablePrefix += ("Scale" + config.getGeneratorScale()).replace(".", "_").replace(",", "_") + "_";
         return tablePrefix;

@@ -37,15 +37,15 @@ public class DataGenerator {
      */
     public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng,
                                 ITarget outputTarget, ConfigFile config) throws IOException, SQLException {
-        int interval = config.getGeneratorGenerationInterval();
-        int loadedInterval = config.getGeneratorSourceInterval();
+        int generatorSampleRate = config.getGeneratorGenerationSamplerate();
+        int seedSampleRate = config.getGeneratorSeedSamplerate();
         double scale = config.getGeneratorScale();
         int jitterMax = config.getGeneratorJitter();
 
-        assert interval == loadedInterval || // Intervals match
-                (interval < loadedInterval && loadedInterval % interval == 0) || // Interval to generate is quicker than data-interval. Then the generate-interval must be evenly divisible by the data-interval
-                (interval > loadedInterval && interval % loadedInterval == 0) :  // Interval to generate is slower than data-interval.  Then the data-interval must be evenly divisible by the generate-interval
-                "Mismatching intervals. Intervals must match, or one interval must be evenly divisible by the other.\n Interval: " + interval + ". LoadedInterval: " + loadedInterval;
+        assert generatorSampleRate == seedSampleRate || // Intervals match
+                (generatorSampleRate < seedSampleRate && seedSampleRate % generatorSampleRate == 0) || // Interval to generate is quicker than data-interval. Then the generate-interval must be evenly divisible by the data-interval
+                (generatorSampleRate > seedSampleRate && generatorSampleRate % seedSampleRate == 0) :  // Interval to generate is slower than data-interval.  Then the data-interval must be evenly divisible by the generate-interval
+                "Mismatching sample rates. Sample rates must match, or one sample rate must be evenly divisible by the other.\n Generator sample rate: " + generatorSampleRate + ". Seed sample rate: " + seedSampleRate;
 
         assert startDate.isBefore(endDate);
 
@@ -56,22 +56,22 @@ public class DataGenerator {
 
         LocalDate nextDate = startDate;
         while(!nextDate.isAfter(endDate)){ // If we run out of data to generate from, then go back to the beginning.
-            nextDate = GenerateEntries(nextDate, endDate, startSecond, interval, loadedInterval, APs, sortedEntryKeys, data, rng, scale, outputTarget, jitterMax, config.getSchema(), config.DEBUG_synchronizeRngState());
+            nextDate = GenerateEntries(nextDate, endDate, startSecond, generatorSampleRate, seedSampleRate, APs, sortedEntryKeys, data, rng, scale, outputTarget, jitterMax, config.getSchema(), config.DEBUG_synchronizeRngState());
             if(nextDate.isEqual(endDate) || outputTarget.shouldStopEarly()) break;
         }
     }
 
-    private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int interval,
-                                             int loadedInterval, AccessPoint[] APs, LocalDate[] sortedEntryKeys,
+    private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int generatorSampleRate,
+                                             int seedSampleRate, AccessPoint[] APs, LocalDate[] sortedEntryKeys,
                                              MapData data, Random rng, double scale, ITarget outputTarget,
                                              int jitterMax, SchemaFormats schema, boolean DEBUG_sync_rng_state)
                                              throws IOException, SQLException {
-        boolean generateFasterThanLoadedData = interval < loadedInterval;
-        boolean generateSlowerThanLoadedData = interval > loadedInterval;
+        boolean generateFasterThanLoadedData = generatorSampleRate < seedSampleRate;
+        boolean generateSlowerThanLoadedData = generatorSampleRate > seedSampleRate;
 
         LocalDate nextDate = startDate;
-        int numEntriesToSkip = (interval / loadedInterval) - 1; // Example: (120 / 60) - 1 = 1. Skip 1 entry every loop
-        int numAdditionalEntriesToInclude = (loadedInterval / interval) - 1; // Example: (60 / 20) - 1 = 2. Add 2 extra entries every loop
+        int numEntriesToSkip = (generatorSampleRate / seedSampleRate) - 1; // Example: (120 / 60) - 1 = 1. Skip 1 entry every loop
+        int numAdditionalEntriesToInclude = (seedSampleRate / generatorSampleRate) - 1; // Example: (60 / 20) - 1 = 2. Add 2 extra entries every loop
 
         for (int k = 0; k < sortedEntryKeys.length; k++) {
             if(outputTarget.shouldStopEarly()) break;
@@ -114,15 +114,15 @@ public class DataGenerator {
                     if(!noData){
                         assert nextEntry != null;
                         for (int j = 0; j < numAdditionalEntriesToInclude; j++) {
-                            startTime = startTime.plusSeconds(interval);
+                            startTime = startTime.plusSeconds(generatorSampleRate);
                             Entry fakeEntry = CreateFakeEntry(entryOnDay, nextEntry, j, numAdditionalEntriesToInclude);
                             GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
                         }
                     } else {
-                        startTime = startTime.plusSeconds(interval * numAdditionalEntriesToInclude);
+                        startTime = startTime.plusSeconds(generatorSampleRate * numAdditionalEntriesToInclude);
                     }
                 }
-                startTime = startTime.plusSeconds(interval);
+                startTime = startTime.plusSeconds(generatorSampleRate);
             }
 
             nextDate = nextDate.plusDays(1);

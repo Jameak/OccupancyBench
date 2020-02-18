@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class KuduColumnQueries extends AbstractKuduQueries {
@@ -30,7 +29,7 @@ public class KuduColumnQueries extends AbstractKuduQueries {
     public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws KuduException {
         this.config = config;
         this.generatedFloors = generatedFloors;
-        this.sampleRate = config.getGeneratorGenerationInterval();
+        this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.rng = rng;
         this.kuduClient = KuduHelper.openConnection(config);
         this.kuduTable = kuduClient.openTable(config.getKuduTable());

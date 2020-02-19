@@ -537,8 +537,16 @@ public class ConfigFile {
      *
      * A value of <= 0 will make querying not report any intermediate values.
      */
-    private static final String QUERIES_REPORT_FREQUENCY         = "queries.reportfrequency";
+    private static final String QUERIES_REPORT_FREQUENCY         = "queries.reporting.summaryfrequency";
     private static final String QUERIES_REPORT_FREQUENCY_DEFAULT = "20";
+
+    /**
+     * Type: Boolean
+     * Governs whether to report how long each individual query takes to execute. The results from this
+     * reporting can e.g. be used to create a percentile graph over the execution-times for each query-type.
+     */
+    private static final String QUERIES_REPORT_INDIVIDUAL_TIMES         = "queries.reporting.individualtimes";
+    private static final String QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT = "false";
     /**
      * Type: LocalDate (YYYY-MM-DD)
      * The earliest possible date for queries to ask for.
@@ -689,6 +697,7 @@ public class ConfigFile {
     private int       queriesWarmup;
     private int       queriesMaxCount;
     private int       queriesReportFrequency;
+    private boolean   queriesReportIndividualTimes;
     private LocalDate queriesEarliestValidDate;
     private int       queriesWeightTotalClients;
     private int       queriesWeightFloorTotals;
@@ -869,6 +878,7 @@ public class ConfigFile {
         config.prop.setProperty(QUERIES_WARMUP, QUERIES_WARMUP_DEFAULT);
         config.prop.setProperty(QUERIES_MAX_COUNT, QUERIES_MAX_COUNT_DEFAULT);
         config.prop.setProperty(QUERIES_REPORT_FREQUENCY, QUERIES_REPORT_FREQUENCY_DEFAULT);
+        config.prop.setProperty(QUERIES_REPORT_INDIVIDUAL_TIMES, QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT);
         config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, QUERIES_EARLIEST_VALID_DATE_DEFAULT);
         config.prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, QUERIES_WEIGHT_TOTAL_CLIENTS_DEFAULT);
         config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, QUERIES_WEIGHT_FLOOR_TOTALS_DEFAUlT);
@@ -975,6 +985,7 @@ public class ConfigFile {
         queriesWarmup            = Integer.parseInt(    prop.getProperty(QUERIES_WARMUP, QUERIES_WARMUP_DEFAULT).trim());
         queriesMaxCount          = Integer.parseInt(    prop.getProperty(QUERIES_MAX_COUNT, QUERIES_MAX_COUNT_DEFAULT).trim());
         queriesReportFrequency   = Integer.parseInt(    prop.getProperty(QUERIES_REPORT_FREQUENCY, QUERIES_REPORT_FREQUENCY_DEFAULT).trim());
+        queriesReportIndividualTimes = Boolean.parseBoolean(prop.getProperty(QUERIES_REPORT_INDIVIDUAL_TIMES, QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT).trim());
         queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE, QUERIES_EARLIEST_VALID_DATE_DEFAULT).trim());
         queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, QUERIES_WEIGHT_TOTAL_CLIENTS_DEFAULT).trim());
         queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS, QUERIES_WEIGHT_FLOOR_TOTALS_DEFAUlT).trim());
@@ -1193,6 +1204,7 @@ public class ConfigFile {
         settings.put(QUERIES_WARMUP, queriesWarmup);
         settings.put(QUERIES_MAX_COUNT, queriesMaxCount);
         settings.put(QUERIES_REPORT_FREQUENCY, queriesReportFrequency);
+        settings.put(QUERIES_REPORT_INDIVIDUAL_TIMES, queriesReportIndividualTimes);
         settings.put(QUERIES_EARLIEST_VALID_DATE, queriesEarliestValidDate);
         settings.put(QUERIES_WEIGHT_TOTAL_CLIENTS, queriesWeightTotalClients);
         settings.put(QUERIES_WEIGHT_FLOOR_TOTALS, queriesWeightFloorTotals);
@@ -1439,6 +1451,10 @@ public class ConfigFile {
 
     public int getQueriesReportingFrequency() {
         return queriesReportFrequency;
+    }
+
+    public boolean reportIndividualQueryTimes(){
+        return queriesReportIndividualTimes;
     }
 
     public DBTargets getIngestTarget() {

@@ -79,6 +79,11 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQueryDone_AvgOccupancy;
     private long timeSpentQueryDone_KMeans;
 
+    // Holds metadata necessary for individual query-time reporting
+    private QueryType lastRunQueryType = QueryType.UNKNOWN;
+    private long timeSpentBeforeLatestExecution = 0;
+    private long timeSpentAfterLatestExecution = 0;
+
     private LocalDateTime newestValidDate;
     private LocalDateTime unmodifiedNewestValidDate;
 
@@ -137,9 +142,12 @@ public class QueryRunnable implements Runnable {
     }
 
     private void runQueries(IQueries queries, boolean warmUp, Random rng) throws IOException, SQLException{
-        switch (selectQuery(rng)){
+        QueryType queryToRun = selectQuery(rng);
+        switch (queryToRun){
             case TotalClients:
             {
+                timeSpentBeforeLatestExecution = timeSpentQueryInProg_TotalClients;
+
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
                 if(!warmUp) timerQuery_TotalClients.start();
 
@@ -150,6 +158,8 @@ public class QueryRunnable implements Runnable {
                     countQueryInProg_TotalClients++;
                 }
 
+                timeSpentAfterLatestExecution = timeSpentQueryInProg_TotalClients;
+
                 if(saveQueryResults && !warmUp) {
                     queryResults.add(new QueryResult(queryId, QueryType.TotalClients, result));
                 }
@@ -157,6 +167,8 @@ public class QueryRunnable implements Runnable {
                 break;
             case FloorTotals:
             {
+                timeSpentBeforeLatestExecution = timeSpentQueryInProg_FloorTotal;
+
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
                 if(!warmUp) timerQuery_FloorTotal.start();
 
@@ -167,6 +179,8 @@ public class QueryRunnable implements Runnable {
                     countQueryInProg_FloorTotal++;
                 }
 
+                timeSpentAfterLatestExecution = timeSpentQueryInProg_FloorTotal;
+
                 if(saveQueryResults && !warmUp) {
                     queryResults.add(new QueryResult(queryId, QueryType.FloorTotals, result));
                 }
@@ -174,6 +188,8 @@ public class QueryRunnable implements Runnable {
                 break;
             case MaxForAP:
             {
+                timeSpentBeforeLatestExecution = timeSpentQueryInProg_MaxForAP;
+
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
                 AccessPoint selectedAP = selectRandomAP(rng);
                 if(!warmUp) timerQuery_MaxForAP.start();
@@ -185,6 +201,8 @@ public class QueryRunnable implements Runnable {
                     countQueryInProg_MaxForAP++;
                 }
 
+                timeSpentAfterLatestExecution = timeSpentQueryInProg_MaxForAP;
+
                 if(saveQueryResults && !warmUp) {
                     queryResults.add(new QueryResult(queryId, QueryType.MaxForAP, result));
                 }
@@ -192,6 +210,8 @@ public class QueryRunnable implements Runnable {
                 break;
             case AvgOccupancy:
             {
+                timeSpentBeforeLatestExecution = timeSpentQueryInProg_AvgOccupancy;
+
                 LocalDateTime startTime = generateTime(newestValidDate, rng);
                 if(!warmUp) timerQuery_AvgOccupancy.start();
 
@@ -202,6 +222,8 @@ public class QueryRunnable implements Runnable {
                     countQueryInProg_AvgOccupancy++;
                 }
 
+                timeSpentAfterLatestExecution = timeSpentQueryInProg_AvgOccupancy;
+
                 if(saveQueryResults && !warmUp) {
                     queryResults.add(new QueryResult(queryId, QueryType.AvgOccupancy, result));
                 }
@@ -209,6 +231,8 @@ public class QueryRunnable implements Runnable {
                 break;
             case KMeans:
             {
+                timeSpentBeforeLatestExecution = timeSpentQueryInProg_KMeans;
+
                 LocalDateTime[] time = generateTimeInterval(rng, config.getQueriesIntervalMinKMeans(), config.getQueriesIntervalMaxKMeans());
                 if(!warmUp) timerQuery_KMeans.start();
 
@@ -219,6 +243,8 @@ public class QueryRunnable implements Runnable {
                     countQueryInProg_KMeans++;
                 }
 
+                timeSpentAfterLatestExecution = timeSpentQueryInProg_KMeans;
+
                 if(saveQueryResults && !warmUp) {
                     queryResults.add(new QueryResult(queryId, QueryType.KMeans, result));
                 }
@@ -227,11 +253,12 @@ public class QueryRunnable implements Runnable {
             case UNKNOWN:
             default:
                 assert false;
-                Logger.LOG(threadName + ": WTF. Invalid query probabilities");
+                Logger.LOG(threadName + ": Invalid query probabilities");
                 throw new RuntimeException();
         }
         if(!warmUp) countFull++;
         queryId++;
+        lastRunQueryType = queryToRun;
     }
 
     private AccessPoint selectRandomAP(Random rng) {
@@ -392,7 +419,7 @@ public class QueryRunnable implements Runnable {
     }
 
     private void reportStats(boolean done){
-        String prefix = (done ? "DONE " : "RUNNING ") + threadName;
+        String prefix = threadName + (done ? " DONE" : " IN-PROGRESS");
 
         // Update total counters with latest in-progress results.
         countQueryDone_TotalClients += countQueryInProg_TotalClients;
@@ -456,6 +483,7 @@ public class QueryRunnable implements Runnable {
         int warmUpTime = config.getQueriesWarmupDuration();
         int reportFrequency = config.getQueriesReportingFrequency();
         int targetCount = config.getMaxQueryCount();
+        boolean reportIndividualQueryTimes = config.reportIndividualQueryTimes();
         CoarseTimer runTimer = new CoarseTimer();
         CoarseTimer reportTimer = new CoarseTimer();
         PreciseTimer dateCommTimer = new PreciseTimer();
@@ -510,6 +538,7 @@ public class QueryRunnable implements Runnable {
 
                     runQueries(queryTarget, false, rngQueries);
 
+                    if(reportIndividualQueryTimes) individualTimeReport();
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
             } else {
@@ -522,6 +551,7 @@ public class QueryRunnable implements Runnable {
 
                     runQueries(queryTarget, false, rngQueries);
 
+                    if(reportIndividualQueryTimes) individualTimeReport();
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
             }
@@ -553,6 +583,33 @@ public class QueryRunnable implements Runnable {
         if(timer.elapsedSeconds() > frequency){
             Logger.LOG(() -> reportStats(false));
             timer.start();
+        }
+    }
+
+    private void individualTimeReport(){
+        // The time-spent counters use nanoseconds. Divide by 1e6 to convert it to milliseconds.
+        double timeSpent = (timeSpentAfterLatestExecution - timeSpentBeforeLatestExecution) / 1e6;
+        switch(lastRunQueryType){
+            case TotalClients:
+                Logger.LOG(String.format("%s INDIV: Total Clients | %8.2f ms", threadName, timeSpent));
+                break;
+            case FloorTotals:
+                Logger.LOG(String.format("%s INDIV: Floor Totals  | %8.2f ms", threadName, timeSpent));
+                break;
+            case MaxForAP:
+                Logger.LOG(String.format("%s INDIV: Max for AP    | %8.2f ms", threadName, timeSpent));
+                break;
+            case AvgOccupancy:
+                Logger.LOG(String.format("%s INDIV: Avg Occupancy | %8.2f ms", threadName, timeSpent));
+                break;
+            case KMeans:
+                Logger.LOG(String.format("%s INDIV: K-Means       | %8.2f ms", threadName, timeSpent));
+                break;
+            case UNKNOWN:
+            default:
+                assert false;
+                Logger.LOG(threadName + ": Unknown query type.");
+                throw new RuntimeException();
         }
     }
 

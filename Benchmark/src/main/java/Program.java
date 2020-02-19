@@ -13,6 +13,7 @@ import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.*;
 import Benchmark.Logger;
 import Benchmark.Loader.MapParser;
+import Benchmark.PreciseTimer;
 import Benchmark.Queries.IQueries;
 import Benchmark.Queries.QueryRunnable;
 
@@ -112,13 +113,12 @@ public class Program {
         Floor[] generatedFloors;
         if(config.isGeneratorEnabled()){
             generatedFloors = generateFloorData(config, rng, parsedData);
-            Logger.LOG(String.format("Generated %s floors and %s APs", generatedFloors.length, Floor.allAPsOnFloors(generatedFloors).length));
         } else {
             assert config.doSerialization();
             // Load the data from previous run
             Logger.LOG("Deserializing floor.");
             generatedFloors = deserializeFloor(config);
-            Logger.LOG(String.format("Floor data: %s floors, %s APs", generatedFloors.length, Floor.allAPsOnFloors(generatedFloors).length));
+            Logger.LOG(String.format("Deserialized metadata for %s floors and %s APs", generatedFloors.length, Floor.allAPsOnFloors(generatedFloors).length));
             Logger.LOG("Deserializing rng.");
             rng = deserializeRandom(config);
         }
@@ -276,24 +276,30 @@ public class Program {
         Logger.LOG("Preparing for generation.");
         Generator.PrepareDataForGeneration(generatedFloors, parsedData);
 
-        Logger.LOG("Setting up targets.");
         AccessPoint[] allAPs = Floor.allAPsOnFloors(generatedFloors);
+        Logger.LOG(String.format("Generated metadata for %s floors and %s APs.", generatedFloors.length, allAPs.length));
 
-        ITarget target = null;
+        Logger.LOG("Setting up targets.");
+        ITarget target = new BaseTarget();
         try{
-            target = new BaseTarget();
             for(DBTargets configTarget : config.saveGeneratedDataTargets()){
                 target = new MultiTarget(target, DatabaseTargetFactory.createDatabaseTarget(configTarget, config, true, allAPs));
             }
 
-            Logger.LOG("Generating data");
+            PreciseTimer generationTimer = new PreciseTimer();
+            CountTarget counter = new CountTarget();
+            target = new MultiTarget(target, counter);
+            Logger.LOG("Generating data.");
+            generationTimer.start();
             DataGenerator.Generate(allAPs, parsedData, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
+            double timeSpent = generationTimer.elapsedSeconds();
+            Logger.LOG(String.format("Generated %s entries in %.2f sec.", counter.getCount(), timeSpent));
 
             if(target.shouldStopEarly()){
                 Logger.LOG("POTENTIAL ERROR: Generation was stopped early.");
             }
         } finally {
-            if(target != null) target.close();
+            target.close();
         }
 
         if(config.DEBUG_createPrecomputedTables()){

@@ -1,19 +1,16 @@
+import Benchmark.*;
 import Benchmark.Analysis.Precomputation;
-import Benchmark.CoarseTimer;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.DBTargets;
 import Benchmark.Databases.DatabaseTargetFactory;
 import Benchmark.Databases.DatabaseQueriesFactory;
-import Benchmark.DateCommunication;
 import Benchmark.Generator.*;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
 import Benchmark.Generator.Ingest.IngestRunnable;
 import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.*;
-import Benchmark.Logger;
 import Benchmark.Loader.MapParser;
-import Benchmark.PreciseTimer;
 import Benchmark.Queries.IQueries;
 import Benchmark.Queries.QueryRunnable;
 
@@ -91,19 +88,23 @@ public class Program {
         }
     }
 
-    // INGESTION 'GLOBALS'
+    // --- Ingestion ---
     private ExecutorService threadPoolIngest;
     private Future[] ingestTasks;
     private IngestRunnable[] ingestRunnables;
     private ITarget[] ingestTargets;
 
-    // QUERY 'GLOBALS'
+    // --- Querying ---
     private ExecutorService threadPoolQueries;
 
     public void run(ConfigFile config) throws Exception{
         assert config.isValidConfig();
         Random rng = new Random(config.getSeed());
         DateCommunication dateComm = new DateCommunication();
+        if(config.doLoggingToCSV()){
+            CSVLogger.GeneralLogger logger = CSVLogger.GeneralLogger.createOrGetInstance();
+            logger.startTimer();
+        }
 
         MapData parsedData = null;
         if (config.isGeneratorEnabled() || config.isIngestionEnabled()) {
@@ -180,6 +181,13 @@ public class Program {
         }
 
         if(config.isQueryingEnabled()) threadPoolQueries.shutdown();
+
+        if(config.doLoggingToCSV()){
+            CSVLogger.GeneralLogger.createOrGetInstance().setDone();
+            Logger.LOG("Writing to CSV files.");
+            CSVLogger.writeAllToDisk(config);
+        }
+
         Logger.LOG("Done.");
     }
 
@@ -237,7 +245,7 @@ public class Program {
             // If ingestion runs alongside querying then we stop ingestion when we're done querying.
             // However, if querying isn't running then we might want to stop ingestion at some specific date.
             LocalDate ingestEndDate = config.isQueryingEnabled() ? LocalDate.MAX : config.getIngestEndDate();
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, "Ingest " + i, ingestEndDate, doDirectComm);
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, i, ingestEndDate, doDirectComm);
         }
 
         for(int i = 0; i < ingestTasks.length; i++){
@@ -294,6 +302,7 @@ public class Program {
             DataGenerator.Generate(allAPs, parsedData, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
             double timeSpent = generationTimer.elapsedSeconds();
             Logger.LOG(String.format("Generated %s entries in %.2f sec.", counter.getCount(), timeSpent));
+            if(config.doLoggingToCSV()) CSVLogger.GeneralLogger.createOrGetInstance().write("Main", String.format("Generated %s entries in %.2f sec.", counter.getCount(), timeSpent));
 
             if(target.shouldStopEarly()){
                 Logger.LOG("POTENTIAL ERROR: Generation was stopped early.");

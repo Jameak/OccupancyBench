@@ -44,6 +44,23 @@ public class ConfigFile {
 
     /**
      * Type: Boolean
+     * If enabled, all statistics that have been enabled will be written to disk in CSV format in addition to being
+     * written to standard out. CSV-files will be written just before the benchmark is finished, to avoid IO impacting
+     * the performance. The separator is ';'.
+     */
+    private static final String LOG_TO_CSV              = "benchmark.output.csv";
+    private static final String LOG_TO_CSV_DEFAULT      = "false";
+    /**
+     * Type: String
+     * The path to the folder where CSV files should be written.
+     */
+    private static final String LOG_TO_CSV_PATH         = "benchmark.output.csv.path";
+    private static final String LOG_TO_CSV_PATH_DEFAULT = "FOLDER PATH";
+    private boolean logToCSV;
+    private String  logToCSVPath;
+
+    /**
+     * Type: Boolean
      * Enables de-/serialization of generated floors and the state of the RNG after initial data generation.
      *
      * If both serialization and the generator is enabled, floor information and the RNG will be generated and then serialized.
@@ -808,6 +825,8 @@ public class ConfigFile {
         //Benchmark
         config.prop.setProperty(SEED, SEED_DEFAULT);
         config.prop.setProperty(SCHEMA, SCHEMA_DEFAULT);
+        config.prop.setProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT);
+        config.prop.setProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
 
         //Serialization
         config.prop.setProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT);
@@ -913,6 +932,8 @@ public class ConfigFile {
         //Benchmark
         seed             = Integer.parseInt(     prop.getProperty(SEED, SEED_DEFAULT).trim());
         schema           = SchemaFormats.valueOf(prop.getProperty(SCHEMA, SCHEMA_DEFAULT).toUpperCase().trim());
+        logToCSV         = Boolean.parseBoolean( prop.getProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT).trim());
+        logToCSVPath     =                       prop.getProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
 
         //Serialization
         serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT).trim());
@@ -1014,9 +1035,13 @@ public class ConfigFile {
     }
 
     private String validateConfig(){
+        if(logToCSV){
+            if(!Paths.get(logToCSVPath).toFile().exists()) return LOG_TO_CSV_PATH + ": CSV folder path doesn't exist: " + Paths.get(logToCSVPath).toFile().getAbsolutePath();
+        }
+
         // ---- Serialize ----
         if(serialize){
-            if(!Paths.get(serializePath).toFile().exists()) return SERIALIZE_PATH + ": Serialize path doesn't exist: " + Paths.get(serializePath).toFile().getAbsolutePath();
+            if(!Paths.get(serializePath).toFile().exists()) return SERIALIZE_PATH + ": Serialize folder path doesn't exist: " + Paths.get(serializePath).toFile().getAbsolutePath();
         }
         if(!serialize){
             if(!generatorEnabled) return "Both serialization (" + SERIALIZE_ENABLED + ") and the generator (" + GENERATOR_ENABLED + ") are disabled. One or both must be enabled to create/load the data needed for ingestion and queries.";
@@ -1111,6 +1136,15 @@ public class ConfigFile {
     }
 
     @Override
+    public int hashCode() {
+        // The hashcode of the config-file is used as folder-names during some logging/debug-operations.
+        // Folders starting with '-' are inconvenient to 'cd' into because the folder name can be
+        // interpreted as a flag (unless it's escaped or prepended with '-- ').
+        // We therefore grab the absolute value.
+        return Math.abs(toString().hashCode());
+    }
+
+    @Override
     public String toString() {
         SortedMap<String, Object> settings = getSettings();
 
@@ -1141,6 +1175,8 @@ public class ConfigFile {
         SortedMap<String, Object> settings = new TreeMap<>();
         settings.put(SEED, seed);
         settings.put(SCHEMA, schema);
+        settings.put(LOG_TO_CSV, logToCSV);
+        settings.put(LOG_TO_CSV_PATH, logToCSVPath);
 
         settings.put(SERIALIZE_ENABLED, serialize);
         settings.put(SERIALIZE_PATH, serializePath);
@@ -1571,5 +1607,13 @@ public class ConfigFile {
 
     public int getKuduRangePrecreatedNumberOfYears(){
         return kuduRangePrecreatedNumberOfYears;
+    }
+
+    public boolean doLoggingToCSV(){
+        return logToCSV;
+    }
+
+    public String getCSVLogPath(){
+        return logToCSVPath;
     }
 }

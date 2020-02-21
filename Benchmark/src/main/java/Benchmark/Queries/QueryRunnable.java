@@ -1,12 +1,9 @@
 package Benchmark.Queries;
 
-import Benchmark.CoarseTimer;
+import Benchmark.*;
 import Benchmark.Config.ConfigFile;
-import Benchmark.DateCommunication;
 import Benchmark.Generator.GeneratedData.AccessPoint;
 import Benchmark.Generator.GeneratedData.Floor;
-import Benchmark.Logger;
-import Benchmark.PreciseTimer;
 import Benchmark.Queries.Results.*;
 
 import java.io.IOException;
@@ -38,6 +35,7 @@ public class QueryRunnable implements Runnable {
     private final int threadNumber;
     private final int generalMinTimeInterval;
     private final int generalMaxTimeInterval;
+    private final CSVLogger.QuerySummaryLogger summaryLogger;
 
     private final boolean saveQueryResults;
     private List<QueryResult> queryResults = new ArrayList<>();
@@ -80,6 +78,7 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQueryDone_KMeans;
 
     // Holds metadata necessary for individual query-time reporting
+    private final CSVLogger.IndividualQueryLogger individualLogger;
     private QueryType lastRunQueryType = QueryType.UNKNOWN;
     private long timeSpentBeforeLatestExecution = 0;
     private long timeSpentAfterLatestExecution = 0;
@@ -103,6 +102,15 @@ public class QueryRunnable implements Runnable {
         this.newestValidDate = dateComm.getNewestTime();
         this.unmodifiedNewestValidDate = newestValidDate;
         this.saveQueryResults = config.DEBUG_saveQueryResults();
+
+        if(config.doLoggingToCSV()){
+            summaryLogger = CSVLogger.QuerySummaryLogger.createInstance("Summary " + threadName, threadNumber);
+            if(config.reportIndividualQueryTimes()) individualLogger = CSVLogger.IndividualQueryLogger.createInstance("Individual " + threadName, threadNumber);
+            else individualLogger = null;
+        } else {
+            summaryLogger = null;
+            individualLogger = null;
+        }
 
         assert this.config.getQueriesWeightTotalClients() >= 0;
         assert this.config.getQueriesWeightFloorTotals() >= 0;
@@ -444,13 +452,31 @@ public class QueryRunnable implements Runnable {
         long timeSpent_AvgOccupancy = done ? timeSpentQueryDone_AvgOccupancy : timeSpentQueryInProg_AvgOccupancy;
         long timeSpent_KMeans =       done ? timeSpentQueryDone_KMeans       : timeSpentQueryInProg_KMeans;
 
+        double totalTimeInSec_TotalClients = timeSpent_TotalClients / 1e9;
+        double totalTimeInSec_FloorTotal = timeSpent_FloorTotal / 1e9;
+        double totalTimeInSec_MaxForAP = timeSpent_MaxForAP / 1e9;
+        double totalTimeInSec_AvgOccupancy = timeSpent_AvgOccupancy / 1e9;
+        double totalTimeInSec_KMeans = timeSpent_KMeans / 1e9;
+
+        double qps_TotalClients = count_TotalClients / totalTimeInSec_TotalClients;
+        double qps_FloorTotal = count_FloorTotal / totalTimeInSec_FloorTotal;
+        double qps_MaxForAP = count_MaxForAP / totalTimeInSec_MaxForAP;
+        double qps_AvgOccupancy = count_AvgOccupancy / totalTimeInSec_AvgOccupancy;
+        double qps_KMeans = count_KMeans / totalTimeInSec_KMeans;
+
+        if(config.doLoggingToCSV()) summaryLogger.write(
+                count_TotalClients, count_FloorTotal, count_MaxForAP, count_AvgOccupancy, count_KMeans,
+                totalTimeInSec_TotalClients, totalTimeInSec_FloorTotal, totalTimeInSec_MaxForAP, totalTimeInSec_AvgOccupancy, totalTimeInSec_KMeans,
+                qps_TotalClients, qps_FloorTotal, qps_MaxForAP, qps_AvgOccupancy, qps_KMeans,
+                done);
+
         if(!done) Logger.LOG(String.format("%s: Average query-speeds from the last %s seconds:", prefix, config.getQueriesReportingFrequency()));
         Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
-        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, count_TotalClients, timeSpent_TotalClients / 1e9, count_TotalClients / (timeSpent_TotalClients / 1e9) ));
-        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, count_FloorTotal, timeSpent_FloorTotal / 1e9, count_FloorTotal / (timeSpent_FloorTotal / 1e9) ));
-        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, count_MaxForAP, timeSpent_MaxForAP / 1e9, count_MaxForAP / (timeSpent_MaxForAP / 1e9) ));
-        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.1f / sec", prefix, count_AvgOccupancy, timeSpent_AvgOccupancy / 1e9, count_AvgOccupancy / (timeSpent_AvgOccupancy / 1e9) ));
-        Logger.LOG(String.format("%s: 'K-Means'       | %8d | %8.1f sec | %8.1f / sec", prefix, count_KMeans, timeSpent_KMeans / 1e9, count_KMeans / (timeSpent_KMeans / 1e9) ));
+        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, count_TotalClients, totalTimeInSec_TotalClients, qps_TotalClients));
+        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, count_FloorTotal, totalTimeInSec_FloorTotal, qps_FloorTotal));
+        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, count_MaxForAP, totalTimeInSec_MaxForAP, qps_MaxForAP));
+        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.1f / sec", prefix, count_AvgOccupancy, totalTimeInSec_AvgOccupancy, qps_AvgOccupancy));
+        Logger.LOG(String.format("%s: 'K-Means'       | %8d | %8.1f sec | %8.1f / sec", prefix, count_KMeans, totalTimeInSec_KMeans, qps_KMeans));
         Logger.LOG(String.format("%s: ----------------|----------|--------------|---------------", prefix));
 
         if(done){
@@ -528,6 +554,11 @@ public class QueryRunnable implements Runnable {
 
         try {
             Logger.LOG(threadName + ": Queries have started.");
+            if(config.doLoggingToCSV()){
+                if(reportIndividualQueryTimes) individualLogger.startTimer();
+                summaryLogger.startTimer();
+            }
+
             if(duration > 0){
                 dateCommTimer.start();
                 runTimer.start();
@@ -574,6 +605,11 @@ public class QueryRunnable implements Runnable {
         }
         Logger.LOG(() -> reportStats(true));
 
+        if(config.doLoggingToCSV()){
+            summaryLogger.setDone();
+            individualLogger.setDone();
+        }
+
         if(saveQueryResults){
             saveQueryResults();
         }
@@ -592,18 +628,23 @@ public class QueryRunnable implements Runnable {
         switch(lastRunQueryType){
             case TotalClients:
                 Logger.LOG(String.format("%s INDIV: Total Clients | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write("Total Clients", timeSpent);
                 break;
             case FloorTotals:
                 Logger.LOG(String.format("%s INDIV: Floor Totals  | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write("Floor Totals", timeSpent);
                 break;
             case MaxForAP:
                 Logger.LOG(String.format("%s INDIV: Max for AP    | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write("Max for AP", timeSpent);
                 break;
             case AvgOccupancy:
                 Logger.LOG(String.format("%s INDIV: Avg Occupancy | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write("Avg Occupancy", timeSpent);
                 break;
             case KMeans:
                 Logger.LOG(String.format("%s INDIV: K-Means       | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write("K-Means", timeSpent);
                 break;
             case UNKNOWN:
             default:
@@ -649,12 +690,13 @@ public class QueryRunnable implements Runnable {
 
     private void saveQueryResults(){
         Path path = Paths.get(config.DEBUG_saveQueryResultsPath());
-        // Create a unique folder to save our config results in. Folder starting with '-' are inconvenient to cd into, so abs it.
-        String folderName = Math.abs(config.toString().hashCode()) + "_T" + threadNumber;
+        // Create a unique folder for this thread to save our config results in.
+        String folderName = config.hashCode() + "_T" + threadNumber;
         Path outPath = path.resolve(folderName);
 
         if (outPath.toFile().exists()){
             try {
+                Logger.LOG(threadName + ": Query result path " + outPath.toString() + " already exists. Deleting directory, then recreating.");
                 deleteDirectory(outPath);
             } catch (IOException e) {
                 Logger.LOG(threadName + ": DEBUG: Error deleting dir " + outPath.toString());

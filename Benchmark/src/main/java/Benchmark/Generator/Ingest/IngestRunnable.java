@@ -1,5 +1,6 @@
 package Benchmark.Generator.Ingest;
 
+import Benchmark.CSVLogger;
 import Benchmark.Config.ConfigFile;
 import Benchmark.DateCommunication;
 import Benchmark.Generator.GeneratedData.AccessPoint;
@@ -27,16 +28,23 @@ public class IngestRunnable implements Runnable {
     private final IngestControl ingestControl;
     private final String threadName;
     private final LocalDate endDate;
+    private final CSVLogger.IngestLogger csvLogger;
+
     private boolean done;
 
-    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, String threadName, LocalDate endDate, boolean doDirectComm){
+    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, int threadNumber, LocalDate endDate, boolean doDirectComm){
         this.config = config;
         this.APs = APs;
         this.data = data;
         this.rng = rng;
-        this.threadName = threadName;
+        this.threadName = "Ingest " + threadNumber;
         this.endDate = endDate;
-        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), dateComm, threadName, doDirectComm);
+
+        if(config.doLoggingToCSV()) csvLogger = CSVLogger.IngestLogger.createInstance(threadName, threadNumber);
+        else csvLogger = null;
+
+        this.ingestControl = new IngestControl(config.getIngestSpeed(), config.getIngestReportFrequency(), dateComm,
+                                               threadName, doDirectComm, config.doLoggingToCSV(), csvLogger);
         this.targetWrapper = new IngestWrapper(outputTarget, ingestControl);
     }
 
@@ -46,6 +54,10 @@ public class IngestRunnable implements Runnable {
 
     @Override
     public void run() {
+        if(config.doLoggingToCSV()){
+            csvLogger.startTimer();
+        }
+
         try {
             DataGenerator.Generate(APs, data, config.getIngestStartDate(), endDate, rng, targetWrapper, config);
         } catch (IOException | SQLException e) {
@@ -58,6 +70,9 @@ public class IngestRunnable implements Runnable {
         }
 
         ingestControl.printFinalStats();
+        if(config.doLoggingToCSV()){
+            csvLogger.setDone();
+        }
         done = true;
     }
 

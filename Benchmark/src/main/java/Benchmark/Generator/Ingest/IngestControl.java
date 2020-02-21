@@ -1,10 +1,7 @@
 package Benchmark.Generator.Ingest;
 
-import Benchmark.CoarseTimer;
-import Benchmark.DateCommunication;
+import Benchmark.*;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
-import Benchmark.Logger;
-import Benchmark.PreciseTimer;
 
 /**
  * During ingestion, this class monitors and controls the ingest-process.
@@ -27,7 +24,11 @@ public class IngestControl {
     private final boolean doDirectComm;
     private long sleepDuration = 0;
 
-    public IngestControl(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName, boolean doDirectComm){
+    private final boolean doCsvLogging;
+    private final CSVLogger.IngestLogger csvLogger;
+
+    public IngestControl(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName,
+                         boolean doDirectComm, boolean doCsvLogging, CSVLogger.IngestLogger csvLogger){
         this.desiredIngestSpeedPer100Millis = desiredIngestSpeed / 10;
         this.limitSpeed = desiredIngestSpeed > 0;
         this.reportFrequencyMillis = reportFrequency * 1000;
@@ -35,6 +36,8 @@ public class IngestControl {
         this.dateComm = dateComm;
         this.threadName = threadName;
         this.doDirectComm = doDirectComm;
+        this.doCsvLogging = doCsvLogging;
+        this.csvLogger = csvLogger;
         totalTimer = new CoarseTimer();
         reportTimer = new CoarseTimer();
         speedTimer = new CoarseTimer();
@@ -42,7 +45,9 @@ public class IngestControl {
     }
 
     public void printFinalStats(){
-        Logger.LOG(String.format("DONE %s: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+        Logger.LOG(String.format("%s: DONE: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+        if(doCsvLogging) CSVLogger.GeneralLogger.createOrGetInstance().write(threadName,
+                String.format("%d entries were added in %.2f seconds.", totalCounter, totalTimer.elapsedMilliseconds() / 1000));
     }
 
     public void add(IGeneratedEntry entry) {
@@ -65,7 +70,9 @@ public class IngestControl {
             reportCounter++;
             double elapsedMillis = reportTimer.elapsedMilliseconds();
             if(elapsedMillis > reportFrequencyMillis){
-                Logger.LOG(String.format("RUNNING %s: %d entries / sec.", threadName, reportCounter / (reportFrequencyMillis/1000)));
+                int averageOverTime = reportCounter / (reportFrequencyMillis/1000);
+                Logger.LOG(String.format("%s: RUNNING %d entries / sec.", threadName, averageOverTime));
+                if(doCsvLogging) csvLogger.write(reportCounter, averageOverTime);
 
                 reportCounter = 0;
                 reportTimer.start();

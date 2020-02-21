@@ -4,10 +4,11 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Facilitates synchronized logging.
+ * Facilitates synchronized logging to standard out.
  */
 public class Logger {
     private static final Object printLock = new Object();
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public static void LOG(LogMessage message){
         synchronized (printLock){
@@ -17,7 +18,7 @@ public class Logger {
 
     public static void LOG(String message){
         synchronized (printLock){
-            System.out.println(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + ": " + message);
+            System.out.println(LocalTime.now().format(formatter) + ": " + message);
         }
     }
 

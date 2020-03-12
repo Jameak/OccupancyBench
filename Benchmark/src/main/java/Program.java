@@ -56,9 +56,12 @@ public class Program {
 
         ConfigFile config;
         try {
-            config = ConfigFile.load(args[0]);
+            config = ConfigFile.load(args);
         } catch (IOException e) {
-            System.out.println("Cannot load config from path: " + args[0] + "\n\n");
+            System.out.println("Cannot load config from path or paths:");
+            for(String arg : args){
+                System.out.println("    " + arg);
+            }
             e.printStackTrace();
             return;
         }

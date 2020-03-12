@@ -6,6 +6,7 @@ import Benchmark.Databases.Kudu.KuduPartitionType;
 import Benchmark.Databases.SchemaFormats;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
@@ -810,11 +811,28 @@ public class ConfigFile {
 
     private ConfigFile(){ }
 
-    public static ConfigFile load(String filePath) throws IOException {
+    public static ConfigFile load(String... filePaths) throws IOException {
+        assert filePaths.length != 0;
         ConfigFile config = new ConfigFile();
-        try(InputStream input = new FileInputStream(filePath)){
-            config.prop.load(input);
+
+        // TODO: To make scripting easier we allow specifying multiple config files on the command-line that are
+        //       then mashed together into a single config file.
+        //       The behavior of the Properties-class when multiples of the same key are present is not specified
+        //       so we should probably check for that and warn... For now the user can check that the parsed config
+        //       matched their expectations by inspecting the output by enabling 'DEBUG_PRINT_ALL_SETTINGS'
+        StringBuilder configLines = new StringBuilder();
+
+        for(String filePath : filePaths){
+            List<String> lines = Files.readAllLines(Paths.get(filePath));
+            for(String line : lines){
+                configLines.append(line);
+                configLines.append(System.lineSeparator());
+            }
         }
+
+        StringReader sr = new StringReader(configLines.toString());
+        config.prop.load(sr);
+        sr.close();
 
         config.parseProps();
 

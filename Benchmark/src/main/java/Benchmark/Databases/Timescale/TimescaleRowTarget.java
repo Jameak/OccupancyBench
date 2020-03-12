@@ -19,7 +19,7 @@ public class TimescaleRowTarget extends AbstractTimescaleTarget {
 
         if(recreate){
             TimescaleHelper.dropTable(connection, config.getTimescaleTable());
-            TimescaleHelper.createTableWithRowSchema(connection, config.getTimescaleTable());
+            TimescaleHelper.createTableWithRowSchema(connection, config.getTimescaleTable(), config.getTimescaleCreateSecondaryIndex());
         }
 
         stmt = connection.prepareStatement(

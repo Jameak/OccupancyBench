@@ -11,7 +11,7 @@ public enum DBTargets{
     CSV,
     /**
      * Writing generated data to InfluxDB and querying it afterward is supported by the benchmark.
-     * The benchmark was tested with Influx v1.6.1
+     * The benchmark was tested with Influx v1.7.10
      */
     INFLUX,
     /**
@@ -21,7 +21,7 @@ public enum DBTargets{
     TIMESCALE,
     /**
      * Writing generated data to Apache Kudu and querying it afterward is supported by the benchmark.
-     * The benchmark was tested with Apache Kudu built from source. Repo https://github.com/apache/kudu at commit #37f780f
+     * The benchmark was tested with Apache Kudu 1.11.1
      */
     KUDU
 }

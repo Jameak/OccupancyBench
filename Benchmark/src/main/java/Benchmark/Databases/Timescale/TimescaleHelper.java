@@ -46,7 +46,7 @@ public class TimescaleHelper {
      * The table is then made into a hypertable (so that the Timescale-extension is used rather than plain PostgreSQL)
      * Then an index is created on the table.
      */
-    public static void createTableWithRowSchema(Connection connection, String table) throws SQLException {
+    public static void createTableWithRowSchema(Connection connection, String table, boolean createSecondaryIndex) throws SQLException {
         String query1 = String.format(
                 "CREATE TABLE %s (" +
                 "time    TIMESTAMP NOT NULL," +
@@ -55,12 +55,13 @@ public class TimescaleHelper {
 
         String query2 = String.format("SELECT create_hypertable('%s', 'time')", table);
 
-        String query3 = String.format("CREATE INDEX ON %s (AP, time DESC)", table);
-
         try(Statement statement = connection.createStatement()){
             statement.executeUpdate(query1);
             statement.execute(query2);
-            statement.executeUpdate(query3);
+
+            if(createSecondaryIndex){
+                statement.executeUpdate(String.format("CREATE INDEX ON %s (AP, time DESC)", table));
+            }
         }
     }
 

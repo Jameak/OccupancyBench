@@ -94,6 +94,7 @@ timescale.password              = PASSWORD
 timescale.table                 = generated
 timescale.rewritebatchedinserts = true
 timescale.batchsize             = 1000
+timescale.createsecondaryindex  = false
 
 kudu.host                               = localhost:7051,localhost:7151,localhost:7251
 kudu.table                              = generated

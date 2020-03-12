@@ -311,6 +311,12 @@ public class ConfigFile {
      */
     private static final String TIMESCALE_REWRITE_BATCH = "timescale.rewritebatchedinserts";
     private static final String TIMESCALE_REWRITE_BATCH_DEFAULT = "true";
+    /**
+     * Type: Boolean
+     * If enabled, a secondary index on (AP, time) is created when using the ROW-schema.
+     */
+    private static final String TIMESCALE_CREATE_SECONDARY_INDEX = "timescale.createsecondaryindex";
+    private static final String TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT = "false";
     private String  timescaleHost;
     private String  timescaleUsername;
     private String  timescalePassword;
@@ -318,6 +324,7 @@ public class ConfigFile {
     private String  timescaleTable;
     private Integer timescaleBatchSize;
     private boolean timescaleReWriteBatchedInserts;
+    private boolean timescaleCreateSecondaryIndex;
 
     /**
      * Type: String with single hostname or comma-separated list of masters
@@ -864,6 +871,7 @@ public class ConfigFile {
         config.prop.setProperty(TIMESCALE_TABLE, TIMESCALE_TABLE_DEFAULT);
         config.prop.setProperty(TIMESCALE_BATCHSIZE, TIMESCALE_BATCHSIZE_DEFAULT);
         config.prop.setProperty(TIMESCALE_REWRITE_BATCH, TIMESCALE_REWRITE_BATCH_DEFAULT);
+        config.prop.setProperty(TIMESCALE_CREATE_SECONDARY_INDEX, TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT);
 
         //Kudu
         config.prop.setProperty(KUDU_HOST, KUDU_HOST_DEFAULT);
@@ -973,6 +981,7 @@ public class ConfigFile {
         timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE, TIMESCALE_TABLE_DEFAULT);
         timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE, TIMESCALE_BATCHSIZE_DEFAULT).trim());
         timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH, TIMESCALE_REWRITE_BATCH_DEFAULT).trim());
+        timescaleCreateSecondaryIndex  = Boolean.parseBoolean(prop.getProperty(TIMESCALE_CREATE_SECONDARY_INDEX, TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT).trim());
 
         //Kudu
         kuduMasters             =                  prop.getProperty(KUDU_HOST, KUDU_HOST_DEFAULT);
@@ -1210,6 +1219,7 @@ public class ConfigFile {
         settings.put(TIMESCALE_TABLE, timescaleTable);
         settings.put(TIMESCALE_BATCHSIZE, timescaleBatchSize);
         settings.put(TIMESCALE_REWRITE_BATCH, timescaleReWriteBatchedInserts);
+        settings.put(TIMESCALE_CREATE_SECONDARY_INDEX, timescaleCreateSecondaryIndex);
 
         settings.put(KUDU_HOST, kuduMasters);
         settings.put(KUDU_TABLE, kuduTable);
@@ -1539,6 +1549,10 @@ public class ConfigFile {
 
     public boolean reWriteBatchedTimescaleInserts() {
         return timescaleReWriteBatchedInserts;
+    }
+
+    public boolean getTimescaleCreateSecondaryIndex(){
+        return timescaleCreateSecondaryIndex;
     }
 
     public int getInfluxBatchsize() {

@@ -34,7 +34,7 @@ public abstract class AbstractTimescaleTarget implements ITarget {
         // The Timestamp-constructor expects a long of milliseconds, so we need to pad to that precision regardless of
         //   the desired granularity, so first we truncate and then pad if needed.
         long granularTime = entry.getTime(granularity);
-        return granularity.toTimeUnit().convert(granularTime, TimeUnit.MILLISECONDS);
+        return TimeUnit.MILLISECONDS.convert(granularTime, granularity.toTimeUnit());
     }
 
     @Override

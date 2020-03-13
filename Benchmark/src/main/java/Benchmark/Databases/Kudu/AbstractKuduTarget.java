@@ -75,7 +75,7 @@ public abstract class AbstractKuduTarget implements ITarget {
         // We want a long of microseconds, so we need to pad to that precision regardless of
         //   the desired granularity, so first we truncate and then pad if needed.
         long granularTime = entry.getTime(granularity);
-        long timestamp = granularity.toTimeUnit().convert(granularTime, TimeUnit.MICROSECONDS);
+        long timestamp = TimeUnit.MICROSECONDS.convert(granularTime, granularity.toTimeUnit());
         if(timestamp > lastDateWithPartition && !hasWarnedAboutPartitionDate){
             hasWarnedAboutPartitionDate = true;
             Logger.LOG("Kudu target implementation has exceeded the pre-created range partitions. All further inserts will be put in the last, unbounded partition.");

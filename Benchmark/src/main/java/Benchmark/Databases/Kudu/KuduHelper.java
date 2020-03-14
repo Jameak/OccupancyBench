@@ -51,6 +51,7 @@ public class KuduHelper {
 
         Schema schema = new Schema(columns);
         CreateTableOptions options = new CreateTableOptions();
+        options.setNumReplicas(1);
         List<String> hashKeys = new ArrayList<>();
         hashKeys.add("AP");
         List<String> rangeKeys = new ArrayList<>();
@@ -132,6 +133,7 @@ public class KuduHelper {
 
         Schema schema = new Schema(columns);
         CreateTableOptions options = new CreateTableOptions();
+        options.setNumReplicas(1);
         List<String> rangeKeys = new ArrayList<>();
         rangeKeys.add("time");
 

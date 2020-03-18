@@ -59,6 +59,10 @@ public class TimescaleHelper {
             statement.executeUpdate(query1);
             statement.execute(query2);
 
+            // By default Timescale creates an index on the time-column named "TABLE_time_idx"
+            statement.executeUpdate(String.format("DROP INDEX %s_time_idx", table));
+            statement.executeUpdate(String.format("CREATE INDEX ON %s (time DESC, AP)", table));
+
             if(createSecondaryIndex){
                 statement.executeUpdate(String.format("CREATE INDEX ON %s (AP, time DESC)", table));
             }

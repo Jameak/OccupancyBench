@@ -45,9 +45,13 @@ public class IngestControl {
     }
 
     public void printFinalStats(){
-        Logger.LOG(String.format("%s: DONE: %d entries were added in %.2f seconds.", threadName, totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+        double time = totalTimer.elapsedMilliseconds();
+        double timeSec = time / 1000;
+        Logger.LOG(String.format("%s: DONE: %d entries were added in %.2f seconds. Avg. speed was %.0f / sec.",
+                threadName, totalCounter, timeSec, totalCounter / timeSec));
         if(doCsvLogging) CSVLogger.GeneralLogger.createOrGetInstance().write(threadName,
-                String.format("%d entries were added in %.2f seconds.", totalCounter, totalTimer.elapsedMilliseconds() / 1000));
+                String.format("%d entries were added in %.2f seconds. Avg. speed was %.0f / sec.",
+                        totalCounter, timeSec, totalCounter / timeSec));
     }
 
     public void add(IGeneratedEntry entry) {

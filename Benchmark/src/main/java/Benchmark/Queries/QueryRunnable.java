@@ -472,12 +472,12 @@ public class QueryRunnable implements Runnable {
 
         if(!done) Logger.LOG(String.format("%s: Average query-speeds from the last %s seconds:", prefix, config.getQueriesReportingFrequency()));
         Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
-        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.1f / sec", prefix, count_TotalClients, totalTimeInSec_TotalClients, qps_TotalClients));
-        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.1f / sec", prefix, count_FloorTotal, totalTimeInSec_FloorTotal, qps_FloorTotal));
-        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.1f / sec", prefix, count_MaxForAP, totalTimeInSec_MaxForAP, qps_MaxForAP));
-        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.1f / sec", prefix, count_AvgOccupancy, totalTimeInSec_AvgOccupancy, qps_AvgOccupancy));
-        Logger.LOG(String.format("%s: 'K-Means'       | %8d | %8.1f sec | %8.1f / sec", prefix, count_KMeans, totalTimeInSec_KMeans, qps_KMeans));
-        Logger.LOG(String.format("%s: ----------------|----------|--------------|---------------", prefix));
+        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.3f / sec", prefix, count_TotalClients, totalTimeInSec_TotalClients, qps_TotalClients));
+        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.3f / sec", prefix, count_FloorTotal, totalTimeInSec_FloorTotal, qps_FloorTotal));
+        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.3f / sec", prefix, count_MaxForAP, totalTimeInSec_MaxForAP, qps_MaxForAP));
+        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.3f / sec", prefix, count_AvgOccupancy, totalTimeInSec_AvgOccupancy, qps_AvgOccupancy));
+        Logger.LOG(String.format("%s: 'K-Means'       | %8d | %8.1f sec | %8.3f / sec", prefix, count_KMeans, totalTimeInSec_KMeans, qps_KMeans));
+        Logger.LOG(String.format("%s: ----------------|----------|--------------|------------------", prefix));
 
         if(done){
             double totalTime = (
@@ -487,7 +487,7 @@ public class QueryRunnable implements Runnable {
                     timeSpentQueryDone_AvgOccupancy +
                     timeSpentQueryDone_KMeans
                 ) / 1e9;
-            Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.1f / sec", prefix, countFull, totalTime, countFull / totalTime ));
+            Logger.LOG(String.format("%s: TOTAL           | %8d | %8.1f sec | %8.3f / sec", prefix, countFull, totalTime, countFull / totalTime ));
         }
 
         // Reset in-progress counters

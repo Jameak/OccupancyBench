@@ -6,7 +6,6 @@ import Benchmark.Databases.Kudu.KuduPartitionType;
 import Benchmark.Databases.SchemaFormats;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
@@ -33,7 +32,7 @@ public class ConfigFile {
      */
     private static final String SEED = "benchmark.rngseed";
     private static final String SEED_DEFAULT = "" + new Random().nextInt(10000);
-    private int seed;
+    private final int seed;
 
     /**
      * Type: A single accepted value. Accepted values are: ROW, COLUMN
@@ -41,7 +40,7 @@ public class ConfigFile {
      */
     private static final String SCHEMA = "benchmark.schema";
     private static final String SCHEMA_DEFAULT = SchemaFormats.ROW.toString();
-    private SchemaFormats schema;
+    private final SchemaFormats schema;
 
     /**
      * Type: Boolean
@@ -57,8 +56,8 @@ public class ConfigFile {
      */
     private static final String LOG_TO_CSV_PATH         = "benchmark.output.csv.path";
     private static final String LOG_TO_CSV_PATH_DEFAULT = "FOLDER PATH";
-    private boolean logToCSV;
-    private String  logToCSVPath;
+    private final boolean logToCSV;
+    private final String  logToCSVPath;
 
     /**
      * Type: Boolean
@@ -75,8 +74,8 @@ public class ConfigFile {
      */
     private static final String SERIALIZE_PATH    = "serialization.path";
     private static final String SERIALIZE_PATH_DEFAULT = "FOLDER PATH";
-    private boolean   serialize;
-    private String    serializePath;
+    private final boolean   serialize;
+    private final String    serializePath;
 
     /**
      * Type: Boolean
@@ -203,19 +202,19 @@ public class ConfigFile {
      */
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET   = "generator.output.filepath";
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT = "TARGET FILE PATH";
-    private boolean   generatorEnabled;
-    private double    generatorScale;
-    private Granularity generatorGranularity;
-    private int       generatorJitter;
-    private String    generatorIdmap;
-    private String    generatorMapfolder;
-    private int       generatorSeedSamplerate;
-    private int       generatorGenerationSamplerate;
-    private boolean   generatorKeepFloorAssociations;
-    private LocalDate generatorStartDate;
-    private LocalDate generatorEndDate;
-    private DBTargets[] generatorOutputTargets;
-    private String    generatorToDiskTarget;
+    private final boolean   generatorEnabled;
+    private final double    generatorScale;
+    private final Granularity generatorGranularity;
+    private final int       generatorJitter;
+    private final String    generatorIdmap;
+    private final String    generatorMapfolder;
+    private final int       generatorSeedSamplerate;
+    private final int       generatorGenerationSamplerate;
+    private final boolean   generatorKeepFloorAssociations;
+    private final LocalDate generatorStartDate;
+    private final LocalDate generatorEndDate;
+    private final DBTargets[] generatorOutputTargets;
+    private final String    generatorToDiskTarget;
 
     /**
      * Type: String
@@ -261,13 +260,13 @@ public class ConfigFile {
      */
     private static final String INFLUX_BATCH_FLUSH_TIME = "influx.batch.flushtime";
     private static final String INFLUX_BATCH_FLUSH_TIME_DEFAULT = "1000";
-    private String  influxUrl;
-    private String  influxUsername;
-    private String  influxPassword;
-    private String  influxDBName;
-    private String  influxTable;
-    private int     influxBatchsize;
-    private int     influxFlushtime;
+    private final String  influxUrl;
+    private final String  influxUsername;
+    private final String  influxPassword;
+    private final String  influxDBName;
+    private final String  influxTable;
+    private final int     influxBatchsize;
+    private final int     influxFlushtime;
 
     /**
      * Type: String
@@ -318,14 +317,14 @@ public class ConfigFile {
      */
     private static final String TIMESCALE_CREATE_SECONDARY_INDEX = "timescale.createsecondaryindex";
     private static final String TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT = "false";
-    private String  timescaleHost;
-    private String  timescaleUsername;
-    private String  timescalePassword;
-    private String  timescaleDBName;
-    private String  timescaleTable;
-    private Integer timescaleBatchSize;
-    private boolean timescaleReWriteBatchedInserts;
-    private boolean timescaleCreateSecondaryIndex;
+    private final String  timescaleHost;
+    private final String  timescaleUsername;
+    private final String  timescalePassword;
+    private final String  timescaleDBName;
+    private final String  timescaleTable;
+    private final Integer timescaleBatchSize;
+    private final boolean timescaleReWriteBatchedInserts;
+    private final boolean timescaleCreateSecondaryIndex;
 
     /**
      * Type: String with single hostname or comma-separated list of masters
@@ -410,15 +409,15 @@ public class ConfigFile {
      */
     private static final String KUDU_RANGE_PARTITION_PRECREATE_YEARS = "kudu.partitioning.range.precreatedyears";
     private static final String KUDU_RANGE_PARTITION_PRECREATE_YEARS_DEFAULT = "4";
-    private String kuduMasters;
-    private String kuduTable;
-    private int    kuduMaxColumns;
-    private int    kuduBatchSize;
-    private int    kuduMutationBufferSpace;
-    private int    kuduHashBuckets;
-    private int    kuduRangePrecreatedNumberOfYears;
-    private KuduPartitionType kuduPartitionType;
-    private KuduPartitionInterval kuduPartitionInterval;
+    private final String kuduMasters;
+    private final String kuduTable;
+    private final int    kuduMaxColumns;
+    private final int    kuduBatchSize;
+    private final int    kuduMutationBufferSpace;
+    private final int    kuduHashBuckets;
+    private final int    kuduRangePrecreatedNumberOfYears;
+    private final KuduPartitionType kuduPartitionType;
+    private final KuduPartitionInterval kuduPartitionInterval;
 
     /**
      * Type: Boolean
@@ -496,16 +495,16 @@ public class ConfigFile {
      */
     private static final String INGEST_THREADS             = "ingest.threads";
     private static final String INGEST_THREADS_DEFAULT     = "1";
-    private boolean   ingestEnabled;
-    private LocalDate ingestStartDate;
-    private int       ingestSpeed;
-    private int       ingestReportFrequency;
-    private int       ingestDurationStandalone;
-    private LocalDate ingestDurationEndDate;
-    private DBTargets ingestTarget;
-    private boolean   ingestTargetRecreate;
-    private boolean   ingestTargetSharedInstance;
-    private int       ingestThreads;
+    private final boolean   ingestEnabled;
+    private final LocalDate ingestStartDate;
+    private final int       ingestSpeed;
+    private final int       ingestReportFrequency;
+    private final int       ingestDurationStandalone;
+    private final LocalDate ingestDurationEndDate;
+    private final DBTargets ingestTarget;
+    private final boolean   ingestTargetRecreate;
+    private final boolean   ingestTargetSharedInstance;
+    private final int       ingestThreads;
 
     /**
      * Type: Boolean
@@ -714,32 +713,32 @@ public class ConfigFile {
      */
     private static final String QUERIES_DATE_COMM                = "queries.dateinformation";
     private static final String QUERIES_DATE_COMM_DEFAULT        = "500";
-    private boolean   queriesEnabled;
-    private DBTargets queriesTarget;
-    private int       queriesThreads;
-    private boolean   queriesSharedInstance;
-    private int       queriesDuration;
-    private int       queriesWarmup;
-    private int       queriesMaxCount;
-    private int       queriesReportFrequency;
-    private boolean   queriesReportIndividualTimes;
-    private LocalDate queriesEarliestValidDate;
-    private int       queriesWeightTotalClients;
-    private int       queriesWeightFloorTotals;
-    private int       queriesWeightMaxForAP;
-    private int       queriesWeightAvgOccupancy;
-    private int       queriesWeightKMeans;
-    private double    queriesRngRangeDay;
-    private double    queriesRngRangeWeek;
-    private double    queriesRngRangeMonth;
-    private double    queriesRngRangeYear;
-    private int       queriesIntervalMin;
-    private int       queriesIntervalMax;
-    private int       queriesIntervalMinKMeans;
-    private int       queriesIntervalMaxKMeans;
-    private int       queriesKMeansClusters;
-    private int       queriesKMeansIterations;
-    private int       queriesDateCommIntervalMilliseconds;
+    private final boolean   queriesEnabled;
+    private final DBTargets queriesTarget;
+    private final int       queriesThreads;
+    private final boolean   queriesSharedInstance;
+    private final int       queriesDuration;
+    private final int       queriesWarmup;
+    private final int       queriesMaxCount;
+    private final int       queriesReportFrequency;
+    private final boolean   queriesReportIndividualTimes;
+    private final LocalDate queriesEarliestValidDate;
+    private final int       queriesWeightTotalClients;
+    private final int       queriesWeightFloorTotals;
+    private final int       queriesWeightMaxForAP;
+    private final int       queriesWeightAvgOccupancy;
+    private final int       queriesWeightKMeans;
+    private final double    queriesRngRangeDay;
+    private final double    queriesRngRangeWeek;
+    private final double    queriesRngRangeMonth;
+    private final double    queriesRngRangeYear;
+    private final int       queriesIntervalMin;
+    private final int       queriesIntervalMax;
+    private final int       queriesIntervalMinKMeans;
+    private final int       queriesIntervalMaxKMeans;
+    private final int       queriesKMeansClusters;
+    private final int       queriesKMeansIterations;
+    private final int       queriesDateCommIntervalMilliseconds;
 
     /**
      * Type: Boolean
@@ -798,43 +797,42 @@ public class ConfigFile {
      */
     private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS = "debug.truncatequerytimestamps";
     private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT = "false";
-    private boolean debugCreatePrecomputedTables;
-    private boolean debugPrintSettings;
-    private boolean debugSaveQueryResults;
-    private String  debugSaveQueryResultsPath;
-    private boolean debugSynchronizeRngState;
-    private boolean debugTruncateQueryTimestamps;
+    private final boolean debugCreatePrecomputedTables;
+    private final boolean debugPrintSettings;
+    private final boolean debugSaveQueryResults;
+    private final String  debugSaveQueryResultsPath;
+    private final boolean debugSynchronizeRngState;
+    private final boolean debugTruncateQueryTimestamps;
 
-    private final Properties prop = new Properties();
+    private final Properties prop;
     private boolean validated;
     private String validationError = "NO ERROR";
 
-    private ConfigFile(){ }
-
     public static ConfigFile load(String... filePaths) throws IOException {
-        assert filePaths.length != 0;
-        ConfigFile config = new ConfigFile();
+        assert filePaths.length != 0 : "Why are you loading 0 config files?";
 
-        // TODO: To make scripting easier we allow specifying multiple config files on the command-line that are
-        //       then mashed together into a single config file.
-        //       The behavior of the Properties-class when multiples of the same key are present is not specified
-        //       so we should probably check for that and warn... For now the user can check that the parsed config
-        //       matched their expectations by inspecting the output by enabling 'DEBUG_PRINT_ALL_SETTINGS'
-        StringBuilder configLines = new StringBuilder();
-
+        Set<String> encounteredPropNames = new HashSet<>();
+        Properties combinedProp = new Properties(defaultProp());
         for(String filePath : filePaths){
-            List<String> lines = Files.readAllLines(Paths.get(filePath));
-            for(String line : lines){
-                configLines.append(line);
-                configLines.append(System.lineSeparator());
+            Properties prop = new Properties();
+            try(InputStream input = new FileInputStream(filePath)){
+                prop.load(input);
+            }
+
+            for(String name : prop.stringPropertyNames()){
+                if(encounteredPropNames.contains(name)){
+                    System.out.println("Warning: Encountered duplicate property with name '" + name + "' in file:" + filePath);
+                    System.out.println("    Old value: " + combinedProp.getProperty(name));
+                    System.out.println("    New value: " + prop.getProperty(name));
+                    combinedProp.setProperty(name, prop.getProperty(name));
+                } else {
+                    combinedProp.setProperty(name, prop.getProperty(name));
+                    encounteredPropNames.add(name);
+                }
             }
         }
 
-        StringReader sr = new StringReader(configLines.toString());
-        config.prop.load(sr);
-        sr.close();
-
-        config.parseProps();
+        ConfigFile config = new ConfigFile(combinedProp);
 
         String error = config.validateConfig();
         assert error == null : error;
@@ -845,220 +843,225 @@ public class ConfigFile {
     }
 
     public static ConfigFile defaultConfig(){
-        ConfigFile config = new ConfigFile();
-
-        //Benchmark
-        config.prop.setProperty(SEED, SEED_DEFAULT);
-        config.prop.setProperty(SCHEMA, SCHEMA_DEFAULT);
-        config.prop.setProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT);
-        config.prop.setProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
-
-        //Serialization
-        config.prop.setProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT);
-        config.prop.setProperty(SERIALIZE_PATH, SERIALIZE_PATH_DEFAULT);
-
-        //Generator
-        config.prop.setProperty(GENERATOR_ENABLED, GENERATOR_ENABLED_DEFAULT);
-        config.prop.setProperty(GENERATOR_SCALE, GENERATOR_SCALE_DEFAULT);
-        config.prop.setProperty(GENERATOR_GRANULARITY, GENERATOR_GRANULARITY_DEFAULT);
-        config.prop.setProperty(GENERATOR_JITTER, GENERATOR_JITTER_DEFAULT);
-        config.prop.setProperty(GENERATOR_IDMAP, GENERATOR_IDMAP_DEFAULT);
-        config.prop.setProperty(GENERATOR_MAP_FOLDER, GENERATOR_MAP_FOLDER_DEFAULT);
-        config.prop.setProperty(GENERATOR_SEED_SAMPLE_RATE, GENERATOR_SEED_SAMPLE_RATE_DEFAULT);
-        config.prop.setProperty(GENERATOR_GENERATION_SAMPLE_RATE, GENERATOR_GENERATION_SAMPLE_RATE_DEFAULT);
-        config.prop.setProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, GENERATOR_KEEP_FLOOR_ASSOCIATIONS_DEFAULT);
-        config.prop.setProperty(GENERATOR_START_DATE, GENERATOR_START_DATE_DEFAULT);
-        config.prop.setProperty(GENERATOR_END_DATE, GENERATOR_END_DATE_DEFAULT);
-        config.prop.setProperty(GENERATOR_OUTPUT_TARGETS, GENERATOR_OUTPUT_TARGETS_DEFAULT);
-        config.prop.setProperty(GENERATOR_OUTPUT_TO_DISK_TARGET, GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT);
-
-        //Influx
-        config.prop.setProperty(INFLUX_URL, INFLUX_URL_DEFAULT);
-        config.prop.setProperty(INFLUX_USERNAME, INFLUX_USERNAME_DEFAULT);
-        config.prop.setProperty(INFLUX_PASSWORD, INFLUX_PASSWORD_DEFAULT);
-        config.prop.setProperty(INFLUX_DBNAME, INFLUX_DBNAME_DEFAULT);
-        config.prop.setProperty(INFLUX_TABLE, INFLUX_TABLE_DEFAULT);
-        config.prop.setProperty(INFLUX_BATCHSIZE, INFLUX_BATCHSIZE_DEFAULT);
-        config.prop.setProperty(INFLUX_BATCH_FLUSH_TIME, INFLUX_BATCH_FLUSH_TIME_DEFAULT);
-
-        //Timescale
-        config.prop.setProperty(TIMESCALE_HOST, TIMESCALE_HOST_DEFAULT);
-        config.prop.setProperty(TIMESCALE_USERNAME, TIMESCALE_USERNAME_DEFAULT);
-        config.prop.setProperty(TIMESCALE_PASSWORD, TIMESCALE_PASSWORD_DEFAULT);
-        config.prop.setProperty(TIMESCALE_DBNAME, TIMESCALE_DBNAME_DEFAULT);
-        config.prop.setProperty(TIMESCALE_TABLE, TIMESCALE_TABLE_DEFAULT);
-        config.prop.setProperty(TIMESCALE_BATCHSIZE, TIMESCALE_BATCHSIZE_DEFAULT);
-        config.prop.setProperty(TIMESCALE_REWRITE_BATCH, TIMESCALE_REWRITE_BATCH_DEFAULT);
-        config.prop.setProperty(TIMESCALE_CREATE_SECONDARY_INDEX, TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT);
-
-        //Kudu
-        config.prop.setProperty(KUDU_HOST, KUDU_HOST_DEFAULT);
-        config.prop.setProperty(KUDU_TABLE, KUDU_TABLE_DEFAULT);
-        config.prop.setProperty(KUDU_MAX_SUPPORTED_COLUMNS, KUDU_MAX_SUPPORTED_COLUMNS_DEFAULT);
-        config.prop.setProperty(KUDU_BATCH_SIZE, KUDU_BATCH_SIZE_DEFAULT);
-        config.prop.setProperty(KUDU_MUTATION_BUFFER_SPACE, KUDU_MUTATION_BUFFER_SPACE_DEFAULT);
-        config.prop.setProperty(KUDU_PARTITION_TYPE, KUDU_PARTITION_TYPE_DEFAULT);
-        config.prop.setProperty(KUDU_HASH_PARTITION_BUCKETS, KUDU_HASH_PARTITION_BUCKETS_DEFAULT);
-        config.prop.setProperty(KUDU_RANGE_PARTITION_INTERVAL, KUDU_RANGE_PARTITION_INTERVAL_DEFAULT);
-        config.prop.setProperty(KUDU_RANGE_PARTITION_PRECREATE_YEARS, KUDU_RANGE_PARTITION_PRECREATE_YEARS_DEFAULT);
-
-        //Ingest
-        config.prop.setProperty(INGEST_ENABLED, INGEST_ENABLED_DEFAULT);
-        config.prop.setProperty(INGEST_START_DATE, INGEST_START_DATE_DEFAULT);
-        config.prop.setProperty(INGEST_SPEED, INGEST_SPEED_DEFAULT);
-        config.prop.setProperty(INGEST_REPORT_FREQUENCY, INGEST_REPORT_FREQUENCY_DEFAULT);
-        config.prop.setProperty(INGEST_STANDALONE_DURATION, INGEST_STANDALONE_DURATION_DEFAULT);
-        config.prop.setProperty(INGEST_DURATION_END_DATE, INGEST_DURATION_END_DATE_DEFAULT);
-        config.prop.setProperty(INGEST_TARGET, INGEST_TARGET_DEFAULT);
-        config.prop.setProperty(INGEST_TARGET_RECREATE, INGEST_TARGET_RECREATE_DEFAULT);
-        config.prop.setProperty(INGEST_SHARED_INSTANCE, INGEST_SHARED_INSTANCE_DEFAULT);
-        config.prop.setProperty(INGEST_THREADS, INGEST_THREADS_DEFAULT);
-
-        //Queries
-        config.prop.setProperty(QUERIES_ENABLED, QUERIES_ENABLED_DEFAULT);
-        config.prop.setProperty(QUERIES_TARGET, QUERIES_TARGET_DEFAULT);
-        config.prop.setProperty(QUERIES_THREADS, QUERIES_THREADS_DEFAULT);
-        config.prop.setProperty(QUERIES_SHARED_INSTANCE, QUERIES_SHARED_INSTANCE_DEFAULT);
-        config.prop.setProperty(QUERIES_DURATION, QUERIES_DURATION_DEFAULT);
-        config.prop.setProperty(QUERIES_WARMUP, QUERIES_WARMUP_DEFAULT);
-        config.prop.setProperty(QUERIES_MAX_COUNT, QUERIES_MAX_COUNT_DEFAULT);
-        config.prop.setProperty(QUERIES_REPORT_FREQUENCY, QUERIES_REPORT_FREQUENCY_DEFAULT);
-        config.prop.setProperty(QUERIES_REPORT_INDIVIDUAL_TIMES, QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT);
-        config.prop.setProperty(QUERIES_EARLIEST_VALID_DATE, QUERIES_EARLIEST_VALID_DATE_DEFAULT);
-        config.prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, QUERIES_WEIGHT_TOTAL_CLIENTS_DEFAULT);
-        config.prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, QUERIES_WEIGHT_FLOOR_TOTALS_DEFAUlT);
-        config.prop.setProperty(QUERIES_WEIGHT_MAX_FOR_AP, QUERIES_WEIGHT_MAX_FOR_AP_DEFAULT);
-        config.prop.setProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, QUERIES_WEIGHT_AVG_OCCUPANCY_DEFAULT);
-        config.prop.setProperty(QUERIES_WEIGHT_KMEANS, QUERIES_WEIGHT_KMEANS_DEFAULT);
-        config.prop.setProperty(QUERIES_RNG_RANGE_DAY  , QUERIES_RNG_RANGE_DAY_DEFAULT);
-        config.prop.setProperty(QUERIES_RNG_RANGE_WEEK , QUERIES_RNG_RANGE_WEEK_DEFAULT);
-        config.prop.setProperty(QUERIES_RNG_RANGE_MONTH, QUERIES_RNG_RANGE_MONTH_DEFAULT);
-        config.prop.setProperty(QUERIES_RNG_RANGE_YEAR , QUERIES_RNG_RANGE_YEAR_DEFAULT);
-        config.prop.setProperty(QUERIES_INTERVAL_MIN   , QUERIES_INTERVAL_MIN_DEFAULT);
-        config.prop.setProperty(QUERIES_INTERVAL_MAX   , QUERIES_INTERVAL_MAX_DEFAULT);
-        config.prop.setProperty(QUERIES_INTERVAL_MIN_KMEANS, QUERIES_INTERVAL_MIN_KMEANS_DEFAULT);
-        config.prop.setProperty(QUERIES_INTERVAL_MAX_KMEANS, QUERIES_INTERVAL_MAX_KMEANS_DEFAULT);
-        config.prop.setProperty(QUERIES_KMEANS_CLUSTERS, QUERIES_KMEANS_CLUSTERS_DEFAULT);
-        config.prop.setProperty(QUERIES_KMEANS_ITERATIONS, QUERIES_KMEANS_ITERATIONS_DEFAULT);
-        config.prop.setProperty(QUERIES_DATE_COMM      , QUERIES_DATE_COMM_DEFAULT);
-
-        //Debug
-        config.prop.setProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, DEBUG_CREATE_PRECOMPUTED_TABLES_DEFAULT);
-        config.prop.setProperty(DEBUG_PRINT_ALL_SETTINGS, DEBUG_PRINT_ALL_SETTINGS_DEFAULT);
-        config.prop.setProperty(DEBUG_SAVE_QUERY_RESULTS, DEBUG_SAVE_QUERY_RESULTS_DEFAULT);
-        config.prop.setProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT);
-        config.prop.setProperty(DEBUG_SYNCHRONIZE_RNG_STATE, DEBUG_SYNCHRONIZE_RNG_STATE_DEFAULT);
-        config.prop.setProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT);
-
-        config.parseProps();
-        return config;
+        return new ConfigFile(defaultProp());
     }
 
-    private void parseProps(){
+    private static Properties defaultProp(){
+        Properties prop = new Properties();
+
         //Benchmark
-        seed             = Integer.parseInt(     prop.getProperty(SEED, SEED_DEFAULT).trim());
-        schema           = SchemaFormats.valueOf(prop.getProperty(SCHEMA, SCHEMA_DEFAULT).toUpperCase().trim());
-        logToCSV         = Boolean.parseBoolean( prop.getProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT).trim());
-        logToCSVPath     =                       prop.getProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
+        prop.setProperty(SEED, SEED_DEFAULT);
+        prop.setProperty(SCHEMA, SCHEMA_DEFAULT);
+        prop.setProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT);
+        prop.setProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
 
         //Serialization
-        serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT).trim());
-        serializePath    =                      prop.getProperty(SERIALIZE_PATH, SERIALIZE_PATH_DEFAULT);
+        prop.setProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT);
+        prop.setProperty(SERIALIZE_PATH, SERIALIZE_PATH_DEFAULT);
 
         //Generator
-        generatorEnabled               = Boolean.parseBoolean(prop.getProperty(GENERATOR_ENABLED, GENERATOR_ENABLED_DEFAULT).trim());
-        generatorIdmap                 =                      prop.getProperty(GENERATOR_IDMAP, GENERATOR_IDMAP_DEFAULT);
-        generatorGranularity           = Granularity.valueOf( prop.getProperty(GENERATOR_GRANULARITY, GENERATOR_GRANULARITY_DEFAULT).toUpperCase().trim());
-        generatorJitter                = Integer.parseInt(    prop.getProperty(GENERATOR_JITTER, GENERATOR_JITTER_DEFAULT).trim());
-        generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE, GENERATOR_SCALE_DEFAULT).trim());
-        generatorMapfolder             =                      prop.getProperty(GENERATOR_MAP_FOLDER, GENERATOR_MAP_FOLDER_DEFAULT);
-        generatorSeedSamplerate = Integer.parseInt(    prop.getProperty(GENERATOR_SEED_SAMPLE_RATE, GENERATOR_SEED_SAMPLE_RATE_DEFAULT).trim());
-        generatorGenerationSamplerate = Integer.parseInt(    prop.getProperty(GENERATOR_GENERATION_SAMPLE_RATE, GENERATOR_GENERATION_SAMPLE_RATE_DEFAULT).trim());
-        generatorKeepFloorAssociations = Boolean.parseBoolean(prop.getProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, GENERATOR_KEEP_FLOOR_ASSOCIATIONS_DEFAULT).trim());
-        generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE, GENERATOR_START_DATE_DEFAULT).trim());
-        generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE, GENERATOR_END_DATE_DEFAULT).trim());
-        generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS, GENERATOR_OUTPUT_TARGETS_DEFAULT).split(","))
-                .map(String::toUpperCase).map(String::trim).map(DBTargets::valueOf).toArray(DBTargets[]::new);
-        generatorToDiskTarget          =                      prop.getProperty(GENERATOR_OUTPUT_TO_DISK_TARGET, GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT);
+        prop.setProperty(GENERATOR_ENABLED, GENERATOR_ENABLED_DEFAULT);
+        prop.setProperty(GENERATOR_SCALE, GENERATOR_SCALE_DEFAULT);
+        prop.setProperty(GENERATOR_GRANULARITY, GENERATOR_GRANULARITY_DEFAULT);
+        prop.setProperty(GENERATOR_JITTER, GENERATOR_JITTER_DEFAULT);
+        prop.setProperty(GENERATOR_IDMAP, GENERATOR_IDMAP_DEFAULT);
+        prop.setProperty(GENERATOR_MAP_FOLDER, GENERATOR_MAP_FOLDER_DEFAULT);
+        prop.setProperty(GENERATOR_SEED_SAMPLE_RATE, GENERATOR_SEED_SAMPLE_RATE_DEFAULT);
+        prop.setProperty(GENERATOR_GENERATION_SAMPLE_RATE, GENERATOR_GENERATION_SAMPLE_RATE_DEFAULT);
+        prop.setProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, GENERATOR_KEEP_FLOOR_ASSOCIATIONS_DEFAULT);
+        prop.setProperty(GENERATOR_START_DATE, GENERATOR_START_DATE_DEFAULT);
+        prop.setProperty(GENERATOR_END_DATE, GENERATOR_END_DATE_DEFAULT);
+        prop.setProperty(GENERATOR_OUTPUT_TARGETS, GENERATOR_OUTPUT_TARGETS_DEFAULT);
+        prop.setProperty(GENERATOR_OUTPUT_TO_DISK_TARGET, GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT);
 
         //Influx
-        String influxUrlInput =            prop.getProperty(INFLUX_URL, INFLUX_URL_DEFAULT);
-        influxUrl       =                  influxUrlInput.startsWith("http://") || influxUrlInput.startsWith("https://") ? influxUrlInput : "http://" + influxUrlInput;
-        influxUsername  =                  prop.getProperty(INFLUX_USERNAME, INFLUX_USERNAME_DEFAULT);
-        influxPassword  =                  prop.getProperty(INFLUX_PASSWORD, INFLUX_PASSWORD_DEFAULT);
-        influxDBName    =                  prop.getProperty(INFLUX_DBNAME, INFLUX_DBNAME_DEFAULT);
-        influxTable     =                  prop.getProperty(INFLUX_TABLE, INFLUX_TABLE_DEFAULT);
-        influxBatchsize = Integer.parseInt(prop.getProperty(INFLUX_BATCHSIZE, INFLUX_BATCHSIZE_DEFAULT).trim());
-        influxFlushtime = Integer.parseInt(prop.getProperty(INFLUX_BATCH_FLUSH_TIME, INFLUX_BATCH_FLUSH_TIME_DEFAULT).trim());
+        prop.setProperty(INFLUX_URL, INFLUX_URL_DEFAULT);
+        prop.setProperty(INFLUX_USERNAME, INFLUX_USERNAME_DEFAULT);
+        prop.setProperty(INFLUX_PASSWORD, INFLUX_PASSWORD_DEFAULT);
+        prop.setProperty(INFLUX_DBNAME, INFLUX_DBNAME_DEFAULT);
+        prop.setProperty(INFLUX_TABLE, INFLUX_TABLE_DEFAULT);
+        prop.setProperty(INFLUX_BATCHSIZE, INFLUX_BATCHSIZE_DEFAULT);
+        prop.setProperty(INFLUX_BATCH_FLUSH_TIME, INFLUX_BATCH_FLUSH_TIME_DEFAULT);
 
         //Timescale
-        timescaleHost                  =                      prop.getProperty(TIMESCALE_HOST, TIMESCALE_HOST_DEFAULT);
-        timescaleUsername              =                      prop.getProperty(TIMESCALE_USERNAME, TIMESCALE_USERNAME_DEFAULT);
-        timescalePassword              =                      prop.getProperty(TIMESCALE_PASSWORD, TIMESCALE_PASSWORD_DEFAULT);
-        timescaleDBName                =                      prop.getProperty(TIMESCALE_DBNAME, TIMESCALE_DBNAME_DEFAULT);
-        timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE, TIMESCALE_TABLE_DEFAULT);
-        timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE, TIMESCALE_BATCHSIZE_DEFAULT).trim());
-        timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH, TIMESCALE_REWRITE_BATCH_DEFAULT).trim());
-        timescaleCreateSecondaryIndex  = Boolean.parseBoolean(prop.getProperty(TIMESCALE_CREATE_SECONDARY_INDEX, TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT).trim());
+        prop.setProperty(TIMESCALE_HOST, TIMESCALE_HOST_DEFAULT);
+        prop.setProperty(TIMESCALE_USERNAME, TIMESCALE_USERNAME_DEFAULT);
+        prop.setProperty(TIMESCALE_PASSWORD, TIMESCALE_PASSWORD_DEFAULT);
+        prop.setProperty(TIMESCALE_DBNAME, TIMESCALE_DBNAME_DEFAULT);
+        prop.setProperty(TIMESCALE_TABLE, TIMESCALE_TABLE_DEFAULT);
+        prop.setProperty(TIMESCALE_BATCHSIZE, TIMESCALE_BATCHSIZE_DEFAULT);
+        prop.setProperty(TIMESCALE_REWRITE_BATCH, TIMESCALE_REWRITE_BATCH_DEFAULT);
+        prop.setProperty(TIMESCALE_CREATE_SECONDARY_INDEX, TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT);
 
         //Kudu
-        kuduMasters             =                  prop.getProperty(KUDU_HOST, KUDU_HOST_DEFAULT);
-        kuduTable               =                  prop.getProperty(KUDU_TABLE, KUDU_TABLE_DEFAULT);
-        kuduMaxColumns          = Integer.parseInt(prop.getProperty(KUDU_MAX_SUPPORTED_COLUMNS, KUDU_MAX_SUPPORTED_COLUMNS_DEFAULT).trim());
-        kuduBatchSize           = Integer.parseInt(prop.getProperty(KUDU_BATCH_SIZE, KUDU_BATCH_SIZE_DEFAULT).trim());
-        kuduMutationBufferSpace = Integer.parseInt(prop.getProperty(KUDU_MUTATION_BUFFER_SPACE, KUDU_MUTATION_BUFFER_SPACE_DEFAULT).trim());
-        kuduHashBuckets         = Integer.parseInt(prop.getProperty(KUDU_HASH_PARTITION_BUCKETS, KUDU_HASH_PARTITION_BUCKETS_DEFAULT).trim());
-        kuduRangePrecreatedNumberOfYears = Integer.parseInt(prop.getProperty(KUDU_RANGE_PARTITION_PRECREATE_YEARS, KUDU_RANGE_PARTITION_PRECREATE_YEARS_DEFAULT).trim());
-        kuduPartitionInterval   = KuduPartitionInterval.valueOf(prop.getProperty(KUDU_RANGE_PARTITION_INTERVAL, KUDU_RANGE_PARTITION_INTERVAL_DEFAULT).toUpperCase().trim());
-        kuduPartitionType       = KuduPartitionType.valueOf(prop.getProperty(KUDU_PARTITION_TYPE, KUDU_PARTITION_TYPE_DEFAULT).toUpperCase().trim());
+        prop.setProperty(KUDU_HOST, KUDU_HOST_DEFAULT);
+        prop.setProperty(KUDU_TABLE, KUDU_TABLE_DEFAULT);
+        prop.setProperty(KUDU_MAX_SUPPORTED_COLUMNS, KUDU_MAX_SUPPORTED_COLUMNS_DEFAULT);
+        prop.setProperty(KUDU_BATCH_SIZE, KUDU_BATCH_SIZE_DEFAULT);
+        prop.setProperty(KUDU_MUTATION_BUFFER_SPACE, KUDU_MUTATION_BUFFER_SPACE_DEFAULT);
+        prop.setProperty(KUDU_PARTITION_TYPE, KUDU_PARTITION_TYPE_DEFAULT);
+        prop.setProperty(KUDU_HASH_PARTITION_BUCKETS, KUDU_HASH_PARTITION_BUCKETS_DEFAULT);
+        prop.setProperty(KUDU_RANGE_PARTITION_INTERVAL, KUDU_RANGE_PARTITION_INTERVAL_DEFAULT);
+        prop.setProperty(KUDU_RANGE_PARTITION_PRECREATE_YEARS, KUDU_RANGE_PARTITION_PRECREATE_YEARS_DEFAULT);
 
         //Ingest
-        ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED, INGEST_ENABLED_DEFAULT).trim());
-        ingestStartDate            = LocalDate.parse(     prop.getProperty(INGEST_START_DATE, INGEST_START_DATE_DEFAULT).trim());
-        ingestSpeed                = Integer.parseInt(    prop.getProperty(INGEST_SPEED, INGEST_SPEED_DEFAULT).trim());
-        ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY, INGEST_REPORT_FREQUENCY_DEFAULT).trim());
-        ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION, INGEST_STANDALONE_DURATION_DEFAULT).trim());
-        ingestDurationEndDate      = LocalDate.parse(     prop.getProperty(INGEST_DURATION_END_DATE, INGEST_DURATION_END_DATE_DEFAULT).trim());
-        ingestTarget               = DBTargets.valueOf(   prop.getProperty(INGEST_TARGET, INGEST_TARGET_DEFAULT).toUpperCase().trim());
-        ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE, INGEST_TARGET_RECREATE_DEFAULT).trim());
-        ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE, INGEST_SHARED_INSTANCE_DEFAULT).trim());
-        ingestThreads              = Integer.parseInt(    prop.getProperty(INGEST_THREADS, INGEST_THREADS_DEFAULT).trim());
+        prop.setProperty(INGEST_ENABLED, INGEST_ENABLED_DEFAULT);
+        prop.setProperty(INGEST_START_DATE, INGEST_START_DATE_DEFAULT);
+        prop.setProperty(INGEST_SPEED, INGEST_SPEED_DEFAULT);
+        prop.setProperty(INGEST_REPORT_FREQUENCY, INGEST_REPORT_FREQUENCY_DEFAULT);
+        prop.setProperty(INGEST_STANDALONE_DURATION, INGEST_STANDALONE_DURATION_DEFAULT);
+        prop.setProperty(INGEST_DURATION_END_DATE, INGEST_DURATION_END_DATE_DEFAULT);
+        prop.setProperty(INGEST_TARGET, INGEST_TARGET_DEFAULT);
+        prop.setProperty(INGEST_TARGET_RECREATE, INGEST_TARGET_RECREATE_DEFAULT);
+        prop.setProperty(INGEST_SHARED_INSTANCE, INGEST_SHARED_INSTANCE_DEFAULT);
+        prop.setProperty(INGEST_THREADS, INGEST_THREADS_DEFAULT);
 
         //Queries
-        queriesEnabled           = Boolean.parseBoolean(prop.getProperty(QUERIES_ENABLED, QUERIES_ENABLED_DEFAULT).trim());
-        queriesTarget            = DBTargets.valueOf(   prop.getProperty(QUERIES_TARGET, QUERIES_TARGET_DEFAULT).toUpperCase().trim().trim());
-        queriesThreads           = Integer.parseInt(    prop.getProperty(QUERIES_THREADS, QUERIES_THREADS_DEFAULT).trim());
-        queriesSharedInstance    = Boolean.parseBoolean(prop.getProperty(QUERIES_SHARED_INSTANCE, QUERIES_SHARED_INSTANCE_DEFAULT).trim());
-        queriesDuration          = Integer.parseInt(    prop.getProperty(QUERIES_DURATION, QUERIES_DURATION_DEFAULT).trim());
-        queriesWarmup            = Integer.parseInt(    prop.getProperty(QUERIES_WARMUP, QUERIES_WARMUP_DEFAULT).trim());
-        queriesMaxCount          = Integer.parseInt(    prop.getProperty(QUERIES_MAX_COUNT, QUERIES_MAX_COUNT_DEFAULT).trim());
-        queriesReportFrequency   = Integer.parseInt(    prop.getProperty(QUERIES_REPORT_FREQUENCY, QUERIES_REPORT_FREQUENCY_DEFAULT).trim());
-        queriesReportIndividualTimes = Boolean.parseBoolean(prop.getProperty(QUERIES_REPORT_INDIVIDUAL_TIMES, QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT).trim());
-        queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE, QUERIES_EARLIEST_VALID_DATE_DEFAULT).trim());
-        queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, QUERIES_WEIGHT_TOTAL_CLIENTS_DEFAULT).trim());
-        queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS, QUERIES_WEIGHT_FLOOR_TOTALS_DEFAUlT).trim());
-        queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP, QUERIES_WEIGHT_MAX_FOR_AP_DEFAULT).trim());
-        queriesWeightAvgOccupancy= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, QUERIES_WEIGHT_AVG_OCCUPANCY_DEFAULT).trim());
-        queriesWeightKMeans      = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_KMEANS, QUERIES_WEIGHT_KMEANS_DEFAULT).trim());
-        queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY, QUERIES_RNG_RANGE_DAY_DEFAULT).trim());
-        queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK, QUERIES_RNG_RANGE_WEEK_DEFAULT).trim());
-        queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH, QUERIES_RNG_RANGE_MONTH_DEFAULT).trim());
-        queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR, QUERIES_RNG_RANGE_YEAR_DEFAULT).trim());
-        queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN, QUERIES_INTERVAL_MIN_DEFAULT).trim());
-        queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX, QUERIES_INTERVAL_MAX_DEFAULT).trim());
-        queriesIntervalMinKMeans = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN_KMEANS, QUERIES_INTERVAL_MIN_KMEANS_DEFAULT).trim());
-        queriesIntervalMaxKMeans = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX_KMEANS, QUERIES_INTERVAL_MAX_KMEANS_DEFAULT).trim());
-        queriesKMeansClusters    = Integer.parseInt(    prop.getProperty(QUERIES_KMEANS_CLUSTERS, QUERIES_KMEANS_CLUSTERS_DEFAULT).trim());
-        queriesKMeansIterations  = Integer.parseInt(    prop.getProperty(QUERIES_KMEANS_ITERATIONS, QUERIES_KMEANS_ITERATIONS_DEFAULT).trim());
-        queriesDateCommIntervalMilliseconds = Integer.parseInt(prop.getProperty(QUERIES_DATE_COMM, QUERIES_DATE_COMM_DEFAULT).trim());
+        prop.setProperty(QUERIES_ENABLED, QUERIES_ENABLED_DEFAULT);
+        prop.setProperty(QUERIES_TARGET, QUERIES_TARGET_DEFAULT);
+        prop.setProperty(QUERIES_THREADS, QUERIES_THREADS_DEFAULT);
+        prop.setProperty(QUERIES_SHARED_INSTANCE, QUERIES_SHARED_INSTANCE_DEFAULT);
+        prop.setProperty(QUERIES_DURATION, QUERIES_DURATION_DEFAULT);
+        prop.setProperty(QUERIES_WARMUP, QUERIES_WARMUP_DEFAULT);
+        prop.setProperty(QUERIES_MAX_COUNT, QUERIES_MAX_COUNT_DEFAULT);
+        prop.setProperty(QUERIES_REPORT_FREQUENCY, QUERIES_REPORT_FREQUENCY_DEFAULT);
+        prop.setProperty(QUERIES_REPORT_INDIVIDUAL_TIMES, QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT);
+        prop.setProperty(QUERIES_EARLIEST_VALID_DATE, QUERIES_EARLIEST_VALID_DATE_DEFAULT);
+        prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, QUERIES_WEIGHT_TOTAL_CLIENTS_DEFAULT);
+        prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, QUERIES_WEIGHT_FLOOR_TOTALS_DEFAUlT);
+        prop.setProperty(QUERIES_WEIGHT_MAX_FOR_AP, QUERIES_WEIGHT_MAX_FOR_AP_DEFAULT);
+        prop.setProperty(QUERIES_WEIGHT_AVG_OCCUPANCY, QUERIES_WEIGHT_AVG_OCCUPANCY_DEFAULT);
+        prop.setProperty(QUERIES_WEIGHT_KMEANS, QUERIES_WEIGHT_KMEANS_DEFAULT);
+        prop.setProperty(QUERIES_RNG_RANGE_DAY  , QUERIES_RNG_RANGE_DAY_DEFAULT);
+        prop.setProperty(QUERIES_RNG_RANGE_WEEK , QUERIES_RNG_RANGE_WEEK_DEFAULT);
+        prop.setProperty(QUERIES_RNG_RANGE_MONTH, QUERIES_RNG_RANGE_MONTH_DEFAULT);
+        prop.setProperty(QUERIES_RNG_RANGE_YEAR , QUERIES_RNG_RANGE_YEAR_DEFAULT);
+        prop.setProperty(QUERIES_INTERVAL_MIN   , QUERIES_INTERVAL_MIN_DEFAULT);
+        prop.setProperty(QUERIES_INTERVAL_MAX   , QUERIES_INTERVAL_MAX_DEFAULT);
+        prop.setProperty(QUERIES_INTERVAL_MIN_KMEANS, QUERIES_INTERVAL_MIN_KMEANS_DEFAULT);
+        prop.setProperty(QUERIES_INTERVAL_MAX_KMEANS, QUERIES_INTERVAL_MAX_KMEANS_DEFAULT);
+        prop.setProperty(QUERIES_KMEANS_CLUSTERS, QUERIES_KMEANS_CLUSTERS_DEFAULT);
+        prop.setProperty(QUERIES_KMEANS_ITERATIONS, QUERIES_KMEANS_ITERATIONS_DEFAULT);
+        prop.setProperty(QUERIES_DATE_COMM      , QUERIES_DATE_COMM_DEFAULT);
 
         //Debug
-        debugCreatePrecomputedTables = Boolean.parseBoolean(prop.getProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, DEBUG_CREATE_PRECOMPUTED_TABLES_DEFAULT).trim());
-        debugPrintSettings           = Boolean.parseBoolean(prop.getProperty(DEBUG_PRINT_ALL_SETTINGS, DEBUG_PRINT_ALL_SETTINGS_DEFAULT).trim());
-        debugSaveQueryResults        = Boolean.parseBoolean(prop.getProperty(DEBUG_SAVE_QUERY_RESULTS, DEBUG_SAVE_QUERY_RESULTS_DEFAULT).trim());
-        debugSaveQueryResultsPath    =                      prop.getProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT);
-        debugSynchronizeRngState     = Boolean.parseBoolean(prop.getProperty(DEBUG_SYNCHRONIZE_RNG_STATE, DEBUG_SYNCHRONIZE_RNG_STATE_DEFAULT).trim());
-        debugTruncateQueryTimestamps = Boolean.parseBoolean(prop.getProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT).trim());
+        prop.setProperty(DEBUG_CREATE_PRECOMPUTED_TABLES, DEBUG_CREATE_PRECOMPUTED_TABLES_DEFAULT);
+        prop.setProperty(DEBUG_PRINT_ALL_SETTINGS, DEBUG_PRINT_ALL_SETTINGS_DEFAULT);
+        prop.setProperty(DEBUG_SAVE_QUERY_RESULTS, DEBUG_SAVE_QUERY_RESULTS_DEFAULT);
+        prop.setProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT);
+        prop.setProperty(DEBUG_SYNCHRONIZE_RNG_STATE, DEBUG_SYNCHRONIZE_RNG_STATE_DEFAULT);
+        prop.setProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT);
+
+        return prop;
+    }
+
+    private ConfigFile(Properties properties){
+        this.prop = properties;
+
+        //Benchmark
+        seed             = Integer.parseInt(     prop.getProperty(SEED).trim());
+        schema           = SchemaFormats.valueOf(prop.getProperty(SCHEMA).toUpperCase().trim());
+        logToCSV         = Boolean.parseBoolean( prop.getProperty(LOG_TO_CSV).trim());
+        logToCSVPath     =                       prop.getProperty(LOG_TO_CSV_PATH);
+
+        //Serialization
+        serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED).trim());
+        serializePath    =                      prop.getProperty(SERIALIZE_PATH);
+
+        //Generator
+        generatorEnabled               = Boolean.parseBoolean(prop.getProperty(GENERATOR_ENABLED).trim());
+        generatorIdmap                 =                      prop.getProperty(GENERATOR_IDMAP);
+        generatorGranularity           = Granularity.valueOf( prop.getProperty(GENERATOR_GRANULARITY).toUpperCase().trim());
+        generatorJitter                = Integer.parseInt(    prop.getProperty(GENERATOR_JITTER).trim());
+        generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE).trim());
+        generatorMapfolder             =                      prop.getProperty(GENERATOR_MAP_FOLDER);
+        generatorSeedSamplerate        = Integer.parseInt(    prop.getProperty(GENERATOR_SEED_SAMPLE_RATE).trim());
+        generatorGenerationSamplerate  = Integer.parseInt(    prop.getProperty(GENERATOR_GENERATION_SAMPLE_RATE).trim());
+        generatorKeepFloorAssociations = Boolean.parseBoolean(prop.getProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS).trim());
+        generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE).trim());
+        generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE).trim());
+        generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS).split(","))
+                .map(String::toUpperCase).map(String::trim).map(DBTargets::valueOf).toArray(DBTargets[]::new);
+        generatorToDiskTarget          =                      prop.getProperty(GENERATOR_OUTPUT_TO_DISK_TARGET);
+
+        //Influx
+        String influxUrlInput =            prop.getProperty(INFLUX_URL);
+        influxUrl       =                  influxUrlInput.startsWith("http://") || influxUrlInput.startsWith("https://") ? influxUrlInput : "http://" + influxUrlInput;
+        influxUsername  =                  prop.getProperty(INFLUX_USERNAME);
+        influxPassword  =                  prop.getProperty(INFLUX_PASSWORD);
+        influxDBName    =                  prop.getProperty(INFLUX_DBNAME);
+        influxTable     =                  prop.getProperty(INFLUX_TABLE);
+        influxBatchsize = Integer.parseInt(prop.getProperty(INFLUX_BATCHSIZE).trim());
+        influxFlushtime = Integer.parseInt(prop.getProperty(INFLUX_BATCH_FLUSH_TIME).trim());
+
+        //Timescale
+        timescaleHost                  =                      prop.getProperty(TIMESCALE_HOST);
+        timescaleUsername              =                      prop.getProperty(TIMESCALE_USERNAME);
+        timescalePassword              =                      prop.getProperty(TIMESCALE_PASSWORD);
+        timescaleDBName                =                      prop.getProperty(TIMESCALE_DBNAME);
+        timescaleTable                 =                      prop.getProperty(TIMESCALE_TABLE);
+        timescaleBatchSize             = Integer.parseInt(    prop.getProperty(TIMESCALE_BATCHSIZE).trim());
+        timescaleReWriteBatchedInserts = Boolean.parseBoolean(prop.getProperty(TIMESCALE_REWRITE_BATCH).trim());
+        timescaleCreateSecondaryIndex  = Boolean.parseBoolean(prop.getProperty(TIMESCALE_CREATE_SECONDARY_INDEX).trim());
+
+        //Kudu
+        kuduMasters             =                  prop.getProperty(KUDU_HOST);
+        kuduTable               =                  prop.getProperty(KUDU_TABLE);
+        kuduMaxColumns          = Integer.parseInt(prop.getProperty(KUDU_MAX_SUPPORTED_COLUMNS).trim());
+        kuduBatchSize           = Integer.parseInt(prop.getProperty(KUDU_BATCH_SIZE).trim());
+        kuduMutationBufferSpace = Integer.parseInt(prop.getProperty(KUDU_MUTATION_BUFFER_SPACE).trim());
+        kuduHashBuckets         = Integer.parseInt(prop.getProperty(KUDU_HASH_PARTITION_BUCKETS).trim());
+        kuduRangePrecreatedNumberOfYears = Integer.parseInt(prop.getProperty(KUDU_RANGE_PARTITION_PRECREATE_YEARS).trim());
+        kuduPartitionInterval   = KuduPartitionInterval.valueOf(prop.getProperty(KUDU_RANGE_PARTITION_INTERVAL).toUpperCase().trim());
+        kuduPartitionType       = KuduPartitionType.valueOf(prop.getProperty(KUDU_PARTITION_TYPE).toUpperCase().trim());
+
+        //Ingest
+        ingestEnabled              = Boolean.parseBoolean(prop.getProperty(INGEST_ENABLED).trim());
+        ingestStartDate            = LocalDate.parse(     prop.getProperty(INGEST_START_DATE).trim());
+        ingestSpeed                = Integer.parseInt(    prop.getProperty(INGEST_SPEED).trim());
+        ingestReportFrequency      = Integer.parseInt(    prop.getProperty(INGEST_REPORT_FREQUENCY).trim());
+        ingestDurationStandalone   = Integer.parseInt(    prop.getProperty(INGEST_STANDALONE_DURATION).trim());
+        ingestDurationEndDate      = LocalDate.parse(     prop.getProperty(INGEST_DURATION_END_DATE).trim());
+        ingestTarget               = DBTargets.valueOf(   prop.getProperty(INGEST_TARGET).toUpperCase().trim());
+        ingestTargetRecreate       = Boolean.parseBoolean(prop.getProperty(INGEST_TARGET_RECREATE).trim());
+        ingestTargetSharedInstance = Boolean.parseBoolean(prop.getProperty(INGEST_SHARED_INSTANCE).trim());
+        ingestThreads              = Integer.parseInt(    prop.getProperty(INGEST_THREADS).trim());
+
+        //Queries
+        queriesEnabled           = Boolean.parseBoolean(prop.getProperty(QUERIES_ENABLED).trim());
+        queriesTarget            = DBTargets.valueOf(   prop.getProperty(QUERIES_TARGET).toUpperCase().trim().trim());
+        queriesThreads           = Integer.parseInt(    prop.getProperty(QUERIES_THREADS).trim());
+        queriesSharedInstance    = Boolean.parseBoolean(prop.getProperty(QUERIES_SHARED_INSTANCE).trim());
+        queriesDuration          = Integer.parseInt(    prop.getProperty(QUERIES_DURATION).trim());
+        queriesWarmup            = Integer.parseInt(    prop.getProperty(QUERIES_WARMUP).trim());
+        queriesMaxCount          = Integer.parseInt(    prop.getProperty(QUERIES_MAX_COUNT).trim());
+        queriesReportFrequency   = Integer.parseInt(    prop.getProperty(QUERIES_REPORT_FREQUENCY).trim());
+        queriesReportIndividualTimes = Boolean.parseBoolean(prop.getProperty(QUERIES_REPORT_INDIVIDUAL_TIMES).trim());
+        queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE).trim());
+        queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS).trim());
+        queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS).trim());
+        queriesWeightMaxForAP    = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_MAX_FOR_AP).trim());
+        queriesWeightAvgOccupancy= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_AVG_OCCUPANCY).trim());
+        queriesWeightKMeans      = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_KMEANS).trim());
+        queriesRngRangeDay       = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_DAY).trim());
+        queriesRngRangeWeek      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_WEEK).trim());
+        queriesRngRangeMonth     = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_MONTH).trim());
+        queriesRngRangeYear      = Double.parseDouble(  prop.getProperty(QUERIES_RNG_RANGE_YEAR).trim());
+        queriesIntervalMin       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN).trim());
+        queriesIntervalMax       = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX).trim());
+        queriesIntervalMinKMeans = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MIN_KMEANS).trim());
+        queriesIntervalMaxKMeans = Integer.parseInt(    prop.getProperty(QUERIES_INTERVAL_MAX_KMEANS).trim());
+        queriesKMeansClusters    = Integer.parseInt(    prop.getProperty(QUERIES_KMEANS_CLUSTERS).trim());
+        queriesKMeansIterations  = Integer.parseInt(    prop.getProperty(QUERIES_KMEANS_ITERATIONS).trim());
+        queriesDateCommIntervalMilliseconds = Integer.parseInt(prop.getProperty(QUERIES_DATE_COMM).trim());
+
+        //Debug
+        debugCreatePrecomputedTables = Boolean.parseBoolean(prop.getProperty(DEBUG_CREATE_PRECOMPUTED_TABLES).trim());
+        debugPrintSettings           = Boolean.parseBoolean(prop.getProperty(DEBUG_PRINT_ALL_SETTINGS).trim());
+        debugSaveQueryResults        = Boolean.parseBoolean(prop.getProperty(DEBUG_SAVE_QUERY_RESULTS).trim());
+        debugSaveQueryResultsPath    =                      prop.getProperty(DEBUG_SAVE_QUERY_RESULTS_PATH);
+        debugSynchronizeRngState     = Boolean.parseBoolean(prop.getProperty(DEBUG_SYNCHRONIZE_RNG_STATE).trim());
+        debugTruncateQueryTimestamps = Boolean.parseBoolean(prop.getProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS).trim());
     }
 
     private String validateConfig(){
@@ -1151,7 +1154,7 @@ public class ConfigFile {
     public Set<String> getUnknownKeysInInput(){
         Set<String> settingsInFile = prop.stringPropertyNames();
         Set<String> knownSettings = getSettings().keySet();
-        // One of the above set-implementations does not support the 'removeAll' operation, so we do it manually.
+        // One of the above set-implementations does not support the 'removeAll' operation, so we manually populate a new set.
         Set<String> unknownSettings = new HashSet<>();
         for(String setting : settingsInFile){
             if(!knownSettings.contains(setting)){

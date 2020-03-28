@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       implementation has been done.
  */
 public abstract class CSVLogger {
-    private static final char SEPARATOR = ';';
+    private static final char SEPARATOR = '\t';
     private static final int NUMBER_OF_QUERIES = 5;
     private static final String TOTAL_CLIENTS = "Total Clients";
     private static final String FLOOR_TOTALS  = "Floor Totals";
@@ -89,7 +89,7 @@ public abstract class CSVLogger {
         }
 
         Path csvPath = Paths.get(config.getCSVLogPath());
-        Path outPath = csvPath.resolve(config.hashCode() + "");
+        Path outPath = csvPath.resolve(config.getCsvFolderPrefix() + config.hashCode() + "");
 
         boolean madeDir = outPath.toFile().exists() || outPath.toFile().mkdirs();
         if(madeDir){

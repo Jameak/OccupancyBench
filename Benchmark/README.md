@@ -23,6 +23,7 @@ benchmark.rngseed         = 1234
 benchmark.schema          = row
 benchmark.output.csv      = false
 benchmark.output.csv.path = FOLDER PATH
+benchmark.output.csv.prefix = NONE
 
 serialization.enabled = false
 serialization.path    = FOLDER PATH
@@ -33,7 +34,7 @@ generator.data.folder                = FOLDER PATH
 generator.data.generationsamplerate  = 60
 generator.data.seedsamplerate        = 60
 generator.data.scale                 = 1.0
-generator.data.jitter                = 100
+generator.data.jitter                = 5
 generator.data.startdate             = 2019-01-01
 generator.data.enddate               = 2019-04-01
 generator.data.keepfloorassociations = true

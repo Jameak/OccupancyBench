@@ -46,7 +46,7 @@ public class ConfigFile {
      * Type: Boolean
      * If enabled, all statistics that have been enabled will be written to disk in CSV format in addition to being
      * written to standard out. CSV-files will be written just before the benchmark is finished, to avoid IO impacting
-     * the performance. The separator is ';'.
+     * the performance. The separator is '\t'.
      */
     private static final String LOG_TO_CSV              = "benchmark.output.csv";
     private static final String LOG_TO_CSV_DEFAULT      = "false";
@@ -56,8 +56,22 @@ public class ConfigFile {
      */
     private static final String LOG_TO_CSV_PATH         = "benchmark.output.csv.path";
     private static final String LOG_TO_CSV_PATH_DEFAULT = "FOLDER PATH";
+    /**
+     * Type: String
+     * A prefix to include in the name of the folder that gets created at the csv.path target, to make it easier
+     * to identify which folder belongs to which run of a program, when multiples have been scripted.
+     *
+     * Also, you can change this value if multiple iterations of the same config-file are being run,
+     * to stop the csv-output from overwriting previous results. This will both make the folder-name change because the
+     * config was changed, but also allow you to include the iteration-number in the name.
+     *
+     * If set to 'none', no prefix will be set.
+     */
+    private static final String CSV_FOLDER_PREFIX         = "benchmark.output.csv.prefix";
+    private static final String CSV_FOLDER_PREFIX_DEFAULT = "NONE";
     private final boolean logToCSV;
     private final String  logToCSVPath;
+    private final String  csvFolderPrefix;
 
     /**
      * Type: Boolean
@@ -132,7 +146,7 @@ public class ConfigFile {
      * Also used during ingest-generation.
      */
     private static final String GENERATOR_JITTER                  = "generator.data.jitter";
-    private static final String GENERATOR_JITTER_DEFAULT          = "50";
+    private static final String GENERATOR_JITTER_DEFAULT          = "5";
     /**
      * Type: String
      * The path to the mapping-file between seed AP-names and their assigned ID, as used in the probability-map
@@ -854,6 +868,7 @@ public class ConfigFile {
         prop.setProperty(SCHEMA, SCHEMA_DEFAULT);
         prop.setProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT);
         prop.setProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
+        prop.setProperty(CSV_FOLDER_PREFIX, CSV_FOLDER_PREFIX_DEFAULT);
 
         //Serialization
         prop.setProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT);
@@ -963,6 +978,7 @@ public class ConfigFile {
         schema           = SchemaFormats.valueOf(prop.getProperty(SCHEMA).toUpperCase().trim());
         logToCSV         = Boolean.parseBoolean( prop.getProperty(LOG_TO_CSV).trim());
         logToCSVPath     =                       prop.getProperty(LOG_TO_CSV_PATH);
+        csvFolderPrefix  =                       prop.getProperty(CSV_FOLDER_PREFIX);
 
         //Serialization
         serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED).trim());
@@ -1207,6 +1223,7 @@ public class ConfigFile {
         settings.put(SCHEMA, schema);
         settings.put(LOG_TO_CSV, logToCSV);
         settings.put(LOG_TO_CSV_PATH, logToCSVPath);
+        settings.put(CSV_FOLDER_PREFIX, csvFolderPrefix);
 
         settings.put(SERIALIZE_ENABLED, serialize);
         settings.put(SERIALIZE_PATH, serializePath);
@@ -1650,5 +1667,9 @@ public class ConfigFile {
 
     public String getCSVLogPath(){
         return logToCSVPath;
+    }
+
+    public String getCsvFolderPrefix(){
+        return csvFolderPrefix.trim().toLowerCase().equals("none") ? "" : csvFolderPrefix;
     }
 }

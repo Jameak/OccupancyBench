@@ -607,7 +607,7 @@ public class QueryRunnable implements Runnable {
 
         if(config.doLoggingToCSV()){
             summaryLogger.setDone();
-            individualLogger.setDone();
+            if(individualLogger != null) individualLogger.setDone();
         }
 
         if(saveQueryResults){

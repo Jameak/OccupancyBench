@@ -58,8 +58,11 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     String time = (String) entries.get(series.getColumns().indexOf("time"));
-                    int total = (int)Math.round((Double)entries.get(series.getColumns().indexOf("sum")));
+                    Object sum = entries.get(series.getColumns().indexOf("sum"));
+                    // No AP-data within the specified start/end interval for this day.
+                    if(sum == null) continue;
 
+                    int total = (int)Math.round((Double) sum);
                     totals.add(new Total(time, total));
                 }
             }
@@ -84,8 +87,12 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
                 for (QueryResult.Series series : result.getSeries()) {
                     for (List<Object> entries : series.getValues()) {
                         String timestamp = (String) entries.get(series.getColumns().indexOf("time"));
-                        int sum = (int) Math.round((Double) entries.get(series.getColumns().indexOf("sum")));
-                        counts.add(new FloorTotal(floor.getFloorNumber(), timestamp, sum));
+                        Object sum = entries.get(series.getColumns().indexOf("sum"));
+                        // No AP-data within the specified start/end interval for this day for this floor.
+                        if(sum == null) continue;
+
+                        int floorSum = (int) Math.round((Double) sum);
+                        counts.add(new FloorTotal(floor.getFloorNumber(), timestamp, floorSum));
                     }
                 }
             }
@@ -198,7 +205,10 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     String AP = (String) entries.get(series.getColumns().indexOf("AP"));
-                    Integer clientEntry = (int)Math.round((Double) entries.get(series.getColumns().indexOf("client_entry")));
+                    Object retry = entries.get(series.getColumns().indexOf("client_entry"));
+                    if(retry == null) continue; // No data exists that fits our search criteria.
+
+                    Integer clientEntry = (int)Math.round((Double) retry);
                     parsedQ3.put(AP, clientEntry);
                 }
             }
@@ -227,7 +237,10 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
             for(QueryResult.Series series : result.getSeries()){
                 String AP = series.getTags().get("AP");
                 for(List<Object> entries : series.getValues()){
-                    Double avgClients = (Double) entries.get(series.getColumns().indexOf("avg_clients"));
+                    Object avg = entries.get(series.getColumns().indexOf("avg_clients"));
+                    if(avg == null) continue; // No data exists that fits our search criteria.
+
+                    Double avgClients = (Double) avg;
                     if(!target.containsKey(AP)){
                         target.put(AP, new ArrayList<>());
                     }
@@ -237,7 +250,6 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
             }
         }
     }
-
 
     @Override
     public List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws IOException, SQLException {

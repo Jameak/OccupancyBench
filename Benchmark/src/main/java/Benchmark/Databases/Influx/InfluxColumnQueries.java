@@ -62,9 +62,12 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     String time = (String) entries.get(series.getColumns().indexOf("time"));
-                    int total = (int)Math.round((Double)entries.get(series.getColumns().indexOf("total")));
+                    Object total = entries.get(series.getColumns().indexOf("total"));
+                    // No AP-data within the specified start/end interval for this day.
+                    if(total == null) continue;
 
-                    totals.add(new Total(time, total));
+                    int sum = (int)Math.round((Double) total);
+                    totals.add(new Total(time, sum));
                 }
             }
         }
@@ -88,7 +91,11 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
                 for (List<Object> entries : series.getValues()) {
                     String timestamp = (String) entries.get(series.getColumns().indexOf("time"));
                     for(Floor floor : generatedFloors){
-                        int floorSum = (int) Math.round((Double) entries.get(series.getColumns().indexOf("floor" + floor.getFloorNumber())));
+                        Object sum = entries.get(series.getColumns().indexOf("floor" + floor.getFloorNumber()));
+                        // No AP-data within the specified start/end interval for this day for this floor.
+                        if(sum == null) continue;
+
+                        int floorSum = (int) Math.round((Double) sum);
                         counts.add(new FloorTotal(floor.getFloorNumber(), timestamp, floorSum));
                     }
                 }
@@ -195,7 +202,11 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     for(AccessPoint AP : allAPs){
-                        Integer numClients = (int)Math.round((Double) entries.get(series.getColumns().indexOf(AP.getAPname())));
+                        Object clients = entries.get(series.getColumns().indexOf(AP.getAPname()));
+                        // No data exists that fits our search criteria.
+                        if(clients == null) continue;
+
+                        Integer numClients = (int)Math.round((Double) clients);
                         parsedQ3.put(AP.getAPname(), numClients);
                     }
                 }
@@ -225,7 +236,10 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
                     for(AccessPoint AP : allAPs){
-                        Double avgClients = (Double) entries.get(series.getColumns().indexOf("avg-" + AP.getAPname()));
+                        Object avg = entries.get(series.getColumns().indexOf("avg-" + AP.getAPname()));
+                        if(avg == null) continue; // Not sure that this can ever happen, but just making sure...
+
+                        Double avgClients = (Double) avg;
                         if(!target.containsKey(AP.getAPname())){
                             target.put(AP.getAPname(), new ArrayList<>());
                         }

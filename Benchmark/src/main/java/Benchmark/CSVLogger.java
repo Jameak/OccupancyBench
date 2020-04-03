@@ -357,41 +357,41 @@ public abstract class CSVLogger {
                         sb.append(SEPARATOR);
                         sb.append(stat.count_totalClients);
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.totalTime_totalClients));
+                        sb.append(String.format("%.3f", stat.totalTime_totalClients));
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.qps_totalClients));
+                        sb.append(String.format("%.3f", stat.qps_totalClients));
                     } else if (i == 1) {
                         sb.append(FLOOR_TOTALS);
                         sb.append(SEPARATOR);
                         sb.append(stat.count_floorTotal);
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.totalTime_floorTotal));
+                        sb.append(String.format("%.3f", stat.totalTime_floorTotal));
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.qps_floorTotal));
+                        sb.append(String.format("%.3f", stat.qps_floorTotal));
                     } else if (i == 2){
                         sb.append(MAX_FOR_AP);
                         sb.append(SEPARATOR);
                         sb.append(stat.count_maxForAP);
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.totalTime_maxForAP));
+                        sb.append(String.format("%.3f", stat.totalTime_maxForAP));
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.qps_maxForAP));
+                        sb.append(String.format("%.3f", stat.qps_maxForAP));
                     } else if (i == 3){
                         sb.append(AVG_OCCUPANCY);
                         sb.append(SEPARATOR);
                         sb.append(stat.count_avgOccupancy);
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.totalTime_avgOccupancy));
+                        sb.append(String.format("%.3f", stat.totalTime_avgOccupancy));
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.qps_avgOccupancy));
+                        sb.append(String.format("%.3f", stat.qps_avgOccupancy));
                     } else if (i == 4){
                         sb.append(KMEANS);
                         sb.append(SEPARATOR);
                         sb.append(stat.count_kMeans);
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.totalTime_kMeans));
+                        sb.append(String.format("%.3f", stat.totalTime_kMeans));
                         sb.append(SEPARATOR);
-                        sb.append(String.format("%.2f", stat.qps_kMeans));
+                        sb.append(String.format("%.3f", stat.qps_kMeans));
                     } else {
                         throw new IllegalStateException("Unknown query. Did you add a new one? i = " + i);
                     }
@@ -416,9 +416,9 @@ public abstract class CSVLogger {
                     sb.append(countFull);
                     sb.append(SEPARATOR);
                     double totalTime = stat.totalTime_totalClients + stat.totalTime_floorTotal + stat.totalTime_maxForAP + stat.totalTime_avgOccupancy + stat.totalTime_kMeans;
-                    sb.append(String.format("%.2f", totalTime));
+                    sb.append(String.format("%.3f", totalTime));
                     sb.append(SEPARATOR);
-                    sb.append(String.format("%.2f", countFull / totalTime));
+                    sb.append(String.format("%.3f", countFull / totalTime));
                 }
             }
 
@@ -520,7 +520,7 @@ public abstract class CSVLogger {
                 sb.append(SEPARATOR);
                 sb.append(name);
                 sb.append(SEPARATOR);
-                sb.append(String.format("%.2f", executionTime));
+                sb.append(String.format("%.3f", executionTime));
             }
 
             return sb.toString();

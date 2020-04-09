@@ -15,10 +15,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
  * The top-level class for benchmark queries. Monitors query-performance, decides which queries to run
@@ -36,6 +33,7 @@ public class QueryRunnable implements Runnable {
     private final int generalMinTimeInterval;
     private final int generalMaxTimeInterval;
     private final CSVLogger.QuerySummaryLogger summaryLogger;
+    private final CSVLogger.IndividualQueryLogger individualLogger;
 
     private final boolean saveQueryResults;
     private List<QueryResult> queryResults = new ArrayList<>();
@@ -77,11 +75,16 @@ public class QueryRunnable implements Runnable {
     private long timeSpentQueryDone_AvgOccupancy;
     private long timeSpentQueryDone_KMeans;
 
-    // Holds metadata necessary for individual query-time reporting
-    private final CSVLogger.IndividualQueryLogger individualLogger;
-    private QueryType lastRunQueryType = QueryType.UNKNOWN;
-    private long timeSpentBeforeLatestExecution = 0;
-    private long timeSpentAfterLatestExecution = 0;
+    private LinkedList<Double> individualTimeSpentInProg_TotalClients = new LinkedList<>();
+    private LinkedList<Double> individualTimeSpentInProg_FloorTotal = new LinkedList<>();
+    private LinkedList<Double> individualTimeSpentInProg_MaxForAP = new LinkedList<>();
+    private LinkedList<Double> individualTimeSpentInProg_AvgOccupancy = new LinkedList<>();
+    private LinkedList<Double> individualTimeSpentInProg_KMeans = new LinkedList<>();
+    private final LinkedList<Double> individualTimeSpentDone_TotalClients = new LinkedList<>();
+    private final LinkedList<Double> individualTimeSpentDone_FloorTotal = new LinkedList<>();
+    private final LinkedList<Double> individualTimeSpentDone_MaxForAP = new LinkedList<>();
+    private final LinkedList<Double> individualTimeSpentDone_AvgOccupancy = new LinkedList<>();
+    private final LinkedList<Double> individualTimeSpentDone_KMeans = new LinkedList<>();
 
     private LocalDateTime newestValidDate;
     private LocalDateTime unmodifiedNewestValidDate;
@@ -105,8 +108,7 @@ public class QueryRunnable implements Runnable {
 
         if(config.doLoggingToCSV()){
             summaryLogger = CSVLogger.QuerySummaryLogger.createInstance("Summary " + threadName, threadNumber);
-            if(config.reportIndividualQueryTimes()) individualLogger = CSVLogger.IndividualQueryLogger.createInstance("Individual " + threadName, threadNumber);
-            else individualLogger = null;
+            individualLogger = CSVLogger.IndividualQueryLogger.createInstance("Individual " + threadName, threadNumber);
         } else {
             summaryLogger = null;
             individualLogger = null;
@@ -150,6 +152,9 @@ public class QueryRunnable implements Runnable {
     }
 
     private void runQueries(IQueries queries, boolean warmUp, Random rng) throws IOException, SQLException{
+        long timeSpentBeforeLatestExecution;
+        long timeSpentAfterLatestExecution;
+
         QueryType queryToRun = selectQuery(rng);
         switch (queryToRun){
             case TotalClients:
@@ -264,9 +269,11 @@ public class QueryRunnable implements Runnable {
                 Logger.LOG(threadName + ": Invalid query probabilities");
                 throw new RuntimeException();
         }
-        if(!warmUp) countFull++;
-        queryId++;
-        lastRunQueryType = queryToRun;
+        if(!warmUp) {
+            countFull++;
+            queryId++;
+            saveIndividualTimes(queryToRun, timeSpentBeforeLatestExecution, timeSpentAfterLatestExecution);
+        }
     }
 
     private AccessPoint selectRandomAP(Random rng) {
@@ -341,7 +348,7 @@ public class QueryRunnable implements Runnable {
         }
     }
 
-    private LocalDateTime[] generateTimeInterval(Random rng, int minInterval, int maxInterval) throws IOException, SQLException {
+    private LocalDateTime[] generateTimeInterval(Random rng, int minInterval, int maxInterval) {
         assert minInterval <= maxInterval;
 
         LocalDate earliestValidDate = config.getQueriesEarliestValidDate();
@@ -440,6 +447,11 @@ public class QueryRunnable implements Runnable {
         timeSpentQueryDone_MaxForAP +=     timeSpentQueryInProg_MaxForAP;
         timeSpentQueryDone_AvgOccupancy += timeSpentQueryInProg_AvgOccupancy;
         timeSpentQueryDone_KMeans +=       timeSpentQueryInProg_KMeans;
+        individualTimeSpentDone_TotalClients.addAll(individualTimeSpentInProg_TotalClients);
+        individualTimeSpentDone_FloorTotal  .addAll(individualTimeSpentInProg_FloorTotal);
+        individualTimeSpentDone_MaxForAP    .addAll(individualTimeSpentInProg_MaxForAP);
+        individualTimeSpentDone_AvgOccupancy.addAll(individualTimeSpentInProg_AvgOccupancy);
+        individualTimeSpentDone_KMeans      .addAll(individualTimeSpentInProg_KMeans);
 
         int count_TotalClients      = done ? countQueryDone_TotalClients     : countQueryInProg_TotalClients;
         int count_FloorTotal        = done ? countQueryDone_FloorTotal       : countQueryInProg_FloorTotal;
@@ -450,7 +462,12 @@ public class QueryRunnable implements Runnable {
         long timeSpent_FloorTotal   = done ? timeSpentQueryDone_FloorTotal   : timeSpentQueryInProg_FloorTotal;
         long timeSpent_MaxForAP     = done ? timeSpentQueryDone_MaxForAP     : timeSpentQueryInProg_MaxForAP;
         long timeSpent_AvgOccupancy = done ? timeSpentQueryDone_AvgOccupancy : timeSpentQueryInProg_AvgOccupancy;
-        long timeSpent_KMeans =       done ? timeSpentQueryDone_KMeans       : timeSpentQueryInProg_KMeans;
+        long timeSpent_KMeans       = done ? timeSpentQueryDone_KMeans       : timeSpentQueryInProg_KMeans;
+        LinkedList<Double> individualTime_TotalClients = done ? individualTimeSpentDone_TotalClients : individualTimeSpentInProg_TotalClients;
+        LinkedList<Double> individualTime_FloorTotal   = done ? individualTimeSpentDone_FloorTotal   : individualTimeSpentInProg_FloorTotal;
+        LinkedList<Double> individualTime_MaxForAP     = done ? individualTimeSpentDone_MaxForAP     : individualTimeSpentInProg_MaxForAP;
+        LinkedList<Double> individualTime_AvgOccupancy = done ? individualTimeSpentDone_AvgOccupancy : individualTimeSpentInProg_AvgOccupancy;
+        LinkedList<Double> individualTime_KMeans       = done ? individualTimeSpentDone_KMeans       : individualTimeSpentInProg_KMeans;
 
         double totalTimeInSec_TotalClients = timeSpent_TotalClients / 1e9;
         double totalTimeInSec_FloorTotal = timeSpent_FloorTotal / 1e9;
@@ -464,20 +481,33 @@ public class QueryRunnable implements Runnable {
         double qps_AvgOccupancy = count_AvgOccupancy / totalTimeInSec_AvgOccupancy;
         double qps_KMeans = count_KMeans / totalTimeInSec_KMeans;
 
+        double individualMean_TotalClients  = calculateMean(individualTime_TotalClients);
+        double individualMean_FloorTotal    = calculateMean(individualTime_FloorTotal);
+        double individualMean_MaxForAP      = calculateMean(individualTime_MaxForAP);
+        double individualMean_AvgOccupancy  = calculateMean(individualTime_AvgOccupancy);
+        double individualMean_KMeans        = calculateMean(individualTime_KMeans);
+        double individualStdev_TotalClients = calculateStandardDeviation(individualTime_TotalClients, individualMean_TotalClients);
+        double individualStdev_FloorTotal   = calculateStandardDeviation(individualTime_FloorTotal  , individualMean_FloorTotal);
+        double individualStdev_MaxForAP     = calculateStandardDeviation(individualTime_MaxForAP    , individualMean_MaxForAP);
+        double individualStdev_AvgOccupancy = calculateStandardDeviation(individualTime_AvgOccupancy, individualMean_AvgOccupancy);
+        double individualStdev_KMeans       = calculateStandardDeviation(individualTime_KMeans      , individualMean_KMeans);
+
         if(config.doLoggingToCSV()) summaryLogger.write(
                 count_TotalClients, count_FloorTotal, count_MaxForAP, count_AvgOccupancy, count_KMeans,
                 totalTimeInSec_TotalClients, totalTimeInSec_FloorTotal, totalTimeInSec_MaxForAP, totalTimeInSec_AvgOccupancy, totalTimeInSec_KMeans,
                 qps_TotalClients, qps_FloorTotal, qps_MaxForAP, qps_AvgOccupancy, qps_KMeans,
+                individualMean_TotalClients, individualMean_FloorTotal, individualMean_MaxForAP, individualMean_AvgOccupancy, individualMean_KMeans,
+                individualStdev_TotalClients, individualStdev_FloorTotal, individualStdev_MaxForAP, individualStdev_AvgOccupancy, individualStdev_KMeans,
                 done);
 
-        if(!done) Logger.LOG(String.format("%s: Average query-speeds from the last %s seconds:", prefix, config.getQueriesReportingFrequency()));
-        Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec", prefix));
-        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.3f / sec", prefix, count_TotalClients, totalTimeInSec_TotalClients, qps_TotalClients));
-        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.3f / sec", prefix, count_FloorTotal, totalTimeInSec_FloorTotal, qps_FloorTotal));
-        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.3f / sec", prefix, count_MaxForAP, totalTimeInSec_MaxForAP, qps_MaxForAP));
-        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.3f / sec", prefix, count_AvgOccupancy, totalTimeInSec_AvgOccupancy, qps_AvgOccupancy));
-        Logger.LOG(String.format("%s: 'K-Means'       | %8d | %8.1f sec | %8.3f / sec", prefix, count_KMeans, totalTimeInSec_KMeans, qps_KMeans));
-        Logger.LOG(String.format("%s: ----------------|----------|--------------|------------------", prefix));
+        if(!done) Logger.LOG(String.format("%s: Query stats from the last %s seconds:", prefix, config.getQueriesReportingFrequency()));
+        Logger.LOG(String.format("%s: Query name      |    Count |   Total time |  Queries / sec |  Mean time |  Mean stdev", prefix));
+        Logger.LOG(String.format("%s: 'Total Clients' | %8d | %8.1f sec | %8.3f / sec | %7.1f ms | %8.1f ms", prefix, count_TotalClients, totalTimeInSec_TotalClients, qps_TotalClients, individualMean_TotalClients, individualStdev_TotalClients));
+        Logger.LOG(String.format("%s: 'Floor Totals'  | %8d | %8.1f sec | %8.3f / sec | %7.1f ms | %8.1f ms", prefix, count_FloorTotal, totalTimeInSec_FloorTotal, qps_FloorTotal, individualMean_FloorTotal, individualStdev_FloorTotal));
+        Logger.LOG(String.format("%s: 'Max for AP'    | %8d | %8.1f sec | %8.3f / sec | %7.1f ms | %8.1f ms", prefix, count_MaxForAP, totalTimeInSec_MaxForAP, qps_MaxForAP, individualMean_MaxForAP, individualStdev_MaxForAP));
+        Logger.LOG(String.format("%s: 'Avg Occupancy' | %8d | %8.1f sec | %8.3f / sec | %7.1f ms | %8.1f ms", prefix, count_AvgOccupancy, totalTimeInSec_AvgOccupancy, qps_AvgOccupancy, individualMean_AvgOccupancy, individualStdev_AvgOccupancy));
+        Logger.LOG(String.format("%s: 'K-Means'       | %8d | %8.1f sec | %8.3f / sec | %7.1f ms | %8.1f ms", prefix, count_KMeans, totalTimeInSec_KMeans, qps_KMeans, individualMean_KMeans, individualStdev_KMeans));
+        Logger.LOG(String.format("%s: ----------------|----------|--------------|----------------|------------|------------", prefix));
 
         if(done){
             double totalTime = (
@@ -501,6 +531,11 @@ public class QueryRunnable implements Runnable {
         timeSpentQueryInProg_MaxForAP = 0;
         timeSpentQueryInProg_AvgOccupancy = 0;
         timeSpentQueryInProg_KMeans = 0;
+        individualTimeSpentInProg_TotalClients = new LinkedList<>();
+        individualTimeSpentInProg_FloorTotal   = new LinkedList<>();
+        individualTimeSpentInProg_MaxForAP     = new LinkedList<>();
+        individualTimeSpentInProg_AvgOccupancy = new LinkedList<>();
+        individualTimeSpentInProg_KMeans       = new LinkedList<>();
     }
 
     @Override
@@ -509,7 +544,6 @@ public class QueryRunnable implements Runnable {
         int warmUpTime = config.getQueriesWarmupDuration();
         int reportFrequency = config.getQueriesReportingFrequency();
         int targetCount = config.getMaxQueryCount();
-        boolean reportIndividualQueryTimes = config.reportIndividualQueryTimes();
         CoarseTimer runTimer = new CoarseTimer();
         CoarseTimer reportTimer = new CoarseTimer();
         PreciseTimer dateCommTimer = new PreciseTimer();
@@ -555,7 +589,7 @@ public class QueryRunnable implements Runnable {
         try {
             Logger.LOG(threadName + ": Queries have started.");
             if(config.doLoggingToCSV()){
-                if(reportIndividualQueryTimes) individualLogger.startTimer();
+                individualLogger.startTimer();
                 summaryLogger.startTimer();
             }
 
@@ -569,7 +603,6 @@ public class QueryRunnable implements Runnable {
 
                     runQueries(queryTarget, false, rngQueries);
 
-                    if(reportIndividualQueryTimes) individualTimeReport();
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
             } else {
@@ -582,7 +615,6 @@ public class QueryRunnable implements Runnable {
 
                     runQueries(queryTarget, false, rngQueries);
 
-                    if(reportIndividualQueryTimes) individualTimeReport();
                     if(printProgressReports) progressReport(reportTimer, reportFrequency);
                 }
             }
@@ -607,7 +639,7 @@ public class QueryRunnable implements Runnable {
 
         if(config.doLoggingToCSV()){
             summaryLogger.setDone();
-            if(individualLogger != null) individualLogger.setDone();
+            individualLogger.setDone();
         }
 
         if(saveQueryResults){
@@ -622,29 +654,34 @@ public class QueryRunnable implements Runnable {
         }
     }
 
-    private void individualTimeReport(){
+    private void saveIndividualTimes(QueryType executedQuery, long timeSpentBeforeLatestExecution, long timeSpentAfterLatestExecution){
         // The time-spent counters use nanoseconds. Divide by 1e6 to convert it to milliseconds.
         double timeSpent = (timeSpentAfterLatestExecution - timeSpentBeforeLatestExecution) / 1e6;
-        switch(lastRunQueryType){
+        switch(executedQuery){
             case TotalClients:
-                Logger.LOG(String.format("%s INDIV: Total Clients | %8.2f ms", threadName, timeSpent));
-                if(config.doLoggingToCSV()) individualLogger.write("Total Clients", timeSpent);
+                individualTimeSpentInProg_TotalClients.add(timeSpent);
+                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Total Clients | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.TOTAL_CLIENTS, timeSpent);
                 break;
             case FloorTotals:
-                Logger.LOG(String.format("%s INDIV: Floor Totals  | %8.2f ms", threadName, timeSpent));
-                if(config.doLoggingToCSV()) individualLogger.write("Floor Totals", timeSpent);
+                individualTimeSpentInProg_FloorTotal.add(timeSpent);
+                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Floor Totals  | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.FLOOR_TOTALS, timeSpent);
                 break;
             case MaxForAP:
-                Logger.LOG(String.format("%s INDIV: Max for AP    | %8.2f ms", threadName, timeSpent));
-                if(config.doLoggingToCSV()) individualLogger.write("Max for AP", timeSpent);
+                individualTimeSpentInProg_MaxForAP.add(timeSpent);
+                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Max for AP    | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.MAX_FOR_AP, timeSpent);
                 break;
             case AvgOccupancy:
-                Logger.LOG(String.format("%s INDIV: Avg Occupancy | %8.2f ms", threadName, timeSpent));
-                if(config.doLoggingToCSV()) individualLogger.write("Avg Occupancy", timeSpent);
+                individualTimeSpentInProg_AvgOccupancy.add(timeSpent);
+                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Avg Occupancy | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.AVG_OCCUPANCY, timeSpent);
                 break;
             case KMeans:
-                Logger.LOG(String.format("%s INDIV: K-Means       | %8.2f ms", threadName, timeSpent));
-                if(config.doLoggingToCSV()) individualLogger.write("K-Means", timeSpent);
+                individualTimeSpentInProg_KMeans.add(timeSpent);
+                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: K-Means       | %8.2f ms", threadName, timeSpent));
+                if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.KMEANS, timeSpent);
                 break;
             case UNKNOWN:
             default:
@@ -652,6 +689,32 @@ public class QueryRunnable implements Runnable {
                 Logger.LOG(threadName + ": Unknown query type.");
                 throw new RuntimeException();
         }
+    }
+
+    private static double calculateMean(LinkedList<Double> values){
+        double total = 0.0;
+        int count = 0;
+        for(Double val : values){
+            count++;
+            total += val;
+        }
+
+        if(count == 0) return 0.0;
+        return total / count;
+    }
+
+    private static double calculateStandardDeviation(LinkedList<Double> values, double mean){
+        double total = 0.0;
+        int count = 0;
+
+        for(Double val : values){
+            double res = val - mean;
+            total += res * res;
+            count++;
+        }
+
+        if(count == 0) return 0.0;
+        return Math.sqrt(total / count);
     }
 
     private void getTime(PreciseTimer dateCommTimer, boolean force) throws IOException, SQLException{

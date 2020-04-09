@@ -24,6 +24,7 @@ benchmark.schema          = row
 benchmark.output.csv      = false
 benchmark.output.csv.path = FOLDER PATH
 benchmark.output.csv.prefix = NONE
+benchmark.output.csv.header = true
 
 serialization.enabled = false
 serialization.path    = FOLDER PATH
@@ -71,7 +72,6 @@ queries.range.week            = 0.7
 queries.range.month           = 0.9
 queries.range.year            = 0.95
 queries.reporting.summaryfrequency = -1
-queries.reporting.individualtimes  = false
 queries.interval.min          = 21600
 queries.interval.max          = 7776000
 queries.interval.min.kmeans   = 21600
@@ -113,4 +113,5 @@ debug.savequeryresults        = false
 debug.savequeryresults.path   = TARGET PATH
 debug.synchronizerngstate     = false
 debug.truncatequerytimestamps = false
+debug.reportindividualtimes   = false
 ```

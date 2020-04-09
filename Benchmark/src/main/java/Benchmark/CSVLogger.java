@@ -32,16 +32,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class CSVLogger {
     private static final char SEPARATOR = '\t';
     private static final int NUMBER_OF_QUERIES = 5;
-    private static final String TOTAL_CLIENTS = "Total Clients";
-    private static final String FLOOR_TOTALS  = "Floor Totals";
-    private static final String MAX_FOR_AP    = "Max for AP";
-    private static final String AVG_OCCUPANCY = "Avg Occupancy";
-    private static final String KMEANS        = "K-Means";
     private static final String INGEST_AVERAGE_FILE    = "ingestion_average.csv";
     private static final String INGEST_ENTRIES_FILE    = "ingestion_entries.csv";
     private static final String GENERAL_FILE           = "general.csv";
     private static final String QUERY_SUMMARY_FILE     = "query_summary.csv";
     private static final String QUERY_INDIVIDUALS_FILE = "query_individuals.csv";
+    public static final String TOTAL_CLIENTS = "Total Clients";
+    public static final String FLOOR_TOTALS  = "Floor Totals";
+    public static final String MAX_FOR_AP    = "Max for AP";
+    public static final String AVG_OCCUPANCY = "Avg Occupancy";
+    public static final String KMEANS        = "K-Means";
 
     private static final Map<String, CSVLogger> instances = new ConcurrentHashMap<>();
     private boolean done;
@@ -311,7 +311,7 @@ public abstract class CSVLogger {
         private final LinkedList<Stats> stats = new LinkedList<>();
         public final String CSV_HEADER = "Time since query start including overhead (sec)" + SEPARATOR + "Thread"
                 + SEPARATOR + "Status" + SEPARATOR + "Query name" + SEPARATOR + "Count" + SEPARATOR + "Total time"
-                + SEPARATOR + "Queries / sec";
+                + SEPARATOR + "Queries / sec" + SEPARATOR + "Mean execution time (ms)" + SEPARATOR + "Mean execution time stddev (ms)";
         private final int threadNumber;
 
         private QuerySummaryLogger(String key, int threadNumber) {
@@ -328,11 +328,16 @@ public abstract class CSVLogger {
         public void write(int count_TotalClients, int count_FloorTotal, int count_MaxForAP, int count_AvgOccupancy, int count_KMeans,
                           double totalTime_TotalClients, double totalTime_FloorTotal, double totalTime_MaxForAP, double totalTime_AvgOccupancy, double totalTime_KMeans,
                           double qps_TotalClients, double qps_FloorTotal, double qps_MaxForAP, double qps_AvgOccupancy, double qps_KMeans,
+                          double indivMean_TotalClients, double indivMean_FloorTotal, double indivMean_MaxForAP, double indivMean_AvgOccupancy, double indivMean_KMeans,
+                          double indivStdev_TotalClients, double indivStdev_FloorTotal, double indivStdev_MaxForAP, double indivStdev_AvgOccupancy, double indivStdev_KMeans,
                           boolean done){
             timestamps.add(timer.elapsedNanoseconds());
             stats.add(new Stats(count_TotalClients, count_FloorTotal, count_MaxForAP, count_AvgOccupancy, count_KMeans,
                                 totalTime_TotalClients, totalTime_FloorTotal, totalTime_MaxForAP, totalTime_AvgOccupancy, totalTime_KMeans,
-                                qps_TotalClients, qps_FloorTotal, qps_MaxForAP, qps_AvgOccupancy, qps_KMeans, done));
+                                qps_TotalClients, qps_FloorTotal, qps_MaxForAP, qps_AvgOccupancy, qps_KMeans,
+                                indivMean_TotalClients, indivMean_FloorTotal, indivMean_MaxForAP, indivMean_AvgOccupancy, indivMean_KMeans,
+                                indivStdev_TotalClients, indivStdev_FloorTotal, indivStdev_MaxForAP, indivStdev_AvgOccupancy, indivStdev_KMeans,
+                                done));
         }
 
         public String summaryOverTime(){
@@ -368,6 +373,10 @@ public abstract class CSVLogger {
                         sb.append(String.format("%.3f", stat.totalTime_totalClients));
                         sb.append(SEPARATOR);
                         sb.append(String.format("%.3f", stat.qps_totalClients));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivMean_totalClients));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivStdev_totalClients));
                     } else if (i == 1) {
                         sb.append(FLOOR_TOTALS);
                         sb.append(SEPARATOR);
@@ -376,6 +385,10 @@ public abstract class CSVLogger {
                         sb.append(String.format("%.3f", stat.totalTime_floorTotal));
                         sb.append(SEPARATOR);
                         sb.append(String.format("%.3f", stat.qps_floorTotal));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivMean_floorTotal));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivStdev_floorTotal));
                     } else if (i == 2){
                         sb.append(MAX_FOR_AP);
                         sb.append(SEPARATOR);
@@ -384,6 +397,10 @@ public abstract class CSVLogger {
                         sb.append(String.format("%.3f", stat.totalTime_maxForAP));
                         sb.append(SEPARATOR);
                         sb.append(String.format("%.3f", stat.qps_maxForAP));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivMean_maxForAP));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivStdev_maxForAP));
                     } else if (i == 3){
                         sb.append(AVG_OCCUPANCY);
                         sb.append(SEPARATOR);
@@ -392,6 +409,10 @@ public abstract class CSVLogger {
                         sb.append(String.format("%.3f", stat.totalTime_avgOccupancy));
                         sb.append(SEPARATOR);
                         sb.append(String.format("%.3f", stat.qps_avgOccupancy));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivMean_avgOccupancy));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivStdev_avgOccupancy));
                     } else if (i == 4){
                         sb.append(KMEANS);
                         sb.append(SEPARATOR);
@@ -400,11 +421,15 @@ public abstract class CSVLogger {
                         sb.append(String.format("%.3f", stat.totalTime_kMeans));
                         sb.append(SEPARATOR);
                         sb.append(String.format("%.3f", stat.qps_kMeans));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivMean_kMeans));
+                        sb.append(SEPARATOR);
+                        sb.append(String.format("%.3f", stat.indivStdev_kMeans));
                     } else {
                         throw new IllegalStateException("Unknown query. Did you add a new one? i = " + i);
                     }
 
-                    // No newline on last loop
+                    // Dont insert newline on last loop
                     if(i != NUMBER_OF_QUERIES - 1){
                         sb.append("\n");
                     }
@@ -427,6 +452,9 @@ public abstract class CSVLogger {
                     sb.append(String.format("%.3f", totalTime));
                     sb.append(SEPARATOR);
                     sb.append(String.format("%.3f", countFull / totalTime));
+                    //The final 'done' indicator doesn't have its own mean- and stdev-data, so only add the separators
+                    sb.append(SEPARATOR);
+                    sb.append(SEPARATOR);
                 }
             }
 
@@ -449,11 +477,23 @@ public abstract class CSVLogger {
             private final double qps_maxForAP;
             private final double qps_avgOccupancy;
             private final double qps_kMeans;
+            private final double indivMean_totalClients;
+            private final double indivMean_floorTotal;
+            private final double indivMean_maxForAP;
+            private final double indivMean_avgOccupancy;
+            private final double indivMean_kMeans;
+            private final double indivStdev_totalClients;
+            private final double indivStdev_floorTotal;
+            private final double indivStdev_maxForAP;
+            private final double indivStdev_avgOccupancy;
+            private final double indivStdev_kMeans;
             private final boolean done;
 
             public Stats(int count_TotalClients, int count_FloorTotal, int count_MaxForAP, int count_AvgOccupancy, int count_KMeans,
                          double totalTime_TotalClients, double totalTime_FloorTotal, double totalTime_MaxForAP, double totalTime_AvgOccupancy, double totalTime_KMeans,
                          double qps_TotalClients, double qps_FloorTotal, double qps_MaxForAP, double qps_AvgOccupancy, double qps_KMeans,
+                         double indivMean_TotalClients, double indivMean_FloorTotal, double indivMean_MaxForAP, double indivMean_AvgOccupancy, double indivMean_KMeans,
+                         double indivStdev_TotalClients, double indivStdev_FloorTotal, double indivStdev_MaxForAP, double indivStdev_AvgOccupancy, double indivStdev_KMeans,
                          boolean done){
                 this.count_totalClients = count_TotalClients;
                 this.count_floorTotal = count_FloorTotal;
@@ -470,6 +510,16 @@ public abstract class CSVLogger {
                 this.qps_maxForAP = qps_MaxForAP;
                 this.qps_avgOccupancy = qps_AvgOccupancy;
                 this.qps_kMeans = qps_KMeans;
+                this.indivMean_totalClients = indivMean_TotalClients;
+                this.indivMean_floorTotal = indivMean_FloorTotal;
+                this.indivMean_maxForAP = indivMean_MaxForAP;
+                this.indivMean_avgOccupancy = indivMean_AvgOccupancy;
+                this.indivMean_kMeans = indivMean_KMeans;
+                this.indivStdev_totalClients = indivStdev_TotalClients;
+                this.indivStdev_floorTotal = indivStdev_FloorTotal;
+                this.indivStdev_maxForAP = indivStdev_MaxForAP;
+                this.indivStdev_avgOccupancy = indivStdev_AvgOccupancy;
+                this.indivStdev_kMeans = indivStdev_KMeans;
                 this.done = done;
             }
         }

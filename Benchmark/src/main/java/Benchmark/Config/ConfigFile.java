@@ -586,13 +586,6 @@ public class ConfigFile {
     private static final String QUERIES_REPORT_FREQUENCY_DEFAULT = "20";
 
     /**
-     * Type: Boolean
-     * Governs whether to report how long each individual query takes to execute. The results from this
-     * reporting can e.g. be used to create a percentile graph over the execution-times for each query-type.
-     */
-    private static final String QUERIES_REPORT_INDIVIDUAL_TIMES         = "queries.reporting.individualtimes";
-    private static final String QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT = "false";
-    /**
      * Type: LocalDate (YYYY-MM-DD)
      * The earliest possible date for queries to ask for.
      * Set this value to the first date in the database if the entire data-set is under consideration,
@@ -742,7 +735,6 @@ public class ConfigFile {
     private final int       queriesWarmup;
     private final int       queriesMaxCount;
     private final int       queriesReportFrequency;
-    private final boolean   queriesReportIndividualTimes;
     private final LocalDate queriesEarliestValidDate;
     private final int       queriesWeightTotalClients;
     private final int       queriesWeightFloorTotals;
@@ -818,12 +810,20 @@ public class ConfigFile {
      */
     private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS = "debug.truncatequerytimestamps";
     private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT = "false";
+    /**
+     * Type: Boolean
+     * Governs whether to report how long each individual query takes to execute to std-out.
+     * Useful for debugging during execution but for a more manageable output use the csv-out instead.
+     */
+    private static final String DEBUG_REPORT_INDIVIDUAL_TIMES         = "debug.reportindividualtimes";
+    private static final String DEBUG_REPORT_INDIVIDUAL_TIMES_DEFAULT = "false";
     private final boolean debugCreatePrecomputedTables;
     private final boolean debugPrintSettings;
     private final boolean debugSaveQueryResults;
     private final String  debugSaveQueryResultsPath;
     private final boolean debugSynchronizeRngState;
     private final boolean debugTruncateQueryTimestamps;
+    private final boolean debugReportIndividualTimes;
 
     private final Properties prop;
     private boolean validated;
@@ -948,7 +948,6 @@ public class ConfigFile {
         prop.setProperty(QUERIES_WARMUP, QUERIES_WARMUP_DEFAULT);
         prop.setProperty(QUERIES_MAX_COUNT, QUERIES_MAX_COUNT_DEFAULT);
         prop.setProperty(QUERIES_REPORT_FREQUENCY, QUERIES_REPORT_FREQUENCY_DEFAULT);
-        prop.setProperty(QUERIES_REPORT_INDIVIDUAL_TIMES, QUERIES_REPORT_INDIVIDUAL_TIMES_DEFAULT);
         prop.setProperty(QUERIES_EARLIEST_VALID_DATE, QUERIES_EARLIEST_VALID_DATE_DEFAULT);
         prop.setProperty(QUERIES_WEIGHT_TOTAL_CLIENTS, QUERIES_WEIGHT_TOTAL_CLIENTS_DEFAULT);
         prop.setProperty(QUERIES_WEIGHT_FLOOR_TOTALS, QUERIES_WEIGHT_FLOOR_TOTALS_DEFAUlT);
@@ -974,6 +973,7 @@ public class ConfigFile {
         prop.setProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT);
         prop.setProperty(DEBUG_SYNCHRONIZE_RNG_STATE, DEBUG_SYNCHRONIZE_RNG_STATE_DEFAULT);
         prop.setProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT);
+        prop.setProperty(DEBUG_REPORT_INDIVIDUAL_TIMES, DEBUG_REPORT_INDIVIDUAL_TIMES_DEFAULT);
 
         return prop;
     }
@@ -1061,7 +1061,6 @@ public class ConfigFile {
         queriesWarmup            = Integer.parseInt(    prop.getProperty(QUERIES_WARMUP).trim());
         queriesMaxCount          = Integer.parseInt(    prop.getProperty(QUERIES_MAX_COUNT).trim());
         queriesReportFrequency   = Integer.parseInt(    prop.getProperty(QUERIES_REPORT_FREQUENCY).trim());
-        queriesReportIndividualTimes = Boolean.parseBoolean(prop.getProperty(QUERIES_REPORT_INDIVIDUAL_TIMES).trim());
         queriesEarliestValidDate = LocalDate.parse(     prop.getProperty(QUERIES_EARLIEST_VALID_DATE).trim());
         queriesWeightTotalClients= Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_TOTAL_CLIENTS).trim());
         queriesWeightFloorTotals = Integer.parseInt(    prop.getProperty(QUERIES_WEIGHT_FLOOR_TOTALS).trim());
@@ -1087,6 +1086,7 @@ public class ConfigFile {
         debugSaveQueryResultsPath    =                      prop.getProperty(DEBUG_SAVE_QUERY_RESULTS_PATH);
         debugSynchronizeRngState     = Boolean.parseBoolean(prop.getProperty(DEBUG_SYNCHRONIZE_RNG_STATE).trim());
         debugTruncateQueryTimestamps = Boolean.parseBoolean(prop.getProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS).trim());
+        debugReportIndividualTimes   = Boolean.parseBoolean(prop.getProperty(DEBUG_REPORT_INDIVIDUAL_TIMES).trim());
     }
 
     private String validateConfig(){
@@ -1298,7 +1298,6 @@ public class ConfigFile {
         settings.put(QUERIES_WARMUP, queriesWarmup);
         settings.put(QUERIES_MAX_COUNT, queriesMaxCount);
         settings.put(QUERIES_REPORT_FREQUENCY, queriesReportFrequency);
-        settings.put(QUERIES_REPORT_INDIVIDUAL_TIMES, queriesReportIndividualTimes);
         settings.put(QUERIES_EARLIEST_VALID_DATE, queriesEarliestValidDate);
         settings.put(QUERIES_WEIGHT_TOTAL_CLIENTS, queriesWeightTotalClients);
         settings.put(QUERIES_WEIGHT_FLOOR_TOTALS, queriesWeightFloorTotals);
@@ -1323,6 +1322,7 @@ public class ConfigFile {
         settings.put(DEBUG_SAVE_QUERY_RESULTS_PATH, debugSaveQueryResultsPath);
         settings.put(DEBUG_SYNCHRONIZE_RNG_STATE, debugSynchronizeRngState);
         settings.put(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, debugTruncateQueryTimestamps);
+        settings.put(DEBUG_REPORT_INDIVIDUAL_TIMES, debugReportIndividualTimes);
 
         return settings;
     }
@@ -1435,6 +1435,10 @@ public class ConfigFile {
         return debugTruncateQueryTimestamps;
     }
 
+    public boolean DEBUG_reportIndividualQueryTimes(){
+        return debugReportIndividualTimes;
+    }
+
     public boolean doSerialization() {
         return serialize;
     }
@@ -1545,10 +1549,6 @@ public class ConfigFile {
 
     public int getQueriesReportingFrequency() {
         return queriesReportFrequency;
-    }
-
-    public boolean reportIndividualQueryTimes(){
-        return queriesReportIndividualTimes;
     }
 
     public DBTargets getIngestTarget() {

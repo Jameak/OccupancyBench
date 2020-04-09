@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       This should probably be refactored into something more robust / easier to read, but it's good enough for this simple use.
  *       A proper refactor might combine both the STD-OUT-logger and this CSV-logger into a single implementation that
  *       can do both based on the config so that all logging is centralized and static?
- *       Or simply make several 'writeNAME(String thread, String, status, ...' etc. methods in the same class to address
+ *       Or simply make several 'writeNAME(String thread, String status, ...' etc. methods in the same class to address
  *       the 3rd point? Should be easy to figure out exactly what 'write...' methods are needed now that the initial
  *       implementation has been done.
  */
@@ -121,8 +121,10 @@ public abstract class CSVLogger {
 
                 if(firstIngestLogger){
                     firstIngestLogger = false;
-                    averageOutput.add(ingestLogger.CSV_AVERAGE_HEADER);
-                    entriesOutput.add(ingestLogger.CSV_ENTRIES_HEADER);
+                    if(config.includeCsvHeaderInOutput()){
+                        averageOutput.add(ingestLogger.CSV_AVERAGE_HEADER);
+                        entriesOutput.add(ingestLogger.CSV_ENTRIES_HEADER);
+                    }
                 }
 
                 averageOutput.add(ingestLogger.averageEntriesOverTime());
@@ -135,7 +137,9 @@ public abstract class CSVLogger {
 
                 if(firstGeneralLogger){
                     firstGeneralLogger = false;
-                    output.add(generalLogger.CSV_HEADER);
+                    if(config.includeCsvHeaderInOutput()){
+                        output.add(generalLogger.CSV_HEADER);
+                    }
                 }
 
                 output.add(generalLogger.generalContent());
@@ -146,7 +150,9 @@ public abstract class CSVLogger {
 
                 if(firstQuerySummaryLogger){
                     firstQuerySummaryLogger = false;
-                    output.add(querySummaryLogger.CSV_HEADER);
+                    if(config.includeCsvHeaderInOutput()){
+                        output.add(querySummaryLogger.CSV_HEADER);
+                    }
                 }
 
                 output.add(querySummaryLogger.summaryOverTime());
@@ -157,7 +163,9 @@ public abstract class CSVLogger {
 
                 if(firstIndividualQueryLogger){
                     firstIndividualQueryLogger = false;
-                    output.add(individualQueryLogger.CSV_HEADER);
+                    if(config.includeCsvHeaderInOutput()){
+                        output.add(individualQueryLogger.CSV_HEADER);
+                    }
                 }
 
                 output.add(individualQueryLogger.queriesOverTime());

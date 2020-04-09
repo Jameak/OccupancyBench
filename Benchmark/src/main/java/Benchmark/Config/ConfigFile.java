@@ -69,9 +69,16 @@ public class ConfigFile {
      */
     private static final String CSV_FOLDER_PREFIX         = "benchmark.output.csv.prefix";
     private static final String CSV_FOLDER_PREFIX_DEFAULT = "NONE";
+    /**
+     * Type: Boolean
+     * Controls whether the csv-files will include their header in the output file.
+     */
+    private static final String CSV_INCLUDE_HEADER         = "benchmark.output.csv.header";
+    private static final String CSV_INCLUDE_HEADER_DEFAULT = "true";
     private final boolean logToCSV;
     private final String  logToCSVPath;
     private final String  csvFolderPrefix;
+    private final boolean csvIncludeHeader;
 
     /**
      * Type: Boolean
@@ -869,6 +876,7 @@ public class ConfigFile {
         prop.setProperty(LOG_TO_CSV, LOG_TO_CSV_DEFAULT);
         prop.setProperty(LOG_TO_CSV_PATH, LOG_TO_CSV_PATH_DEFAULT);
         prop.setProperty(CSV_FOLDER_PREFIX, CSV_FOLDER_PREFIX_DEFAULT);
+        prop.setProperty(CSV_INCLUDE_HEADER, CSV_INCLUDE_HEADER_DEFAULT);
 
         //Serialization
         prop.setProperty(SERIALIZE_ENABLED, SERIALIZE_ENABLED_DEFAULT);
@@ -979,6 +987,7 @@ public class ConfigFile {
         logToCSV         = Boolean.parseBoolean( prop.getProperty(LOG_TO_CSV).trim());
         logToCSVPath     =                       prop.getProperty(LOG_TO_CSV_PATH);
         csvFolderPrefix  =                       prop.getProperty(CSV_FOLDER_PREFIX);
+        csvIncludeHeader = Boolean.parseBoolean( prop.getProperty(CSV_INCLUDE_HEADER).trim());
 
         //Serialization
         serialize        = Boolean.parseBoolean(prop.getProperty(SERIALIZE_ENABLED).trim());
@@ -1224,6 +1233,7 @@ public class ConfigFile {
         settings.put(LOG_TO_CSV, logToCSV);
         settings.put(LOG_TO_CSV_PATH, logToCSVPath);
         settings.put(CSV_FOLDER_PREFIX, csvFolderPrefix);
+        settings.put(CSV_INCLUDE_HEADER, csvIncludeHeader);
 
         settings.put(SERIALIZE_ENABLED, serialize);
         settings.put(SERIALIZE_PATH, serializePath);
@@ -1671,5 +1681,9 @@ public class ConfigFile {
 
     public String getCsvFolderPrefix(){
         return csvFolderPrefix.trim().toLowerCase().equals("none") ? "" : csvFolderPrefix;
+    }
+
+    public boolean includeCsvHeaderInOutput(){
+        return csvIncludeHeader;
     }
 }

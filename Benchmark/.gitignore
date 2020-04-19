@@ -1,5 +1,6 @@
 default.config
 lib/
+.idea/jarRepositories.xml
 
 # Created by https://www.gitignore.io/api/maven,intellij
 # Edit at https://www.gitignore.io/?templates=maven,intellij

@@ -812,18 +812,21 @@ public class ConfigFile {
     private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT = "false";
     /**
      * Type: Boolean
-     * Governs whether to report how long each individual query takes to execute to std-out.
-     * Useful for debugging during execution but for a more manageable output use the csv-out instead.
+     * Governs whether to report debug information from the query-runner about each individual query as its running.
+     * This prints info such as which query is running, it's arguments, and how long it took to complete.
+     *
+     * This is useful for debugging during execution but if you're just interested in how long each query took to
+     * complete then use the csv-config for an output that's easier to parse.
      */
-    private static final String DEBUG_REPORT_INDIVIDUAL_TIMES         = "debug.reportindividualtimes";
-    private static final String DEBUG_REPORT_INDIVIDUAL_TIMES_DEFAULT = "false";
+    private static final String DEBUG_REPORT_QUERY_STATUS         = "debug.reportquerystatus";
+    private static final String DEBUG_REPORT_QUERY_STATUS_DEFAULT = "false";
     private final boolean debugCreatePrecomputedTables;
     private final boolean debugPrintSettings;
     private final boolean debugSaveQueryResults;
     private final String  debugSaveQueryResultsPath;
     private final boolean debugSynchronizeRngState;
     private final boolean debugTruncateQueryTimestamps;
-    private final boolean debugReportIndividualTimes;
+    private final boolean debugReportQueryStatus;
 
     private final Properties prop;
     private boolean validated;
@@ -973,7 +976,7 @@ public class ConfigFile {
         prop.setProperty(DEBUG_SAVE_QUERY_RESULTS_PATH, DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT);
         prop.setProperty(DEBUG_SYNCHRONIZE_RNG_STATE, DEBUG_SYNCHRONIZE_RNG_STATE_DEFAULT);
         prop.setProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT);
-        prop.setProperty(DEBUG_REPORT_INDIVIDUAL_TIMES, DEBUG_REPORT_INDIVIDUAL_TIMES_DEFAULT);
+        prop.setProperty(DEBUG_REPORT_QUERY_STATUS, DEBUG_REPORT_QUERY_STATUS_DEFAULT);
 
         return prop;
     }
@@ -1086,7 +1089,7 @@ public class ConfigFile {
         debugSaveQueryResultsPath    =                      prop.getProperty(DEBUG_SAVE_QUERY_RESULTS_PATH);
         debugSynchronizeRngState     = Boolean.parseBoolean(prop.getProperty(DEBUG_SYNCHRONIZE_RNG_STATE).trim());
         debugTruncateQueryTimestamps = Boolean.parseBoolean(prop.getProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS).trim());
-        debugReportIndividualTimes   = Boolean.parseBoolean(prop.getProperty(DEBUG_REPORT_INDIVIDUAL_TIMES).trim());
+        debugReportQueryStatus       = Boolean.parseBoolean(prop.getProperty(DEBUG_REPORT_QUERY_STATUS).trim());
     }
 
     private String validateConfig(){
@@ -1322,7 +1325,7 @@ public class ConfigFile {
         settings.put(DEBUG_SAVE_QUERY_RESULTS_PATH, debugSaveQueryResultsPath);
         settings.put(DEBUG_SYNCHRONIZE_RNG_STATE, debugSynchronizeRngState);
         settings.put(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, debugTruncateQueryTimestamps);
-        settings.put(DEBUG_REPORT_INDIVIDUAL_TIMES, debugReportIndividualTimes);
+        settings.put(DEBUG_REPORT_QUERY_STATUS, debugReportQueryStatus);
 
         return settings;
     }
@@ -1435,8 +1438,8 @@ public class ConfigFile {
         return debugTruncateQueryTimestamps;
     }
 
-    public boolean DEBUG_reportIndividualQueryTimes(){
-        return debugReportIndividualTimes;
+    public boolean DEBUG_reportQueryStatus(){
+        return debugReportQueryStatus;
     }
 
     public boolean doSerialization() {

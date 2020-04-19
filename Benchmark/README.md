@@ -113,5 +113,5 @@ debug.savequeryresults        = false
 debug.savequeryresults.path   = TARGET PATH
 debug.synchronizerngstate     = false
 debug.truncatequerytimestamps = false
-debug.reportindividualtimes   = false
+debug.reportquerystatus       = false
 ```

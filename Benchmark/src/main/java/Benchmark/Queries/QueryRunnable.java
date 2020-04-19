@@ -156,13 +156,23 @@ public class QueryRunnable implements Runnable {
         long timeSpentAfterLatestExecution;
 
         QueryType queryToRun = selectQuery(rng);
+
+        if(!warmUp && config.DEBUG_reportQueryStatus()){
+            Logger.LOG(String.format("%s DEBUG: Running query with id %d of type %s", threadName, queryId, queryToRun));
+        }
+
         switch (queryToRun){
             case TotalClients:
             {
                 timeSpentBeforeLatestExecution = timeSpentQueryInProg_TotalClients;
 
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
-                if(!warmUp) timerQuery_TotalClients.start();
+                if(!warmUp) {
+                    if(config.DEBUG_reportQueryStatus()){
+                        Logger.LOG(String.format("%s DEBUG: Query arguments: { start:%s , end:%s }", threadName, time[0], time[1]));
+                    }
+                    timerQuery_TotalClients.start();
+                }
 
                 List<Total> result = queries.computeTotalClients(time[0], time[1]);
 
@@ -183,7 +193,12 @@ public class QueryRunnable implements Runnable {
                 timeSpentBeforeLatestExecution = timeSpentQueryInProg_FloorTotal;
 
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
-                if(!warmUp) timerQuery_FloorTotal.start();
+                if(!warmUp) {
+                    if(config.DEBUG_reportQueryStatus()){
+                        Logger.LOG(String.format("%s DEBUG: Query arguments: { start:%s , end:%s }", threadName, time[0], time[1]));
+                    }
+                    timerQuery_FloorTotal.start();
+                }
 
                 List<FloorTotal> result = queries.computeFloorTotal(time[0], time[1]);
 
@@ -205,7 +220,12 @@ public class QueryRunnable implements Runnable {
 
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
                 AccessPoint selectedAP = selectRandomAP(rng);
-                if(!warmUp) timerQuery_MaxForAP.start();
+                if(!warmUp) {
+                    if(config.DEBUG_reportQueryStatus()){
+                        Logger.LOG(String.format("%s DEBUG: Query arguments: { start:%s , end:%s , AP:%s }", threadName, time[0], time[1], selectedAP.getAPname()));
+                    }
+                    timerQuery_MaxForAP.start();
+                }
 
                 List<MaxForAP> result = queries.maxPerDayForAP(time[0], time[1], selectedAP);
 
@@ -226,7 +246,12 @@ public class QueryRunnable implements Runnable {
                 timeSpentBeforeLatestExecution = timeSpentQueryInProg_AvgOccupancy;
 
                 LocalDateTime startTime = generateTime(newestValidDate, rng);
-                if(!warmUp) timerQuery_AvgOccupancy.start();
+                if(!warmUp) {
+                    if(config.DEBUG_reportQueryStatus()){
+                        Logger.LOG(String.format("%s DEBUG: Query arguments: { startTime:%s , newestValidDate:%s }", threadName, startTime, newestValidDate));
+                    }
+                    timerQuery_AvgOccupancy.start();
+                }
 
                 List<AvgOccupancy> result = queries.computeAvgOccupancy(startTime, newestValidDate, 5);
 
@@ -247,7 +272,12 @@ public class QueryRunnable implements Runnable {
                 timeSpentBeforeLatestExecution = timeSpentQueryInProg_KMeans;
 
                 LocalDateTime[] time = generateTimeInterval(rng, config.getQueriesIntervalMinKMeans(), config.getQueriesIntervalMaxKMeans());
-                if(!warmUp) timerQuery_KMeans.start();
+                if(!warmUp) {
+                    if(config.DEBUG_reportQueryStatus()){
+                        Logger.LOG(String.format("%s DEBUG: Query arguments: { start:%s , end:%s , cluster:%d , iterations:%d }", threadName, time[0], time[1], config.getQueriesKMeansClusters(), config.getQueriesKMeansIterations()));
+                    }
+                    timerQuery_KMeans.start();
+                }
 
                 List<KMeans> result = queries.computeKMeans(time[0], time[1], config.getQueriesKMeansClusters(), config.getQueriesKMeansIterations());
 
@@ -657,30 +687,30 @@ public class QueryRunnable implements Runnable {
     private void saveIndividualTimes(QueryType executedQuery, long timeSpentBeforeLatestExecution, long timeSpentAfterLatestExecution){
         // The time-spent counters use nanoseconds. Divide by 1e6 to convert it to milliseconds.
         double timeSpent = (timeSpentAfterLatestExecution - timeSpentBeforeLatestExecution) / 1e6;
+
+        if(config.DEBUG_reportQueryStatus()) {
+            Logger.LOG(String.format("%s DEBUG: %s completed in: %.3f ms", threadName, executedQuery, timeSpent));
+        }
+
         switch(executedQuery){
             case TotalClients:
                 individualTimeSpentInProg_TotalClients.add(timeSpent);
-                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Total Clients | %8.2f ms", threadName, timeSpent));
                 if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.TOTAL_CLIENTS, timeSpent);
                 break;
             case FloorTotals:
                 individualTimeSpentInProg_FloorTotal.add(timeSpent);
-                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Floor Totals  | %8.2f ms", threadName, timeSpent));
                 if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.FLOOR_TOTALS, timeSpent);
                 break;
             case MaxForAP:
                 individualTimeSpentInProg_MaxForAP.add(timeSpent);
-                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Max for AP    | %8.2f ms", threadName, timeSpent));
                 if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.MAX_FOR_AP, timeSpent);
                 break;
             case AvgOccupancy:
                 individualTimeSpentInProg_AvgOccupancy.add(timeSpent);
-                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: Avg Occupancy | %8.2f ms", threadName, timeSpent));
                 if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.AVG_OCCUPANCY, timeSpent);
                 break;
             case KMeans:
                 individualTimeSpentInProg_KMeans.add(timeSpent);
-                if(config.DEBUG_reportIndividualQueryTimes()) Logger.LOG(String.format("%s INDIV: K-Means       | %8.2f ms", threadName, timeSpent));
                 if(config.doLoggingToCSV()) individualLogger.write(CSVLogger.KMEANS, timeSpent);
                 break;
             case UNKNOWN:
@@ -720,6 +750,9 @@ public class QueryRunnable implements Runnable {
     private void getTime(PreciseTimer dateCommTimer, boolean force) throws IOException, SQLException{
         if(config.doDateCommunicationByQueryingDatabase()){
             if(config.getQueryDateCommunicationIntervalInMillisec() == 0 || force){ // On the first time-grab we dont want to wait for the timer.
+                if(config.DEBUG_reportQueryStatus()){
+                    Logger.LOG(String.format("%s DEBUG: Querying for new timestamp in db. Old value is: %s", threadName, newestValidDate));
+                }
                 // The first time that we grab a value, our "newest valid date" is sourced from the config and is a
                 // 'best guess' about what the actual value is. However, since it has no guaranteed relation to the actual
                 // data, we cannot use it here because it may use that timestamp to improve query-performance to grab the
@@ -734,7 +767,13 @@ public class QueryRunnable implements Runnable {
                 // timestamp anyway which makes us miss the entries between the raw value and the truncated value.
                 // To get everything, we truncate and then add a second to avoid this issue.
                 newestValidDate = unmodifiedNewestValidDate.truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
+                if(config.DEBUG_reportQueryStatus()){
+                    Logger.LOG(String.format("%s DEBUG: Queried timestamp. Result was %s, truncated to %s", threadName, unmodifiedNewestValidDate, newestValidDate));
+                }
             } else if(dateCommTimer.elapsedSeconds() * 1000 > config.getQueryDateCommunicationIntervalInMillisec()){
+                if(config.DEBUG_reportQueryStatus()){
+                    Logger.LOG(String.format("%s DEBUG: Querying for new timestamp in db. Old value is: %s", threadName, newestValidDate));
+                }
                 unmodifiedNewestValidDate = queryTarget.getNewestTimestamp(unmodifiedNewestValidDate);
                 // The newest valid date stored in the database has whatever granularity that it was saved with.
                 // This granularity may (depending on benchmark config settings) differ between databases
@@ -744,10 +783,19 @@ public class QueryRunnable implements Runnable {
                 // timestamp anyway which makes us miss the entries between the raw value and the truncated value.
                 // To get everything, we truncate and then add a second to avoid this issue.
                 newestValidDate = unmodifiedNewestValidDate.truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
+                if(config.DEBUG_reportQueryStatus()){
+                    Logger.LOG(String.format("%s DEBUG: Queried timestamp. Result was %s, truncated to %s", threadName, unmodifiedNewestValidDate, newestValidDate));
+                }
                 dateCommTimer.start();
             }
         } else {
+            if(config.DEBUG_reportQueryStatus()){
+                Logger.LOG(String.format("%s DEBUG: Getting updated timestamp from direct date comm. Old value is: %s", threadName, newestValidDate));
+            }
              newestValidDate = dateComm.getNewestTime();
+            if(config.DEBUG_reportQueryStatus()){
+                Logger.LOG(String.format("%s DEBUG: Got updated timestamp. New value is: %s", threadName, newestValidDate));
+            }
         }
     }
 

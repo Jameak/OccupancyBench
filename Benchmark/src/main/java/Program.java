@@ -129,6 +129,18 @@ public class Program {
 
         dateComm.setInitialDate(config.getGeneratorEndDate(), LocalTime.of(0,0,0));
 
+        // TODO @HACK We create the rng-instances for ingestion before we create them for queries, which means that
+        //      if we change the number of ingest-threads (and nothing else) we get a different query-distribution.
+        //      This fucks up some of my experiments so we force the query-rng to be independent of how many ingest-
+        //      threads we've configured.
+        //      This functionality should be implemented, but instead of creating an array, we should just create a new
+        //      rng-instance for both queries and ingestion, but then I'd need to rerun my old experiments with
+        //      this new rng-code, while this is backwards compatible with my old results. That is why this is a @HACK.
+        Random[] queryRng = new Random[config.getQueriesThreadCount()];
+        for(int i = 0; i < config.getQueriesThreadCount(); i++){
+            queryRng[i] = new Random(rng.nextInt());
+        }
+
         if(config.isIngestionEnabled()){
             Logger.LOG("Starting ingestion.");
             startIngestion(config, generatedFloors, parsedData, dateComm, rng, !config.doDateCommunicationByQueryingDatabase());
@@ -138,7 +150,7 @@ public class Program {
         Future[] queryTasks = null;
         if(config.isQueryingEnabled()){
             Logger.LOG("Starting queries.");
-            queryTasks = startQueries(config, dateComm, rng, generatedFloors);
+            queryTasks = startQueries(config, dateComm, queryRng, generatedFloors);
             Logger.LOG("Queries started.");
         }
 
@@ -194,7 +206,7 @@ public class Program {
         Logger.LOG("Done.");
     }
 
-    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random rng, Floor[] generatedFloors) {
+    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random[] rngSource, Floor[] generatedFloors) {
         assert config.getQueriesThreadCount() > 0;
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
@@ -203,7 +215,7 @@ public class Program {
 
         Future[] queryTasks = new Future[config.getQueriesThreadCount()];
         for(int i = 0; i < config.getQueriesThreadCount(); i++){
-            Random queryRng = new Random(rng.nextInt());
+            Random queryRng = rngSource[i];
             if(!config.useSharedQueriesInstance()) queryInstance = DatabaseQueriesFactory.createQueriesInstance(config);
 
             QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i, i);

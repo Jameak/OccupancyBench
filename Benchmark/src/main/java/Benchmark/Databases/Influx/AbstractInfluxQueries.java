@@ -21,7 +21,7 @@ public abstract class AbstractInfluxQueries implements IQueries {
 
     @Override
     public LocalDateTime getNewestTimestamp(LocalDateTime previousNewestTime) {
-        String queryString = String.format("SELECT * FROM %s ORDER BY time DESC LIMIT 1", measurement);
+        String queryString = String.format("SELECT * FROM %s WHERE time > %d ORDER BY time DESC LIMIT 1", measurement, toTimestamp(previousNewestTime));
 
         Query query = new Query(queryString);
         QueryResult results = influxDB.query(query);

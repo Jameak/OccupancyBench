@@ -114,4 +114,6 @@ debug.savequeryresults.path   = TARGET PATH
 debug.synchronizerngstate     = false
 debug.truncatequerytimestamps = false
 debug.reportquerystatus       = false
+debug.partitionlockstep       = false
+debug.partitionlockstep.timescaledetailed = false
 ```

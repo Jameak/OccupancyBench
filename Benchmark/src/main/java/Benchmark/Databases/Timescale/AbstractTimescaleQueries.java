@@ -41,6 +41,7 @@ public abstract class AbstractTimescaleQueries implements IQueries {
 
     @Override
     public void done() throws SQLException {
+        if(connection == null) return;
         connection.close();
     }
 

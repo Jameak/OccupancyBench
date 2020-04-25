@@ -1,5 +1,6 @@
 import Benchmark.*;
-import Benchmark.Analysis.Precomputation;
+import Benchmark.Databases.SchemaFormats;
+import Benchmark.Debug.*;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.DBTargets;
 import Benchmark.Databases.DatabaseTargetFactory;
@@ -100,6 +101,8 @@ public class Program {
     // --- Querying ---
     private ExecutorService threadPoolQueries;
 
+    private PartitionLockstepChannel DEBUG_partitionLockstepChannel;
+
     public void run(ConfigFile config) throws Exception{
         assert config.isValidConfig();
         Random rng = new Random(config.getSeed());
@@ -139,6 +142,10 @@ public class Program {
         Random[] queryRng = new Random[config.getQueriesThreadCount()];
         for(int i = 0; i < config.getQueriesThreadCount(); i++){
             queryRng[i] = new Random(rng.nextInt());
+        }
+
+        if(config.DEBUG_isPartitionLockstepEnabled()){
+            DEBUG_partitionLockstepChannel = new PartitionLockstepChannel(config);
         }
 
         if(config.isIngestionEnabled()){
@@ -191,6 +198,10 @@ public class Program {
             }
         }
 
+        if(config.DEBUG_isPartitionLockstepEnabled()){
+            DEBUG_partitionLockstepChannel.breakBarriers();
+        }
+
         if(config.isIngestionEnabled()){
             stopIngestion();
         }
@@ -211,12 +222,12 @@ public class Program {
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
         IQueries queryInstance = null;
-        if(config.useSharedQueriesInstance()) queryInstance = DatabaseQueriesFactory.createQueriesInstance(config);
+        if(config.useSharedQueriesInstance()) queryInstance = instantiateQueries(config);
 
         Future[] queryTasks = new Future[config.getQueriesThreadCount()];
         for(int i = 0; i < config.getQueriesThreadCount(); i++){
             Random queryRng = rngSource[i];
-            if(!config.useSharedQueriesInstance()) queryInstance = DatabaseQueriesFactory.createQueriesInstance(config);
+            if(!config.useSharedQueriesInstance()) queryInstance = instantiateQueries(config);
 
             QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i, i);
             queryTasks[i] = threadPoolQueries.submit(queryRunnable);
@@ -254,6 +265,9 @@ public class Program {
                     firstCreatedTarget = false;
                 }
                 ingestTarget = DatabaseTargetFactory.createDatabaseTarget(config.getIngestTarget(), config, recreate, allAPs);
+
+                if(config.DEBUG_isPartitionLockstepEnabled()) ingestTarget = new MultiTarget(ingestTarget, new PartitionLockstepIngestionController(config, DEBUG_partitionLockstepChannel));
+
                 ingestTargets[i] = ingestTarget;
             }
 
@@ -328,7 +342,7 @@ public class Program {
 
         if(config.DEBUG_createPrecomputedTables()){
             Logger.LOG("DEBUG: Filling precomputation tables.");
-            Precomputation.ComputeTotals(config.getGeneratorGenerationSamplerate(), generatedFloors, config);
+            InfluxPrecomputationInsights.ComputeTotals(config.getGeneratorGenerationSamplerate(), generatedFloors, config);
         }
 
         if(config.doSerialization()){
@@ -383,5 +397,21 @@ public class Program {
         }
 
         return out;
+    }
+
+    private IQueries instantiateQueries(ConfigFile config){
+        if(config.DEBUG_isPartitionLockstepEnabled()){
+            if(config.DEBUG_partitionLockstepExplainAnalyzeTimescale() && config.getQueriesTarget() == DBTargets.TIMESCALE){
+                if(config.getSchema() == SchemaFormats.COLUMN){
+                    return new PartitionLockstepTimescaleDetailedColumnQueries(DEBUG_partitionLockstepChannel);
+                } else {
+                    throw new IllegalStateException("Debug option detailed partition-lockstep not implemented for this timescale schema: " + config.getSchema());
+                }
+            } else {
+                return new PartitionLockstepQueryProxy(DatabaseQueriesFactory.createQueriesInstance(config), DEBUG_partitionLockstepChannel);
+            }
+        }
+
+        return DatabaseQueriesFactory.createQueriesInstance(config);
     }
 }

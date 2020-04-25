@@ -1,4 +1,4 @@
-package Benchmark.Analysis;
+package Benchmark.Debug;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.SchemaFormats;
@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  * This data is useful for debugging and for comparisons between the actual ITU data and the generated data, and between
  * generated data that was generated with different config settings.
  */
-public class Precomputation {
+public class InfluxPrecomputationInsights {
     public static void ComputeTotals(int interval, Floor[] generatedFloors, ConfigFile config) throws IOException {
         InfluxDB writeDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, false);
         InfluxDB readDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, true);

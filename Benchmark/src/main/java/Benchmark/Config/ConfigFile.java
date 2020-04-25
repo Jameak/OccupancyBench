@@ -820,6 +820,35 @@ public class ConfigFile {
      */
     private static final String DEBUG_REPORT_QUERY_STATUS         = "debug.reportquerystatus";
     private static final String DEBUG_REPORT_QUERY_STATUS_DEFAULT = "false";
+    /**
+     * Type: Boolean
+     * If enabled, ingestion and querying are synchronized in such a way that we can get data on what impact the number
+     * of partitions in the database has on query completion times.
+     *
+     * This proxies the normal query-implementation and will make the normal query-statistics unreliable due to the
+     * synchronization with ingestion.
+     *
+     * This debug option has only been implemented for the following config settings:
+     * - Querying is enabled.
+     * - Ingestion is enabled.
+     * - Querying uses 1 thread.
+     * - Ingestion uses 1 thread.
+     *
+     * The query-execution data retrieved through this functionality is written to a hardcoded file.
+     * @see Benchmark.Debug.PartitionLockstepIngestionController for hardcoded constants
+     */
+    private static final String DEBUG_PARTITION_LOCKSTEP = "debug.partitionlockstep";
+    private static final String DEBUG_PARTITION_LOCKSTEP_DEFAULT = "false";
+    /**
+     * Type: Boolean
+     * Rather than simply proxying the normal Timescale query-implementation, this will replace it with a specialized
+     * version that uses the EXPLAIN ANALYZE Postgres statements to get info on planning- and execution-time.
+     *
+     * This debug option does nothing if {@code DEBUG_PARTITION_LOCKSTEP} is disabled.
+     * This debug option has only been implemented for the column schema.
+     */
+    private static final String DEBUG_PARTITION_LOCKSTEP_TIMESCALE_EXPLAIN_ANALYZE = "debug.partitionlockstep.timescaledetailed";
+    private static final String DEBUG_PARTITION_LOCKSTEP_TIMESCALE_EXPLAIN_ANALYZE_DEFAULT = "false";
     private final boolean debugCreatePrecomputedTables;
     private final boolean debugPrintSettings;
     private final boolean debugSaveQueryResults;
@@ -827,6 +856,8 @@ public class ConfigFile {
     private final boolean debugSynchronizeRngState;
     private final boolean debugTruncateQueryTimestamps;
     private final boolean debugReportQueryStatus;
+    private final boolean debugPartitionLockstepEnabled;
+    private final boolean debugPartitionLockstepExplainAnalyzeTimescale;
 
     private final Properties prop;
     private boolean validated;
@@ -977,6 +1008,8 @@ public class ConfigFile {
         prop.setProperty(DEBUG_SYNCHRONIZE_RNG_STATE, DEBUG_SYNCHRONIZE_RNG_STATE_DEFAULT);
         prop.setProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT);
         prop.setProperty(DEBUG_REPORT_QUERY_STATUS, DEBUG_REPORT_QUERY_STATUS_DEFAULT);
+        prop.setProperty(DEBUG_PARTITION_LOCKSTEP, DEBUG_PARTITION_LOCKSTEP_DEFAULT);
+        prop.setProperty(DEBUG_PARTITION_LOCKSTEP_TIMESCALE_EXPLAIN_ANALYZE, DEBUG_PARTITION_LOCKSTEP_TIMESCALE_EXPLAIN_ANALYZE_DEFAULT);
 
         return prop;
     }
@@ -1090,6 +1123,8 @@ public class ConfigFile {
         debugSynchronizeRngState     = Boolean.parseBoolean(prop.getProperty(DEBUG_SYNCHRONIZE_RNG_STATE).trim());
         debugTruncateQueryTimestamps = Boolean.parseBoolean(prop.getProperty(DEBUG_TRUNCATE_QUERY_TIMESTAMPS).trim());
         debugReportQueryStatus       = Boolean.parseBoolean(prop.getProperty(DEBUG_REPORT_QUERY_STATUS).trim());
+        debugPartitionLockstepEnabled = Boolean.parseBoolean(prop.getProperty(DEBUG_PARTITION_LOCKSTEP).trim());
+        debugPartitionLockstepExplainAnalyzeTimescale = Boolean.parseBoolean(prop.getProperty(DEBUG_PARTITION_LOCKSTEP_TIMESCALE_EXPLAIN_ANALYZE).trim());
     }
 
     private String validateConfig(){
@@ -1157,7 +1192,7 @@ public class ConfigFile {
             if(!(queriesIntervalMinKMeans >= 0)) return QUERIES_INTERVAL_MIN_KMEANS + ": Minimum query interval must be >= 0";
             if(!(queriesIntervalMaxKMeans >= 0)) return QUERIES_INTERVAL_MAX_KMEANS + ": Maximum query interval must be >= 0";
             if(!(queriesIntervalMinKMeans <= queriesIntervalMaxKMeans)) return QUERIES_INTERVAL_MIN_KMEANS + " and " + QUERIES_INTERVAL_MAX_KMEANS + ": Minimum query interval must be <= maximum query interval";
-            if(queriesKMeansClusters < 2 || queriesKMeansClusters > 113*generatorScale) return QUERIES_KMEANS_CLUSTERS + ": Cluster-amount must be greater than 1 and less than the approximate number of APs generated at the specified scale.";
+            if(queriesKMeansClusters < 2) return QUERIES_KMEANS_CLUSTERS + ": Cluster-amount must be greater than 1.";
             if(queriesKMeansIterations < 1) return QUERIES_KMEANS_ITERATIONS + ": Number of iterations for K-Means must be at least 1";
         }
 
@@ -1326,6 +1361,8 @@ public class ConfigFile {
         settings.put(DEBUG_SYNCHRONIZE_RNG_STATE, debugSynchronizeRngState);
         settings.put(DEBUG_TRUNCATE_QUERY_TIMESTAMPS, debugTruncateQueryTimestamps);
         settings.put(DEBUG_REPORT_QUERY_STATUS, debugReportQueryStatus);
+        settings.put(DEBUG_PARTITION_LOCKSTEP, debugPartitionLockstepEnabled);
+        settings.put(DEBUG_PARTITION_LOCKSTEP_TIMESCALE_EXPLAIN_ANALYZE, debugPartitionLockstepExplainAnalyzeTimescale);
 
         return settings;
     }
@@ -1440,6 +1477,14 @@ public class ConfigFile {
 
     public boolean DEBUG_reportQueryStatus(){
         return debugReportQueryStatus;
+    }
+
+    public boolean DEBUG_isPartitionLockstepEnabled(){
+        return debugPartitionLockstepEnabled;
+    }
+
+    public boolean DEBUG_partitionLockstepExplainAnalyzeTimescale(){
+        return debugPartitionLockstepExplainAnalyzeTimescale;
     }
 
     public boolean doSerialization() {

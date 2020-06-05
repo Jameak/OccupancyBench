@@ -34,7 +34,7 @@ import java.util.concurrent.Future;
 /**
  * The entry-point of the benchmark program.
  */
-public class Program {
+public class Entrypoint {
     public static void main(String[] args) {
         if(args == null || args.length < 1){
             System.out.println("No arguments provided.");
@@ -87,7 +87,7 @@ public class Program {
         }
 
         try {
-            new Program().run(config);
+            new Entrypoint().run(config);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

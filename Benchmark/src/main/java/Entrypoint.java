@@ -133,17 +133,11 @@ public class Entrypoint {
 
         dateComm.setInitialDate(config.getGeneratorEndDate(), LocalTime.of(0,0,0));
 
-        // TODO @HACK We create the rng-instances for ingestion before we create them for queries, which means that
-        //      if we change the number of ingest-threads (and nothing else) we get a different query-distribution.
-        //      This fucks up some of my experiments so we force the query-rng to be independent of how many ingest-
-        //      threads we've configured.
-        //      This functionality should be implemented, but instead of creating an array, we should just create a new
-        //      rng-instance for both queries and ingestion, but then I'd need to rerun my old experiments with
-        //      this new rng-code, while this is backwards compatible with my old results. That is why this is a @HACK.
-        Random[] queryRng = new Random[config.getQueriesThreadCount()];
-        for(int i = 0; i < config.getQueriesThreadCount(); i++){
-            queryRng[i] = new Random(rng.nextInt());
-        }
+        // Create separate rng-sources for ingestion- and querying so that e.g. changing the number of ingest-threads
+        //   between runs of the benchmark doesn't change the rng-source for queries (and therefore keeps the
+        //   query-workload as comparable as possible)
+        Random ingestRngSource = new Random(rng.nextInt());
+        Random queryRngSource = new Random(rng.nextInt());
 
         if(config.DEBUG_isPartitionLockstepEnabled()){
             DEBUG_partitionLockstepChannel = new PartitionLockstepChannel(config);
@@ -151,14 +145,14 @@ public class Entrypoint {
 
         if(config.isIngestionEnabled()){
             Logger.LOG("Starting ingestion.");
-            startIngestion(config, generatedFloors, parsedData.seedEntries, dateComm, rng, !config.doDateCommunicationByQueryingDatabase());
+            startIngestion(config, generatedFloors, parsedData.seedEntries, dateComm, ingestRngSource, !config.doDateCommunicationByQueryingDatabase());
             Logger.LOG("Ingestion started.");
         }
 
         Future[] queryTasks = null;
         if(config.isQueryingEnabled()){
             Logger.LOG("Starting queries.");
-            queryTasks = startQueries(config, dateComm, queryRng, generatedFloors);
+            queryTasks = startQueries(config, dateComm, queryRngSource, generatedFloors);
             Logger.LOG("Queries started.");
         }
 
@@ -218,7 +212,7 @@ public class Entrypoint {
         Logger.LOG("Done.");
     }
 
-    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random[] rngSource, GeneratedFloor[] generatedFloors) {
+    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random queryRngSource, GeneratedFloor[] generatedFloors) {
         assert config.getQueriesThreadCount() > 0;
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
@@ -227,16 +221,16 @@ public class Entrypoint {
 
         Future[] queryTasks = new Future[config.getQueriesThreadCount()];
         for(int i = 0; i < config.getQueriesThreadCount(); i++){
-            Random queryRng = rngSource[i];
+            Random queryRngForThisThread = new Random(queryRngSource.nextInt());
             if(!config.useSharedQueriesInstance()) queryInstance = instantiateQueries(config);
 
-            QueryRunnable queryRunnable = new QueryRunnable(config, queryRng, dateComm, generatedFloors, queryInstance, "Query " + i, i);
+            QueryRunnable queryRunnable = new QueryRunnable(config, queryRngForThisThread, dateComm, generatedFloors, queryInstance, "Query " + i, i);
             queryTasks[i] = threadPoolQueries.submit(queryRunnable);
         }
         return queryTasks;
     }
 
-    private void startIngestion(ConfigFile config, GeneratedFloor[] generatedFloors, SeedEntries seedEntries, DateCommunication dateComm, Random rng, boolean doDirectComm) throws IOException, SQLException {
+    private void startIngestion(ConfigFile config, GeneratedFloor[] generatedFloors, SeedEntries seedEntries, DateCommunication dateComm, Random ingestRngSource, boolean doDirectComm) throws IOException, SQLException {
         assert config.getIngestThreadCount() > 0;
         threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
         ingestTasks = new Future[config.getIngestThreadCount()];
@@ -253,7 +247,7 @@ public class Entrypoint {
         //      any queries for 'recent' data too easy. Or I could make queries for 'recent' data be the recency of
         //      the slowest thread (currently it follows the fastest one).
         for(int i = 0; i < config.getIngestThreadCount(); i++) {
-            Random ingestRng = new Random(rng.nextInt());
+            Random ingestRngForThread = new Random(ingestRngSource.nextInt());
             ITarget ingestTarget;
             if (config.useSharedIngestInstance()) {
                 ingestTarget = ingestTargets[0];
@@ -275,7 +269,7 @@ public class Entrypoint {
             // If ingestion runs alongside querying then we stop ingestion when we're done querying.
             // However, if querying isn't running then we might want to stop ingestion at some specific date.
             LocalDate ingestEndDate = config.isQueryingEnabled() ? LocalDate.MAX : config.getIngestEndDate();
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], seedEntries, ingestRng, ingestTarget, dateComm, i, ingestEndDate, doDirectComm);
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], seedEntries, ingestRngForThread, ingestTarget, dateComm, i, ingestEndDate, doDirectComm);
         }
 
         for(int i = 0; i < ingestTasks.length; i++){

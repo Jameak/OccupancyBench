@@ -29,16 +29,21 @@ benchmark.output.csv.header = true
 serialization.enabled = false
 serialization.path    = FOLDER PATH
 
-generator.enabled                    = true
-generator.data.idmap                 = FILE PATH
-generator.data.folder                = FOLDER PATH
+generator.enabled = true
+generator.input.idmapfile     = FILE PATH
+generator.input.datafolder    = FOLDER PATH
+generator.input.floorinfofile = FILE PATH
+generator.input.floormapfile  = FILE PATH
+generator.input.ignorefile    = FILE PATH
+generator.input.combinedfile  = FILE PATH
+generator.input.separator     = ;
+
 generator.data.generationsamplerate  = 60
 generator.data.seedsamplerate        = 60
 generator.data.scale                 = 1.0
 generator.data.jitter                = 5
 generator.data.startdate             = 2019-01-01
 generator.data.enddate               = 2019-04-01
-generator.data.keepfloorassociations = true
 generator.data.granularity           = nanosecond
 generator.output.targets             = influx
 generator.output.filepath            = TARGET FILE PATH

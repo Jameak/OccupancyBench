@@ -1,7 +1,7 @@
 package Benchmark.Databases.Timescale;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 
@@ -15,9 +15,9 @@ import java.util.HashMap;
 public class TimescaleColumnTarget extends AbstractTimescaleTarget {
     private final int batchSize;
     private int inserts = 0;
-    private final AccessPoint[] allAPs;
+    private final GeneratedAccessPoint[] allAPs;
 
-    public TimescaleColumnTarget(ConfigFile config, boolean recreate, AccessPoint[] allAPs) throws SQLException {
+    public TimescaleColumnTarget(ConfigFile config, boolean recreate, GeneratedAccessPoint[] allAPs) throws SQLException {
         super(config);
         this.allAPs = allAPs;
         this.batchSize = config.getTimescaleBatchSize();
@@ -28,7 +28,7 @@ public class TimescaleColumnTarget extends AbstractTimescaleTarget {
         }
 
         StringBuilder sb = new StringBuilder(String.format("INSERT INTO %s (time", config.getTimescaleTable()));
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             sb.append(",\"");
             //AP-names contain a '-' character that needs to be escaped
             sb.append(AP.getAPname());
@@ -51,7 +51,7 @@ public class TimescaleColumnTarget extends AbstractTimescaleTarget {
         stmt.setTimestamp(1, timestamp);
         int nextParamIndex = 2;
         HashMap<String, Integer> map = columnEntry.getMapping();
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             stmt.setInt(nextParamIndex, map.getOrDefault(AP.getAPname(), 0));
             nextParamIndex++;
         }

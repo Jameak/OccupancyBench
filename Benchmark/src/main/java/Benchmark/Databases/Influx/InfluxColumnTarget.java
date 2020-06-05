@@ -1,7 +1,7 @@
 package Benchmark.Databases.Influx;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import org.influxdb.dto.Point;
@@ -13,9 +13,9 @@ import java.util.HashMap;
  * Writes the added entries to InfluxDB with nanosecond precision, in column-format.
  */
 public class InfluxColumnTarget extends AbstractInfluxTarget {
-    private final AccessPoint[] allAPs;
+    private final GeneratedAccessPoint[] allAPs;
 
-    public InfluxColumnTarget(ConfigFile config, boolean recreate, AccessPoint[] allAPs) throws IOException {
+    public InfluxColumnTarget(ConfigFile config, boolean recreate, GeneratedAccessPoint[] allAPs) throws IOException {
         super(config, recreate);
         this.allAPs = allAPs;
     }
@@ -29,7 +29,7 @@ public class InfluxColumnTarget extends AbstractInfluxTarget {
 
         long time = columnEntry.getTime(granularity);
         Point.Builder builder = Point.measurement(measurementName).time(time, granularity.toTimeUnit());
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             //Note: Influx doesn't support null as field-values so we are forced to write '0' here for non-existent APs.
             builder.addField(AP.getAPname(), map.getOrDefault(AP.getAPname(), 0));
         }

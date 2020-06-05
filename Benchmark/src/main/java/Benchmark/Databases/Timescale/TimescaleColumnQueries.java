@@ -1,8 +1,8 @@
 package Benchmark.Databases.Timescale;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
@@ -25,19 +25,19 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
     private String precomputedFloorTotalPart;
     private String precomputedAvgOccupancyPart1;
     private String precomputedAvgOccupancyPart2;
-    private AccessPoint[] allAPs;
+    private GeneratedAccessPoint[] allAPs;
     private int sampleRate;
-    private Floor[] generatedFloors;
+    private GeneratedFloor[] generatedFloors;
     private Random rng;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
         this.rng = rng;
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
-        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+        this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         precomputedTotalClientsPart = QueryHelper.buildColumnSchemaTotalClientsQueryPrecomputation(allAPs);
         precomputedFloorTotalPart = QueryHelper.buildColumnSchemaFloorTotalQueryPrecomputation(generatedFloors);
@@ -84,7 +84,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
              ResultSet results = statement.executeQuery(query)) {
              while (results.next()) {
                 String time = results.getString("bucket");
-                for(Floor floor : generatedFloors){
+                for(GeneratedFloor floor : generatedFloors){
                     int floorTotal = results.getInt("floor" + floor.getFloorNumber());
                     floorTotals.add(new FloorTotal(floor.getFloorNumber(), time, floorTotal));
                 }
@@ -95,7 +95,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) throws SQLException {
         long timeStart = toTimestamp(start);
         long timeEnd = toTimestamp(end);
         List<MaxForAP> max = new ArrayList<>();
@@ -148,7 +148,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
         try(Statement statement = connection.createStatement()){
             try(ResultSet results = statement.executeQuery(query1)){
                 while(results.next()) {
-                    for(AccessPoint AP : allAPs){
+                    for(GeneratedAccessPoint AP : allAPs){
                         // Note: ResultSet.getDouble automatically converts NULL to 0 so we cant tell the difference
                         //       between a missing AP-value and a normal 0
                         double historicalClientsNow = results.getDouble("avg-" + AP.getAPname());
@@ -159,7 +159,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
 
             try(ResultSet results = statement.executeQuery(query2)){
                 while(results.next()) {
-                    for(AccessPoint AP : allAPs){
+                    for(GeneratedAccessPoint AP : allAPs){
                         double historicalClientsSoon = results.getDouble("avg-" + AP.getAPname());
                         parsedQ2.put(AP.getAPname(), historicalClientsSoon);
                     }
@@ -168,7 +168,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
 
             try(ResultSet results = statement.executeQuery(query3)){
                 while(results.next()) {
-                    for(AccessPoint AP : allAPs){
+                    for(GeneratedAccessPoint AP : allAPs){
                         int currentClients = results.getInt(AP.getAPname());
                         parsedQ3.put(AP.getAPname(), currentClients);
                     }
@@ -177,7 +177,7 @@ public class TimescaleColumnQueries extends AbstractTimescaleQueries {
         }
 
         List<AvgOccupancy> output = new ArrayList<>();
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             String name = AP.getAPname();
             assert parsedQ1.containsKey(name) && parsedQ2.containsKey(name) && parsedQ3.containsKey(name);
 

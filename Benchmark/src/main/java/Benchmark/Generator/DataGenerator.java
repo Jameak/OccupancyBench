@@ -2,12 +2,12 @@ package Benchmark.Generator;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.SchemaFormats;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.GeneratedRowEntry;
-import Benchmark.Loader.Entry;
-import Benchmark.Loader.MapData;
+import Benchmark.SeedLoader.Seeddata.Entry;
 import Benchmark.Generator.Targets.ITarget;
+import Benchmark.SeedLoader.Seeddata.SeedEntries;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -24,7 +24,7 @@ public class DataGenerator {
      * Generates data for the given APs, based on the given data, between the specified start-date (inclusive)
      * and end-date (exclusive). Generated data is added to the specified target.
      *
-     * The given config file controls the scale and interval of the generated data.
+     * The given config file controls the scale and sample rate of the generated data.
      *
      * @param APs The APs for which to generate data.
      * @param data The data to use as the basis for generation.
@@ -35,7 +35,7 @@ public class DataGenerator {
      * @param config The config file to use.
      * @throws IOException Thrown if the outputTarget throws when data is added.
      */
-    public static void Generate(AccessPoint[] APs, MapData data, LocalDate startDate, LocalDate endDate, Random rng,
+    public static void Generate(GeneratedAccessPoint[] APs, SeedEntries data, LocalDate startDate, LocalDate endDate, Random rng,
                                 ITarget outputTarget, ConfigFile config) throws IOException, SQLException {
         int generatorSampleRate = config.getGeneratorGenerationSamplerate();
         int seedSampleRate = config.getGeneratorSeedSamplerate();
@@ -49,7 +49,7 @@ public class DataGenerator {
 
         assert startDate.isBefore(endDate);
 
-        LocalDate[] sortedEntryKeys = data.getDateEntries().keySet().toArray(new LocalDate[0]);
+        LocalDate[] sortedEntryKeys = data.loadedEntries.keySet().toArray(new LocalDate[0]);
         Arrays.sort(sortedEntryKeys);
 
         int startSecond = rng.nextInt(10) + 1;
@@ -62,8 +62,8 @@ public class DataGenerator {
     }
 
     private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int generatorSampleRate,
-                                             int seedSampleRate, AccessPoint[] APs, LocalDate[] sortedEntryKeys,
-                                             MapData data, Random rng, double scale, ITarget outputTarget,
+                                             int seedSampleRate, GeneratedAccessPoint[] APs, LocalDate[] sortedEntryKeys,
+                                             SeedEntries data, Random rng, double scale, ITarget outputTarget,
                                              int jitterMax, SchemaFormats schema, boolean DEBUG_sync_rng_state)
                                              throws IOException, SQLException {
         boolean generateFasterThanLoadedData = generatorSampleRate < seedSampleRate;
@@ -79,7 +79,7 @@ public class DataGenerator {
             LocalDate sortedEntryKey = sortedEntryKeys[k];
             LocalTime startTime = LocalTime.of(0, 0, startSecond, 0);
 
-            Entry[] entriesOnDate = data.getDateEntries().get(sortedEntryKey);
+            Entry[] entriesOnDate = data.loadedEntries.get(sortedEntryKey);
             int skippedEntries = numEntriesToSkip; // Set to numEntriesToSkip initially so that the first loop-iteration isn't skipped.
             for (int i = 0; i < entriesOnDate.length; i++) {
                 Entry entryOnDay = entriesOnDate[i];
@@ -100,8 +100,8 @@ public class DataGenerator {
                     if (i + 1 < entriesOnDate.length) { // Next entry is just the next one on this day
                         nextEntry = entriesOnDate[i + 1];
                     } else if(k+1 < sortedEntryKeys.length) { // No more entries to interpolate off of today. Grab the first entry from the next day
-                        assert data.getDateEntries().get(sortedEntryKeys[k + 1]) != null && data.getDateEntries().get(sortedEntryKeys[k + 1]).length > 0;
-                        nextEntry = data.getDateEntries().get(sortedEntryKeys[k + 1])[0];
+                        assert data.loadedEntries.get(sortedEntryKeys[k + 1]) != null && data.loadedEntries.get(sortedEntryKeys[k + 1]).length > 0;
+                        nextEntry = data.loadedEntries.get(sortedEntryKeys[k + 1])[0];
                     } else {
                         // No more data left to base interpolation off of.
                         // In this case, just create a small hole instead.
@@ -132,19 +132,19 @@ public class DataGenerator {
         return nextDate;
     }
 
-    private static void GenerateBasedOnEntry(LocalTime startTime, AccessPoint[] APs, Entry entryOnDay, Random rng,
+    private static void GenerateBasedOnEntry(LocalTime startTime, GeneratedAccessPoint[] APs, Entry entryOnDay, Random rng,
                                              LocalDate nextDate, double scale, ITarget outputTarget, int jitterMax,
                                              SchemaFormats schema, boolean DEBUG_sync_rng_state) throws IOException, SQLException {
         LocalTime readingTime = startTime;
         switch (schema){
             case ROW:
-                for (AccessPoint AP : APs) {
-                    int APid = AP.getMapID();
+                for (GeneratedAccessPoint AP : APs) {
+                    String apSeedName = AP.getOriginalName();
                     if (!entryOnDay.hasData())
                         continue; // Entry has no data, so generate nothing rather than zeros.
-                    if (entryOnDay.getProbabilities().get(APid) == null)
-                        continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
-                    double probability = entryOnDay.getProbabilities().get(APid);
+                    if (entryOnDay.getProbabilities().get(apSeedName) == null)
+                        continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data.
+                    double probability = entryOnDay.getProbabilities().get(apSeedName);
 
                     int nanoSecondsBetweenReadings = 15_000_000 + rng.nextInt(10_000_000);
                     readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
@@ -167,14 +167,14 @@ public class DataGenerator {
                     readingTime = readingTime.plusNanos(nanoSecondsBetweenReadings);
                 }
 
-                // NOTE: Not a requirement that all APs are present in the "APs" variable.
-                for (AccessPoint AP : APs) {
-                    int APid = AP.getMapID();
+                // @NOTE: Not a requirement that all APs are present in the "APs" variable.
+                for (GeneratedAccessPoint AP : APs) {
+                    String apSeedName = AP.getOriginalName();
                     if (!entryOnDay.hasData())
                         continue; // Entry has no data, so generate nothing (rather than a zero). The code that writes APs to the database needs to handle holes anyway.
-                    if (entryOnDay.getProbabilities().get(APid) == null)
+                    if (entryOnDay.getProbabilities().get(apSeedName) == null)
                         continue; // Entry has data, but no data for this specific AP. So rather than generating a 0, we create a hole in the data, just like in the source-data.
-                    double probability = entryOnDay.getProbabilities().get(APid);
+                    double probability = entryOnDay.getProbabilities().get(apSeedName);
 
                     // To be able to directly compare generated data between schema-options, we need to keep the rng-state in sync
                     // and generate our values in the exact same way. This makes no sense from a performance-perspective, so
@@ -203,21 +203,21 @@ public class DataGenerator {
 
     private static Entry CreateFakeEntry(Entry first, Entry last, int index, int additionalEntries){
         assert last != null;
-        LocalDateTime time = null; // Time-field isn't used during generation. If that changes, this needs to be changed.
+        LocalDateTime time = null; // @NOTE: Time-field isn't used during generation. If that changes, this needs to be changed to give fake entries timestamps.
 
         double blendPerNum = 1.0 / (additionalEntries+1);
         int interpolatedTotal = (int)Math.ceil(LinearInterpolate(first.getTotal(), last.getTotal(), blendPerNum * (index+1)));
 
-        Set<Integer> idsToInterpProbsFor = first.getProbabilities().keySet();
-        Map<Integer, Double> interpProps = new HashMap<>();
-        for(Integer id : idsToInterpProbsFor){
-            double firstProp = first.getProbabilities().get(id);
-            // Hole in AP-data for 'last'. Extend hole in fake entries.
-            if(!last.getProbabilities().containsKey(id)) continue;
+        Set<String> apsToInterpProbsFor = first.getProbabilities().keySet();
+        Map<String, Double> interpProps = new HashMap<>();
+        for(String name : apsToInterpProbsFor){
+            double firstProp = first.getProbabilities().get(name);
+            // Hole in AP-data for 'last'. In this case we extend the hole by not generating anything.
+            if(!last.getProbabilities().containsKey(name)) continue;
 
-            double lastProp = last.getProbabilities().get(id);
+            double lastProp = last.getProbabilities().get(name);
             double interpProp = LinearInterpolate(firstProp, lastProp, blendPerNum * (index+1));
-            interpProps.put(id, interpProp);
+            interpProps.put(name, interpProp);
         }
 
         return new Entry(time, interpolatedTotal, interpProps);

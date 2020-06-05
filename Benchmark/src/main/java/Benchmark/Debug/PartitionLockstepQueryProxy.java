@@ -1,8 +1,8 @@
 package Benchmark.Debug;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.PreciseTimer;
 import Benchmark.Queries.IQueries;
 import Benchmark.Queries.Results.*;
@@ -40,7 +40,7 @@ public class PartitionLockstepQueryProxy implements IQueries {
     }
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         proxiedImpl.prepare(config, generatedFloors, rng);
     }
 
@@ -73,7 +73,7 @@ public class PartitionLockstepQueryProxy implements IQueries {
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws IOException, SQLException {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) throws IOException, SQLException {
         timer.start();
         List<MaxForAP> result = proxiedImpl.maxPerDayForAP(start, end, AP);
         int time = (int) Math.round(timer.elapsedSeconds() * 1000);

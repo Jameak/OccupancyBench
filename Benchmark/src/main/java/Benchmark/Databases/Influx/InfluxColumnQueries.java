@@ -1,8 +1,8 @@
 package Benchmark.Databases.Influx;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
@@ -20,23 +20,23 @@ import java.util.*;
  * An implementation of the benchmark-queries for InfluxDB when using the column-schema.
  */
 public class InfluxColumnQueries extends AbstractInfluxQueries {
-    private AccessPoint[] allAPs;
+    private GeneratedAccessPoint[] allAPs;
     private int sampleRate;
     private String precomputedTotalClientsPart;
     private String precomputedFloorTotalPart;
     private String precomputedAvgOccupancyPart1;
     private String precomputedAvgOccupancyPart2;
-    private Floor[] generatedFloors;
+    private GeneratedFloor[] generatedFloors;
     private Random rng;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
         this.rng = rng;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
-        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+        this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         influxDB.setDatabase(config.getInfluxDBName());
         //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
@@ -90,7 +90,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
             for (QueryResult.Series series : result.getSeries()) {
                 for (List<Object> entries : series.getValues()) {
                     String timestamp = (String) entries.get(series.getColumns().indexOf("time"));
-                    for(Floor floor : generatedFloors){
+                    for(GeneratedFloor floor : generatedFloors){
                         Object sum = entries.get(series.getColumns().indexOf("floor" + floor.getFloorNumber()));
                         // No AP-data within the specified start/end interval for this day for this floor.
                         if(sum == null) continue;
@@ -106,7 +106,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) {
         List<MaxForAP> max = new ArrayList<>();
 
         String queryString = String.format("SELECT MAX(\"%s\") FROM %s WHERE time > %d AND time <= %d GROUP BY time(1d)",
@@ -201,7 +201,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
             if(result.getSeries() == null) continue; // There were no results at all for the query.
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
-                    for(AccessPoint AP : allAPs){
+                    for(GeneratedAccessPoint AP : allAPs){
                         Object clients = entries.get(series.getColumns().indexOf(AP.getAPname()));
                         // No data exists that fits our search criteria.
                         if(clients == null) continue;
@@ -235,7 +235,7 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
             if(result.getSeries() == null) continue; // There were no results at all for the query.
             for(QueryResult.Series series : result.getSeries()){
                 for(List<Object> entries : series.getValues()){
-                    for(AccessPoint AP : allAPs){
+                    for(GeneratedAccessPoint AP : allAPs){
                         Object avg = entries.get(series.getColumns().indexOf("avg-" + AP.getAPname()));
                         if(avg == null) continue; // Not sure that this can ever happen, but just making sure...
 

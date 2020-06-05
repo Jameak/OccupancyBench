@@ -6,12 +6,13 @@ import Benchmark.Databases.DBTargets;
 import Benchmark.Databases.DatabaseTargetFactory;
 import Benchmark.Databases.DatabaseQueriesFactory;
 import Benchmark.Generator.*;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Generator.Ingest.IngestRunnable;
-import Benchmark.Loader.MapData;
+import Benchmark.SeedLoader.LoaderFacade;
 import Benchmark.Generator.Targets.*;
-import Benchmark.Loader.MapParser;
+import Benchmark.SeedLoader.SeedData;
+import Benchmark.SeedLoader.Seeddata.SeedEntries;
 import Benchmark.Queries.IQueries;
 import Benchmark.Queries.QueryRunnable;
 
@@ -88,7 +89,7 @@ public class Program {
         try {
             new Program().run(config);
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -112,12 +113,12 @@ public class Program {
             logger.startTimer();
         }
 
-        MapData parsedData = null;
+        SeedData parsedData = null;
         if (config.isGeneratorEnabled() || config.isIngestionEnabled()) {
             parsedData = parseMapData(config);
         }
 
-        Floor[] generatedFloors;
+        GeneratedFloor[] generatedFloors;
         if(config.isGeneratorEnabled()){
             generatedFloors = generateFloorData(config, rng, parsedData);
         } else {
@@ -125,7 +126,7 @@ public class Program {
             // Load the data from previous run
             Logger.LOG("Deserializing floor.");
             generatedFloors = deserializeFloor(config);
-            Logger.LOG(String.format("Deserialized metadata for %s floors and %s APs", generatedFloors.length, Floor.allAPsOnFloors(generatedFloors).length));
+            Logger.LOG(String.format("Deserialized metadata for %s floors and %s APs", generatedFloors.length, GeneratedFloor.allAPsOnFloors(generatedFloors).length));
             Logger.LOG("Deserializing rng.");
             rng = deserializeRandom(config);
         }
@@ -150,7 +151,7 @@ public class Program {
 
         if(config.isIngestionEnabled()){
             Logger.LOG("Starting ingestion.");
-            startIngestion(config, generatedFloors, parsedData, dateComm, rng, !config.doDateCommunicationByQueryingDatabase());
+            startIngestion(config, generatedFloors, parsedData.seedEntries, dateComm, rng, !config.doDateCommunicationByQueryingDatabase());
             Logger.LOG("Ingestion started.");
         }
 
@@ -217,7 +218,7 @@ public class Program {
         Logger.LOG("Done.");
     }
 
-    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random[] rngSource, Floor[] generatedFloors) {
+    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random[] rngSource, GeneratedFloor[] generatedFloors) {
         assert config.getQueriesThreadCount() > 0;
         threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
 
@@ -235,17 +236,17 @@ public class Program {
         return queryTasks;
     }
 
-    private void startIngestion(ConfigFile config, Floor[] generatedFloors, MapData parsedData, DateCommunication dateComm, Random rng, boolean doDirectComm) throws IOException, SQLException {
+    private void startIngestion(ConfigFile config, GeneratedFloor[] generatedFloors, SeedEntries seedEntries, DateCommunication dateComm, Random rng, boolean doDirectComm) throws IOException, SQLException {
         assert config.getIngestThreadCount() > 0;
         threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
         ingestTasks = new Future[config.getIngestThreadCount()];
         ingestRunnables = new IngestRunnable[config.getIngestThreadCount()];
-        AccessPoint[] allAPs = Floor.allAPsOnFloors(generatedFloors);
+        GeneratedAccessPoint[] allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         ingestTargets = new ITarget[config.useSharedIngestInstance() ? 1 : config.getIngestThreadCount()];
         if(config.useSharedIngestInstance()) ingestTargets[0] = DatabaseTargetFactory.createDatabaseTarget(config.getIngestTarget(), config, config.recreateIngestTarget(), allAPs);
 
-        AccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs, config.getIngestThreadCount());
+        GeneratedAccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs, config.getIngestThreadCount());
         boolean firstCreatedTarget = true;
         //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
         //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
@@ -274,7 +275,7 @@ public class Program {
             // If ingestion runs alongside querying then we stop ingestion when we're done querying.
             // However, if querying isn't running then we might want to stop ingestion at some specific date.
             LocalDate ingestEndDate = config.isQueryingEnabled() ? LocalDate.MAX : config.getIngestEndDate();
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], parsedData, ingestRng, ingestTarget, dateComm, i, ingestEndDate, doDirectComm);
+            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], seedEntries, ingestRng, ingestTarget, dateComm, i, ingestEndDate, doDirectComm);
         }
 
         for(int i = 0; i < ingestTasks.length; i++){
@@ -299,21 +300,18 @@ public class Program {
         threadPoolIngest.shutdown();
     }
 
-    private MapData parseMapData(ConfigFile config) throws IOException{
-        Logger.LOG("Parsing map.");
-        return MapParser.ParseMap(config.getGeneratorIdmap(), config.getGeneratorMapfolder());
+    private SeedData parseMapData(ConfigFile config) throws IOException {
+        Logger.LOG("Loading seed data.");
+        SeedData seedData = LoaderFacade.LoadSeedData(config);
+        Logger.LOG("Loaded seed data for " + seedData.floorMetadata.length + " floors, with " + seedData.seedEntries.loadedEntries.size() + " days of source data.");
+        return seedData;
     }
 
-    private Floor[] generateFloorData(ConfigFile config, Random rng, MapData parsedData) throws Exception {
-        Floor[] generatedFloors;
+    private GeneratedFloor[] generateFloorData(ConfigFile config, Random rng, SeedData parsedData) throws Exception {
         Logger.LOG("Generating floors.");
-        generatedFloors = Generator.Generate(config.getGeneratorScale(), rng);
-        Logger.LOG("Assigning floors to IDs.");
-        Generator.AssignFloorsToIDs(generatedFloors, parsedData, config.keepFloorAssociationsForGenerator());
-        Logger.LOG("Preparing for generation.");
-        Generator.PrepareDataForGeneration(generatedFloors, parsedData);
+        GeneratedFloor[] generatedFloors = GeneratorFacade.GenerateFloors(config, parsedData, rng);
 
-        AccessPoint[] allAPs = Floor.allAPsOnFloors(generatedFloors);
+        GeneratedAccessPoint[] allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
         Logger.LOG(String.format("Generated metadata for %s floors and %s APs.", generatedFloors.length, allAPs.length));
 
         Logger.LOG("Setting up targets.");
@@ -328,7 +326,7 @@ public class Program {
             target = new MultiTarget(target, counter);
             Logger.LOG("Generating data.");
             generationTimer.start();
-            DataGenerator.Generate(allAPs, parsedData, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
+            DataGenerator.Generate(allAPs, parsedData.seedEntries, config.getGeneratorStartDate(), config.getGeneratorEndDate(), rng, target, config);
             double timeSpent = generationTimer.elapsedSeconds();
             Logger.LOG(String.format("Generated %s entries in %.2f sec.", counter.getCount(), timeSpent));
             if(config.doLoggingToCSV()) CSVLogger.GeneralLogger.createOrGetInstance().write("Main", String.format("Generated %s entries in %.2f sec.", counter.getCount(), timeSpent));
@@ -353,7 +351,7 @@ public class Program {
         return generatedFloors;
     }
 
-    private void serializeData(Floor[] generatedFloors, Random rng, ConfigFile config) throws IOException{
+    private void serializeData(GeneratedFloor[] generatedFloors, Random rng, ConfigFile config) throws IOException{
         try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.getSerializationPath(), "floors.ser").toString());
             ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
             outStream.writeObject(generatedFloors);
@@ -364,11 +362,11 @@ public class Program {
         }
     }
 
-    private Floor[] deserializeFloor(ConfigFile config) throws IOException, ClassNotFoundException{
-        Floor[] data;
+    private GeneratedFloor[] deserializeFloor(ConfigFile config) throws IOException, ClassNotFoundException{
+        GeneratedFloor[] data;
         try(FileInputStream inFile = new FileInputStream(Paths.get(config.getSerializationPath(), "floors.ser").toString());
             ObjectInputStream inStream = new ObjectInputStream(inFile)){
-            data = (Floor[]) inStream.readObject();
+            data = (GeneratedFloor[]) inStream.readObject();
         }
         return data;
     }
@@ -382,8 +380,8 @@ public class Program {
         return rng;
     }
 
-    private AccessPoint[][] evenlyPartitionAPs(AccessPoint[] allAPs, int partitions){
-        List<List<AccessPoint>> results = new ArrayList<>(partitions);
+    private GeneratedAccessPoint[][] evenlyPartitionAPs(GeneratedAccessPoint[] allAPs, int partitions){
+        List<List<GeneratedAccessPoint>> results = new ArrayList<>(partitions);
         for(int i = 0; i < partitions; i++){
             results.add(new ArrayList<>());
         }
@@ -391,9 +389,9 @@ public class Program {
             results.get(i % partitions).add(allAPs[i]);
         }
 
-        AccessPoint[][] out = new AccessPoint[partitions][];
+        GeneratedAccessPoint[][] out = new GeneratedAccessPoint[partitions][];
         for(int i = 0; i < partitions; i++){
-            out[i] = results.get(i).toArray(new AccessPoint[0]);
+            out[i] = results.get(i).toArray(new GeneratedAccessPoint[0]);
         }
 
         return out;

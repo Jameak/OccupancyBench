@@ -3,8 +3,8 @@ package Benchmark.Debug;
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.Timescale.AbstractTimescaleQueries;
 import Benchmark.Databases.Timescale.TimescaleHelper;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
 
@@ -27,7 +27,7 @@ public class PartitionLockstepTimescaleDetailedColumnQueries extends AbstractTim
     private String precomputedFloorTotalPart;
     private String precomputedAvgOccupancyPart1;
     private String precomputedAvgOccupancyPart2;
-    private AccessPoint[] allAPs;
+    private GeneratedAccessPoint[] allAPs;
     private int sampleRate;
 
     private int queriesSinceLastStop = 0;
@@ -62,11 +62,11 @@ public class PartitionLockstepTimescaleDetailedColumnQueries extends AbstractTim
     }
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
-        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+        this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         precomputedTotalClientsPart = QueryHelper.buildColumnSchemaTotalClientsQueryPrecomputation(allAPs);
         precomputedFloorTotalPart = QueryHelper.buildColumnSchemaFloorTotalQueryPrecomputation(generatedFloors);
@@ -108,7 +108,7 @@ public class PartitionLockstepTimescaleDetailedColumnQueries extends AbstractTim
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) throws SQLException {
         long timeStart = toTimestamp(start);
         long timeEnd = toTimestamp(end);
 
@@ -177,7 +177,7 @@ public class PartitionLockstepTimescaleDetailedColumnQueries extends AbstractTim
         int totalExecutionTime = 0;
 
         for(int i = 0; i < numIterations; i++){
-            for(AccessPoint AP : allAPs){
+            for(GeneratedAccessPoint AP : allAPs){
                 String query = String.format("EXPLAIN ANALYZE SELECT time, \"%s\" " +
                                 "FROM %s " +
                                 "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) " +

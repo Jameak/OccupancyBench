@@ -2,8 +2,8 @@ package Benchmark.Debug;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Databases.SchemaFormats;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import org.influxdb.BatchOptions;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  * generated data that was generated with different config settings.
  */
 public class InfluxPrecomputationInsights {
-    public static void ComputeTotals(int interval, Floor[] generatedFloors, ConfigFile config) throws IOException {
+    public static void ComputeTotals(int interval, GeneratedFloor[] generatedFloors, ConfigFile config) throws IOException {
         InfluxDB writeDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, false);
         InfluxDB readDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, true);
 
@@ -57,7 +57,7 @@ public class InfluxPrecomputationInsights {
         readDB.close();
     }
 
-    private static void WriteMeta(InfluxDB readDB, InfluxDB writeDB, ConfigFile config, Floor[] generatedFloors){
+    private static void WriteMeta(InfluxDB readDB, InfluxDB writeDB, ConfigFile config, GeneratedFloor[] generatedFloors){
         String tablePrefix = GetTablePrefix(config);
         String precomputedMetaName = tablePrefix + "Meta";
 
@@ -80,7 +80,7 @@ public class InfluxPrecomputationInsights {
                         .build());
 
         int numAPs = 0;
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             numAPs += floor.getAPs().length;
         }
         writeDB.write(
@@ -96,14 +96,14 @@ public class InfluxPrecomputationInsights {
                         .build());
     }
 
-    private static void ComputeTotalForTime(InfluxDB readDB, InfluxDB writeDB, String measurement, LocalDateTime time, int interval, Floor[] generatedFloors, ConfigFile config){
+    private static void ComputeTotalForTime(InfluxDB readDB, InfluxDB writeDB, String measurement, LocalDateTime time, int interval, GeneratedFloor[] generatedFloors, ConfigFile config){
         assert interval > 3 : "If readings are too close together than the next reading starts before the previous one ends, so defining a total for an interval would be much more annoying";
         String tablePrefix = GetTablePrefix(config);
         String precomputedTotalName = tablePrefix + "Total";
         String precomputedFloorName = tablePrefix + "Floor";
         int total = 0;
         Map<Integer, Integer> floorTotals = new HashMap<>();
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             floorTotals.put(floor.getFloorNumber(), 0);
         }
         String queryString = "SELECT AP,clients FROM " + measurement + " WHERE time < '" + ToStringTime(time.plusSeconds(interval).minusSeconds(1)) + "' AND time > '" + ToStringTime(time) + "'";
@@ -132,7 +132,7 @@ public class InfluxPrecomputationInsights {
                         .addField("total", total)
                         .build());
 
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             writeDB.write(
                     Point.measurement(precomputedFloorName + floor.getFloorNumber())
                             .time(timeNano, TimeUnit.NANOSECONDS)
@@ -141,9 +141,9 @@ public class InfluxPrecomputationInsights {
         }
     }
 
-    private static int GetFloorForAP(String AP, Floor[] generatedFloors){
-        for (Floor floor : generatedFloors) {
-            for(AccessPoint floorAP : floor.getAPs()){
+    private static int GetFloorForAP(String AP, GeneratedFloor[] generatedFloors){
+        for (GeneratedFloor floor : generatedFloors) {
+            for(GeneratedAccessPoint floorAP : floor.getAPs()){
                 if(floorAP.getAPname().equals(AP)){
                     return floor.getFloorNumber();
                 }
@@ -161,7 +161,6 @@ public class InfluxPrecomputationInsights {
 
     private static String GetTablePrefix(ConfigFile config){
         String tablePrefix = "Int" + config.getGeneratorGenerationSamplerate() + "_";
-        if(!config.keepFloorAssociationsForGenerator()) tablePrefix += "NoAssoc_";
         tablePrefix += ("Scale" + config.getGeneratorScale()).replace(".", "_").replace(",", "_") + "_";
         return tablePrefix;
     }

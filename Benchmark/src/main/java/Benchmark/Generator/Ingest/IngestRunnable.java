@@ -3,11 +3,11 @@ package Benchmark.Generator.Ingest;
 import Benchmark.CSVLogger;
 import Benchmark.Config.ConfigFile;
 import Benchmark.DateCommunication;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.DataGenerator;
-import Benchmark.Loader.MapData;
 import Benchmark.Generator.Targets.ITarget;
 import Benchmark.Generator.Targets.IngestWrapper;
+import Benchmark.SeedLoader.Seeddata.SeedEntries;
 import Benchmark.Logger;
 
 import java.io.IOException;
@@ -21,8 +21,8 @@ import java.util.Random;
  */
 public class IngestRunnable implements Runnable {
     private final ConfigFile config;
-    private final AccessPoint[] APs;
-    private final MapData data;
+    private final GeneratedAccessPoint[] APs;
+    private final SeedEntries data;
     private final Random rng;
     private final IngestWrapper targetWrapper;
     private final IngestControl ingestControl;
@@ -32,7 +32,7 @@ public class IngestRunnable implements Runnable {
 
     private boolean done;
 
-    public IngestRunnable(ConfigFile config, AccessPoint[] APs, MapData data, Random rng, ITarget outputTarget, DateCommunication dateComm, int threadNumber, LocalDate endDate, boolean doDirectComm){
+    public IngestRunnable(ConfigFile config, GeneratedAccessPoint[] APs, SeedEntries data, Random rng, ITarget outputTarget, DateCommunication dateComm, int threadNumber, LocalDate endDate, boolean doDirectComm){
         this.config = config;
         this.APs = APs;
         this.data = data;

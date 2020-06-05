@@ -1,4 +1,4 @@
-package Benchmark.Loader;
+package Benchmark.SeedLoader.Seeddata;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -14,9 +14,9 @@ import java.util.Map;
 public class Entry{
     private final LocalDateTime time;
     private final int total;
-    private final Map<Integer, Double> probabilities;
+    private final Map<String, Double> probabilities;
 
-    public Entry(LocalDateTime time, int total, Map<Integer, Double> probabilities){
+    public Entry(LocalDateTime time, int total, Map<String, Double> probabilities){
         this.time = time;
         this.total = total;
         this.probabilities = probabilities == null || probabilities.isEmpty() ? null : probabilities;
@@ -30,7 +30,7 @@ public class Entry{
         return total;
     }
 
-    public Map<Integer, Double> getProbabilities() {
+    public Map<String, Double> getProbabilities() {
         return probabilities;
     }
 

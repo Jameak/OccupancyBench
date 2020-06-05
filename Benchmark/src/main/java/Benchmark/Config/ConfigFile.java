@@ -108,6 +108,48 @@ public class ConfigFile {
      */
     private static final String GENERATOR_ENABLED                 = "generator.enabled";
     private static final String GENERATOR_ENABLED_DEFAULT         = "true";
+    private final boolean generatorEnabled;
+
+    /**
+     * Type: String
+     * The path to the mapping-file between seed AP-names and their assigned ID, as used in the probability-map
+     * created by the python script.
+     *
+     * Also used during ingest-generation.
+     */
+    private static final String GENERATOR_INPUT_IDMAP_FILE    = "generator.input.idmapfile";
+    private static final String GENERATOR_INPUT_IDMAP_FILE_DEFAULT = "FILE PATH";
+    /**
+     * Type: String
+     * The path to the folder containing the probability files for each day as created by the python script.
+     * This folder should ONLY contain the probability files and nothing else.
+     *
+     * Also used during ingest-generation.
+     */
+    private static final String GENERATOR_INPUT_PROBABILITY_FOLDER         = "generator.input.datafolder";
+    private static final String GENERATOR_INPUT_PROBABILITY_FOLDER_DEFAULT = "FOLDER PATH";
+    private static final String GENERATOR_INPUT_FLOOR_INFO_FILE = "generator.input.floorinfofile";
+    private static final String GENERATOR_INPUT_FLOOR_INFO_FILE_DEFAULT =  "FILE PATH";
+    private static final String GENERATOR_INPUT_FLOOR_AP_FILE = "generator.input.floormapfile";
+    private static final String GENERATOR_INPUT_FLOOR_AP_FILE_DEFAULT = "FILE PATH";
+    private static final String GENERATOR_INPUT_IGNORE_FILE = "generator.input.ignorefile";
+    private static final String GENERATOR_INPUT_IGNORE_FILE_DEFAULT = "FILE PATH";
+    private static final String GENERATOR_INPUT_COMBINED_FILE = "generator.input.combinedfile";
+    private static final String GENERATOR_INPUT_COMBINED_FILE_DEFAULT = "FILE PATH";
+    /**
+     * Type: String
+     * The separator used in the generator input-files.
+     */
+    private static final String GENERATOR_INPUT_SEPARATOR = "generator.input.separator";
+    private static final String GENERATOR_INPUT_SEPARATOR_DEFAULT = ";";
+    private final String generatorInputIdmapFilePath;
+    private final String generatorInputPropabilityFolder;
+    private final String generatorInputFloorInfoFilePath;
+    private final String generatorInputFloorMapFilePath;
+    private final String generatorInputIgnoreFilePath;
+    private final String generatorInputCombinedFilePath;
+    private final String generatorInputSeparator;
+
     /**
      * Type: Double
      * The scaling applied to the generated data. A value of 1.0 resembles the amount of data generated in the ITU system.
@@ -155,24 +197,6 @@ public class ConfigFile {
     private static final String GENERATOR_JITTER                  = "generator.data.jitter";
     private static final String GENERATOR_JITTER_DEFAULT          = "5";
     /**
-     * Type: String
-     * The path to the mapping-file between seed AP-names and their assigned ID, as used in the probability-map
-     * created by the python script.
-     *
-     * Also used during ingest-generation.
-     */
-    private static final String GENERATOR_IDMAP                   = "generator.data.idmap";
-    private static final String GENERATOR_IDMAP_DEFAULT           = "FILE PATH";
-    /**
-     * Type: String
-     * The path to the folder containing the probability-map files as created by the python script.
-     * This folder should ONLY contain probability-map files and nothing else.
-     *
-     * Also used during ingest-generation.
-     */
-    private static final String GENERATOR_MAP_FOLDER              = "generator.data.folder";
-    private static final String GENERATOR_MAP_FOLDER_DEFAULT      = "FOLDER PATH";
-    /**
      * Type: Integer
      * The sampling rate in seconds for the AP-readings in the probability-map files.
      * Value must be evenly divisible by {@code GENERATOR_GENERATION_INTERVAL}.
@@ -190,14 +214,6 @@ public class ConfigFile {
      */
     private static final String GENERATOR_GENERATION_SAMPLE_RATE         = "generator.data.generationsamplerate";
     private static final String GENERATOR_GENERATION_SAMPLE_RATE_DEFAULT = "60";
-    /**
-     * Type: Boolean
-     * Controls whether the mapping of data from seed APs to fake, generated APs should preserve floor-numbers.
-     * That is, whether a seed AP from floor 3 must be assigned to a generated AP on the generated floor 3 or whether
-     * it can be assigned to any floor.
-     */
-    private static final String GENERATOR_KEEP_FLOOR_ASSOCIATIONS = "generator.data.keepfloorassociations";
-    private static final String GENERATOR_KEEP_FLOOR_ASSOCIATIONS_DEFAULT = "true";
     /**
      * Type: LocalDate (YYYY-MM-DD)
      * The start date for initial data generation. Inclusive.
@@ -223,15 +239,11 @@ public class ConfigFile {
      */
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET   = "generator.output.filepath";
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT = "TARGET FILE PATH";
-    private final boolean   generatorEnabled;
     private final double    generatorScale;
     private final Granularity generatorGranularity;
     private final int       generatorJitter;
-    private final String    generatorIdmap;
-    private final String    generatorMapfolder;
     private final int       generatorSeedSamplerate;
     private final int       generatorGenerationSamplerate;
-    private final boolean   generatorKeepFloorAssociations;
     private final LocalDate generatorStartDate;
     private final LocalDate generatorEndDate;
     private final DBTargets[] generatorOutputTargets;
@@ -918,14 +930,18 @@ public class ConfigFile {
 
         //Generator
         prop.setProperty(GENERATOR_ENABLED, GENERATOR_ENABLED_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_IDMAP_FILE, GENERATOR_INPUT_IDMAP_FILE_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_PROBABILITY_FOLDER, GENERATOR_INPUT_PROBABILITY_FOLDER_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_FLOOR_INFO_FILE, GENERATOR_INPUT_FLOOR_INFO_FILE_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_FLOOR_AP_FILE, GENERATOR_INPUT_FLOOR_AP_FILE_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_IGNORE_FILE, GENERATOR_INPUT_IGNORE_FILE_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_COMBINED_FILE, GENERATOR_INPUT_COMBINED_FILE_DEFAULT);
+        prop.setProperty(GENERATOR_INPUT_SEPARATOR, GENERATOR_INPUT_SEPARATOR_DEFAULT);
         prop.setProperty(GENERATOR_SCALE, GENERATOR_SCALE_DEFAULT);
         prop.setProperty(GENERATOR_GRANULARITY, GENERATOR_GRANULARITY_DEFAULT);
         prop.setProperty(GENERATOR_JITTER, GENERATOR_JITTER_DEFAULT);
-        prop.setProperty(GENERATOR_IDMAP, GENERATOR_IDMAP_DEFAULT);
-        prop.setProperty(GENERATOR_MAP_FOLDER, GENERATOR_MAP_FOLDER_DEFAULT);
         prop.setProperty(GENERATOR_SEED_SAMPLE_RATE, GENERATOR_SEED_SAMPLE_RATE_DEFAULT);
         prop.setProperty(GENERATOR_GENERATION_SAMPLE_RATE, GENERATOR_GENERATION_SAMPLE_RATE_DEFAULT);
-        prop.setProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, GENERATOR_KEEP_FLOOR_ASSOCIATIONS_DEFAULT);
         prop.setProperty(GENERATOR_START_DATE, GENERATOR_START_DATE_DEFAULT);
         prop.setProperty(GENERATOR_END_DATE, GENERATOR_END_DATE_DEFAULT);
         prop.setProperty(GENERATOR_OUTPUT_TARGETS, GENERATOR_OUTPUT_TARGETS_DEFAULT);
@@ -1031,14 +1047,20 @@ public class ConfigFile {
 
         //Generator
         generatorEnabled               = Boolean.parseBoolean(prop.getProperty(GENERATOR_ENABLED).trim());
-        generatorIdmap                 =                      prop.getProperty(GENERATOR_IDMAP);
+        // Generator input
+        generatorInputIdmapFilePath     = prop.getProperty(GENERATOR_INPUT_IDMAP_FILE);
+        generatorInputPropabilityFolder = prop.getProperty(GENERATOR_INPUT_PROBABILITY_FOLDER);
+        generatorInputFloorInfoFilePath = prop.getProperty(GENERATOR_INPUT_FLOOR_INFO_FILE);
+        generatorInputFloorMapFilePath  = prop.getProperty(GENERATOR_INPUT_FLOOR_AP_FILE);
+        generatorInputIgnoreFilePath    = prop.getProperty(GENERATOR_INPUT_IGNORE_FILE);
+        generatorInputCombinedFilePath  = prop.getProperty(GENERATOR_INPUT_COMBINED_FILE);
+        generatorInputSeparator         = prop.getProperty(GENERATOR_INPUT_SEPARATOR);
+        // Generator settings
         generatorGranularity           = Granularity.valueOf( prop.getProperty(GENERATOR_GRANULARITY).toUpperCase().trim());
         generatorJitter                = Integer.parseInt(    prop.getProperty(GENERATOR_JITTER).trim());
         generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE).trim());
-        generatorMapfolder             =                      prop.getProperty(GENERATOR_MAP_FOLDER);
         generatorSeedSamplerate        = Integer.parseInt(    prop.getProperty(GENERATOR_SEED_SAMPLE_RATE).trim());
         generatorGenerationSamplerate  = Integer.parseInt(    prop.getProperty(GENERATOR_GENERATION_SAMPLE_RATE).trim());
-        generatorKeepFloorAssociations = Boolean.parseBoolean(prop.getProperty(GENERATOR_KEEP_FLOOR_ASSOCIATIONS).trim());
         generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE).trim());
         generatorEndDate               = LocalDate.parse(     prop.getProperty(GENERATOR_END_DATE).trim());
         generatorOutputTargets         = Arrays.stream(       prop.getProperty(GENERATOR_OUTPUT_TARGETS).split(","))
@@ -1141,9 +1163,19 @@ public class ConfigFile {
         }
 
         if(ingestEnabled || generatorEnabled){
-            // Serialization doesn't serialize the source-data that ingestion relies on, so still ensure that those paths are valid if either the generator or ingestion is enabled.
-            if(!Paths.get(generatorIdmap).toFile().exists()) return GENERATOR_IDMAP + ": Path doesn't exist: " + Paths.get(generatorIdmap).toFile().getAbsolutePath();
-            if(!Paths.get(generatorMapfolder).toFile().exists()) return GENERATOR_MAP_FOLDER + ": Folder path doesn't exist: " + Paths.get(generatorMapfolder).toFile().getAbsolutePath();
+            // Serialization doesn't serialize the source-data that ingestion relies on because that's a stupidly large
+            //   amount of data, so we need to ensure that those paths are valid if either the generator or ingestion is enabled.
+            //TODO: Change this to not require the idmap being present, since we allow an empty idmap?
+            if(!Paths.get(generatorInputIdmapFilePath).toFile().exists()) return GENERATOR_INPUT_IDMAP_FILE + ": Path doesn't exist: " + Paths.get(generatorInputIdmapFilePath).toFile().getAbsolutePath();
+            if(!Paths.get(generatorInputPropabilityFolder).toFile().exists()) return GENERATOR_INPUT_PROBABILITY_FOLDER + ": Folder path doesn't exist: " + Paths.get(generatorInputPropabilityFolder).toFile().getAbsolutePath();
+
+            //TODO: These files are only actually required for the generator being enabled, but API-wise when loading
+            //      seed data, it's simpler to load everything at once instead of differentiating between when we load
+            //      just for ingestion vs for generation so for now just require them to exist.
+            if(!Paths.get(generatorInputFloorInfoFilePath).toFile().exists()) return GENERATOR_INPUT_FLOOR_INFO_FILE + ": Path doesn't exist: " + Paths.get(generatorInputFloorInfoFilePath).toFile().getAbsolutePath();
+            if(!Paths.get(generatorInputFloorMapFilePath).toFile().exists())  return GENERATOR_INPUT_FLOOR_AP_FILE +   ": Path doesn't exist: " + Paths.get(generatorInputFloorMapFilePath).toFile().getAbsolutePath();
+            if(!Paths.get(generatorInputIgnoreFilePath).toFile().exists())    return GENERATOR_INPUT_IGNORE_FILE +     ": Path doesn't exist: " + Paths.get(generatorInputIgnoreFilePath).toFile().getAbsolutePath();
+            if(!Paths.get(generatorInputCombinedFilePath).toFile().exists())  return GENERATOR_INPUT_COMBINED_FILE +   ": Path doesn't exist: " + Paths.get(generatorInputCombinedFilePath).toFile().getAbsolutePath();
         }
 
         // ---- Generator ----
@@ -1277,14 +1309,19 @@ public class ConfigFile {
         settings.put(SERIALIZE_PATH, serializePath);
 
         settings.put(GENERATOR_ENABLED, generatorEnabled);
-        settings.put(GENERATOR_IDMAP, generatorIdmap);
+        settings.put(GENERATOR_INPUT_IDMAP_FILE, generatorInputIdmapFilePath);
+        settings.put(GENERATOR_INPUT_PROBABILITY_FOLDER, generatorInputPropabilityFolder);
+        settings.put(GENERATOR_INPUT_FLOOR_INFO_FILE, generatorInputFloorInfoFilePath);
+        settings.put(GENERATOR_INPUT_FLOOR_AP_FILE, generatorInputFloorMapFilePath);
+        settings.put(GENERATOR_INPUT_IGNORE_FILE, generatorInputIgnoreFilePath);
+        settings.put(GENERATOR_INPUT_COMBINED_FILE, generatorInputCombinedFilePath);
+        settings.put(GENERATOR_INPUT_SEPARATOR, generatorInputSeparator);
+
         settings.put(GENERATOR_GRANULARITY, generatorGranularity);
         settings.put(GENERATOR_JITTER, generatorJitter);
         settings.put(GENERATOR_SCALE, generatorScale);
-        settings.put(GENERATOR_MAP_FOLDER, generatorMapfolder);
         settings.put(GENERATOR_SEED_SAMPLE_RATE, generatorSeedSamplerate);
         settings.put(GENERATOR_GENERATION_SAMPLE_RATE, generatorGenerationSamplerate);
-        settings.put(GENERATOR_KEEP_FLOOR_ASSOCIATIONS, generatorKeepFloorAssociations);
         settings.put(GENERATOR_START_DATE, generatorStartDate);
         settings.put(GENERATOR_END_DATE, generatorEndDate);
         settings.put(GENERATOR_OUTPUT_TARGETS, generatorOutputTargets);
@@ -1395,12 +1432,27 @@ public class ConfigFile {
         return seed;
     }
 
-    public String getGeneratorIdmap() {
-        return generatorIdmap;
+    public String getGeneratorInputIdmap() {
+        return generatorInputIdmapFilePath;
     }
 
-    public String getGeneratorMapfolder() {
-        return generatorMapfolder;
+    public String getGeneratorInputPropabilityFolder() {
+        return generatorInputPropabilityFolder;
+    }
+    public String getGeneratorInputFloorInfoFile() {
+        return generatorInputFloorInfoFilePath;
+    }
+    public String getGeneratorInputFloorMapFile() {
+        return generatorInputFloorMapFilePath;
+    }
+    public String getGeneratorInputIgnoreFile() {
+        return generatorInputIgnoreFilePath;
+    }
+    public String getGeneratorInputCombinedFile() {
+        return generatorInputCombinedFilePath;
+    }
+    public String getGeneratorInputSeparator() {
+        return generatorInputSeparator;
     }
 
     public int getGeneratorSeedSamplerate() {
@@ -1445,10 +1497,6 @@ public class ConfigFile {
 
     public String getInfluxTable() {
         return influxTable;
-    }
-
-    public boolean keepFloorAssociationsForGenerator() {
-        return generatorKeepFloorAssociations;
     }
 
     public boolean DEBUG_createPrecomputedTables() {

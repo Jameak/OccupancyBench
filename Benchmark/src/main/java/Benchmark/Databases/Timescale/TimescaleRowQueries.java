@@ -1,8 +1,8 @@
 package Benchmark.Databases.Timescale;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
@@ -22,20 +22,20 @@ import java.util.*;
 public class TimescaleRowQueries extends AbstractTimescaleQueries {
     private int sampleRate;
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
-    private Floor[] generatedFloors;
+    private GeneratedFloor[] generatedFloors;
     private Random rng;
-    private AccessPoint[] allAPs;
+    private GeneratedAccessPoint[] allAPs;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
         this.rng = rng;
         this.table = config.getTimescaleTable();
         this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.connection = TimescaleHelper.openConnection(config.getTimescaleUsername(), config.getTimescalePassword(), config.getTimescaleHost(), config.getTimescaleDBName(), false);
-        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+        this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             String precomp = QueryHelper.buildRowSchemaFloorTotalQueryPrecomputation(floor.getAPs());
             precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), precomp);
         }
@@ -70,7 +70,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
         long timeEnd = toTimestamp(end);
         List<FloorTotal> floorTotals = new ArrayList<>();
 
-        for (Floor floor : generatedFloors) {
+        for (GeneratedFloor floor : generatedFloors) {
             String query = String.format("SELECT time_bucket('1 day', time) AS bucket, SUM(clients) " +
                             "FROM %s " +
                             "WHERE time > TO_TIMESTAMP(%s) AND time <= TO_TIMESTAMP(%s) AND %s " +
@@ -91,7 +91,7 @@ public class TimescaleRowQueries extends AbstractTimescaleQueries {
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws SQLException {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) throws SQLException {
         long timeStart = toTimestamp(start);
         long timeEnd = toTimestamp(end);
         List<MaxForAP> max = new ArrayList<>();

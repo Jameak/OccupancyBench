@@ -2,7 +2,7 @@ package Benchmark.Databases.Kudu;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Config.Granularity;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import org.apache.kudu.ColumnSchema;
 import org.apache.kudu.Schema;
 import org.apache.kudu.Type;
@@ -103,7 +103,7 @@ public class KuduHelper {
         }
     }
 
-    public static void createTableWithColumnSchema(KuduClient client, ConfigFile config, AccessPoint[] allAPs) throws KuduException {
+    public static void createTableWithColumnSchema(KuduClient client, ConfigFile config, GeneratedAccessPoint[] allAPs) throws KuduException {
         String table = config.getKuduTable();
 
         List<ColumnSchema> columns = new ArrayList<>();
@@ -114,7 +114,7 @@ public class KuduHelper {
                         .nullable(false)
                         .build()
         );
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             columns.add(
                     new ColumnSchema.ColumnSchemaBuilder(AP.getAPname(), Type.INT32)
                             .key(false)

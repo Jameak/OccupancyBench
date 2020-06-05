@@ -1,8 +1,8 @@
 package Benchmark.Databases.Kudu;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.Results.*;
 import org.apache.kudu.client.*;
@@ -15,15 +15,15 @@ import java.util.*;
 
 public class KuduRowQueries extends AbstractKuduQueries {
     private ConfigFile config;
-    private Floor[] generatedFloors;
+    private GeneratedFloor[] generatedFloors;
     private int sampleRate;
     private Random rng;
     private KuduSession kuduSession;
     private HashMap<Integer, List<String>> floorAPs;
-    private AccessPoint[] allAPs;
+    private GeneratedAccessPoint[] allAPs;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         this.config = config;
         this.generatedFloors = generatedFloors;
         this.sampleRate = config.getGeneratorGenerationSamplerate();
@@ -32,15 +32,15 @@ public class KuduRowQueries extends AbstractKuduQueries {
         this.kuduTable = kuduClient.openTable(config.getKuduTable());
         this.kuduSession = kuduClient.newSession();
         this.kuduSchema = kuduTable.getSchema();
-        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+        this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         // Makes 'apply' synchronous. No batching will occur.
         kuduSession.setFlushMode(SessionConfiguration.FlushMode.AUTO_FLUSH_SYNC);
 
         floorAPs = new HashMap<>();
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             List<String> APs = new ArrayList<>();
-            for(AccessPoint AP : floor.getAPs()){
+            for(GeneratedAccessPoint AP : floor.getAPs()){
                 APs.add(AP.getAPname());
             }
             floorAPs.put(floor.getFloorNumber(), APs);
@@ -81,7 +81,7 @@ public class KuduRowQueries extends AbstractKuduQueries {
         projectedColumns.add("time");
         projectedColumns.add("clients");
 
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             KuduScanner.KuduScannerBuilder scannerBuilder = kuduClient.newScannerBuilder(kuduTable);
             KuduScanner scanner = addTimeComparisonPredicates(scannerBuilder, start, end)
                     .setProjectedColumnNames(projectedColumns)
@@ -100,7 +100,7 @@ public class KuduRowQueries extends AbstractKuduQueries {
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws KuduException {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) throws KuduException {
         List<MaxForAP> max = new ArrayList<>();
 
         List<String> projectedColumns = new ArrayList<>();

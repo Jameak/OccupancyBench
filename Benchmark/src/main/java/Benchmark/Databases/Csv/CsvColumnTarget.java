@@ -2,7 +2,7 @@ package Benchmark.Databases.Csv;
 
 import Benchmark.Config.ConfigFile;
 import Benchmark.Config.Granularity;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Generator.Targets.ITarget;
@@ -16,11 +16,11 @@ import java.util.HashMap;
  * Writes the added entries to the specified file in column-format, separated by a newline.
  */
 public class CsvColumnTarget implements ITarget {
-    private final AccessPoint[] allAPs;
+    private final GeneratedAccessPoint[] allAPs;
     private final BufferedWriter writer;
     private final Granularity granularity;
 
-    public CsvColumnTarget(ConfigFile config, AccessPoint[] allAPs) throws IOException {
+    public CsvColumnTarget(ConfigFile config, GeneratedAccessPoint[] allAPs) throws IOException {
         this.allAPs = allAPs;
         writer = new BufferedWriter(new FileWriter(config.getGeneratorDiskTarget()));
         this.granularity = config.getGeneratorGranularity();
@@ -29,7 +29,7 @@ public class CsvColumnTarget implements ITarget {
         StringBuilder sb = new StringBuilder();
         sb.append("time");
 
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             sb.append(";");
             sb.append(AP.getAPname());
         }
@@ -46,7 +46,7 @@ public class CsvColumnTarget implements ITarget {
         StringBuilder sb = new StringBuilder();
         sb.append(columnEntry.getTime(granularity));
 
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             sb.append(";");
             sb.append(map.getOrDefault(AP.getAPname(), 0));
         }

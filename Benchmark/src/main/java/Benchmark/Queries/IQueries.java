@@ -1,8 +1,8 @@
 package Benchmark.Queries;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.Results.*;
 
 import java.io.IOException;
@@ -19,7 +19,7 @@ public interface IQueries {
      * This method is called once by the framework, before any queries are executed.
      * Use it to perform whatever pre-computations are possible.
      */
-    void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception;
+    void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception;
 
     /**
      * This method is called once by the framework, after querying is finished.
@@ -49,7 +49,7 @@ public interface IQueries {
      * This query computes the max number of clients connected to the specified
      * access point point per day within a specified range.
      */
-    List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) throws IOException, SQLException;
+    List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) throws IOException, SQLException;
 
     /**
      * This query computes the following:

@@ -2,8 +2,8 @@ package Benchmark.Queries;
 
 import Benchmark.*;
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.Results.*;
 
 import java.io.IOException;
@@ -25,8 +25,8 @@ public class QueryRunnable implements Runnable {
     private final ConfigFile config;
     private final Random rngQueries;
     private final DateCommunication dateComm;
-    private final Floor[] generatedFloors;
-    private final AccessPoint[] allAPs;
+    private final GeneratedFloor[] generatedFloors;
+    private final GeneratedAccessPoint[] allAPs;
     private final IQueries queryTarget;
     private final String threadName;
     private final int threadNumber;
@@ -89,7 +89,7 @@ public class QueryRunnable implements Runnable {
     private LocalDateTime newestValidDate;
     private LocalDateTime unmodifiedNewestValidDate;
 
-    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, Floor[] generatedFloors, IQueries queryTarget, String threadName, int threadNumber){
+    public QueryRunnable(ConfigFile config, Random rng, DateCommunication dateComm, GeneratedFloor[] generatedFloors, IQueries queryTarget, String threadName, int threadNumber){
         this.config = config;
         this.rngQueries = rng;
         this.dateComm = dateComm;
@@ -134,11 +134,11 @@ public class QueryRunnable implements Runnable {
         this.generalMinTimeInterval = config.getQueriesIntervalMin();
         this.generalMaxTimeInterval = config.getQueriesIntervalMax();
 
-        List<AccessPoint> APs = new ArrayList<>();
-        for(Floor floor : generatedFloors){
+        List<GeneratedAccessPoint> APs = new ArrayList<>();
+        for(GeneratedFloor floor : generatedFloors){
             APs.addAll(Arrays.asList(floor.getAPs()));
         }
-        allAPs = APs.toArray(new AccessPoint[0]);
+        allAPs = APs.toArray(new GeneratedAccessPoint[0]);
     }
 
     private QueryType selectQuery(Random rng){
@@ -219,7 +219,7 @@ public class QueryRunnable implements Runnable {
                 timeSpentBeforeLatestExecution = timeSpentQueryInProg_MaxForAP;
 
                 LocalDateTime[] time = generateTimeInterval(rng, generalMinTimeInterval, generalMaxTimeInterval);
-                AccessPoint selectedAP = selectRandomAP(rng);
+                GeneratedAccessPoint selectedAP = selectRandomAP(rng);
                 if(!warmUp) {
                     if(config.DEBUG_reportQueryStatus()){
                         Logger.LOG(String.format("%s DEBUG: Query arguments: { start:%s , end:%s , AP:%s }", threadName, time[0], time[1], selectedAP.getAPname()));
@@ -306,7 +306,7 @@ public class QueryRunnable implements Runnable {
         }
     }
 
-    private AccessPoint selectRandomAP(Random rng) {
+    private GeneratedAccessPoint selectRandomAP(Random rng) {
         return allAPs[rng.nextInt(allAPs.length)];
     }
 

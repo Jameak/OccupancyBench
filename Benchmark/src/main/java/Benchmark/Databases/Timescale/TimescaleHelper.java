@@ -1,6 +1,6 @@
 package Benchmark.Databases.Timescale;
 
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -73,13 +73,13 @@ public class TimescaleHelper {
      * Creates the specified table in the database.
      * The table is then made into a hypertable (so that the Timescale-extension is used rather than plain PostgreSQL)
      */
-    public static void createTableWithColumnSchema(Connection connection, String table, AccessPoint[] allAPs) throws SQLException {
+    public static void createTableWithColumnSchema(Connection connection, String table, GeneratedAccessPoint[] allAPs) throws SQLException {
         assert allAPs.length > 0 : "Making table for access points without any access points makes no sense";
 
         StringBuilder sb = new StringBuilder(String.format(
                 "CREATE TABLE %s (" +
                 "time   TIMESTAMP NOT NULL", table));
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             sb.append(",\"");
             //AP-names contain a '-' character that needs to be escaped
             sb.append(AP.getAPname());

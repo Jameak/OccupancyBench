@@ -1,18 +1,18 @@
 package Benchmark.Databases.Kudu;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedColumnEntry;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import org.apache.kudu.client.*;
 
 public class KuduColumnTarget extends AbstractKuduTarget {
     private final KuduClient kuduClient;
-    private final AccessPoint[] allAPs;
+    private final GeneratedAccessPoint[] allAPs;
     private final KuduTable kuduTable;
     private final KuduSession kuduSession;
 
-    public KuduColumnTarget(ConfigFile config, boolean recreate, AccessPoint[] allAPs) throws KuduException {
+    public KuduColumnTarget(ConfigFile config, boolean recreate, GeneratedAccessPoint[] allAPs) throws KuduException {
         super(config);
         this.kuduClient = KuduHelper.openConnection(config);
         this.allAPs = allAPs;
@@ -38,7 +38,7 @@ public class KuduColumnTarget extends AbstractKuduTarget {
         PartialRow row = insert.getRow();
         assert insert.getTable().getSchema().getColumnId("time") == 0 : "Has the Kudu row-schema been changed?";
         row.addLong(0, padTime(columnEntry));
-        for(AccessPoint AP : allAPs){
+        for(GeneratedAccessPoint AP : allAPs){
             row.addInt(AP.getAPname(), columnEntry.getMapping().getOrDefault(AP.getAPname(), 0));
         }
 

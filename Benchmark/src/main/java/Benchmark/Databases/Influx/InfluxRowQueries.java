@@ -1,8 +1,8 @@
 package Benchmark.Databases.Influx;
 
 import Benchmark.Config.ConfigFile;
-import Benchmark.Generator.GeneratedData.AccessPoint;
-import Benchmark.Generator.GeneratedData.Floor;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedFloor;
 import Benchmark.Queries.KMeansImplementation;
 import Benchmark.Queries.QueryHelper;
 import Benchmark.Queries.Results.*;
@@ -22,23 +22,23 @@ import java.util.*;
 public class InfluxRowQueries extends AbstractInfluxQueries {
     private Map<Integer, String> precomputedFloorTotalQueryParts = new HashMap<>();
     private int sampleRate;
-    private Floor[] generatedFloors;
+    private GeneratedFloor[] generatedFloors;
     private Random rng;
-    private AccessPoint[] allAPs;
+    private GeneratedAccessPoint[] allAPs;
 
     @Override
-    public void prepare(ConfigFile config, Floor[] generatedFloors, Random rng) throws Exception {
+    public void prepare(ConfigFile config, GeneratedFloor[] generatedFloors, Random rng) throws Exception {
         this.generatedFloors = generatedFloors;
         this.rng = rng;
         this.measurement = config.getInfluxTable();
         this.sampleRate = config.getGeneratorGenerationSamplerate();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
-        this.allAPs = Floor.allAPsOnFloors(generatedFloors);
+        this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         influxDB.setDatabase(config.getInfluxDBName());
         //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
 
-        for(Floor floor : generatedFloors){
+        for(GeneratedFloor floor : generatedFloors){
             String precomp = QueryHelper.buildRowSchemaFloorTotalQueryPrecomputation(floor.getAPs());
             precomputedFloorTotalQueryParts.put(floor.getFloorNumber(), precomp);
         }
@@ -75,7 +75,7 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     public List<FloorTotal> computeFloorTotal(LocalDateTime start, LocalDateTime end) {
         List<FloorTotal> counts = new ArrayList<>(generatedFloors.length);
 
-        for (Floor floor : generatedFloors) {
+        for (GeneratedFloor floor : generatedFloors) {
             String queryString = String.format("SELECT SUM(clients) FROM %s WHERE time > %d AND time <= %d AND %s GROUP BY time(1d)",
                     measurement, toTimestamp(start), toTimestamp(end), precomputedFloorTotalQueryParts.get(floor.getFloorNumber()));
 
@@ -102,7 +102,7 @@ public class InfluxRowQueries extends AbstractInfluxQueries {
     }
 
     @Override
-    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, AccessPoint AP) {
+    public List<MaxForAP> maxPerDayForAP(LocalDateTime start, LocalDateTime end, GeneratedAccessPoint AP) {
         List<MaxForAP> max = new ArrayList<>();
 
         String queryString = String.format("SELECT MAX(clients) FROM %s WHERE AP='%s' AND time > %d AND time <= %d GROUP BY time(1d)",

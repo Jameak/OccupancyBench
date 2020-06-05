@@ -9,7 +9,7 @@ import Benchmark.Databases.Kudu.KuduColumnTarget;
 import Benchmark.Databases.Kudu.KuduRowTarget;
 import Benchmark.Databases.Timescale.TimescaleColumnTarget;
 import Benchmark.Databases.Timescale.TimescaleRowTarget;
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.Targets.ITarget;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ public class DatabaseTargetFactory {
      * @param allAPs An array of all the access points to be stored in the database.
      * @return A new instance of the ITarget-implementation for the specified database.
      */
-    public static ITarget createDatabaseTarget(DBTargets target, ConfigFile config, boolean recreate, AccessPoint[] allAPs) throws IOException, SQLException {
+    public static ITarget createDatabaseTarget(DBTargets target, ConfigFile config, boolean recreate, GeneratedAccessPoint[] allAPs) throws IOException, SQLException {
         switch (config.getSchema()){
             case ROW:
                 switch (target){

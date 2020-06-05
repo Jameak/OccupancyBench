@@ -1,6 +1,6 @@
 package Benchmark.Queries;
 
-import Benchmark.Generator.GeneratedData.AccessPoint;
+import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Logger;
 import Benchmark.Queries.Results.KMeans;
 
@@ -10,14 +10,14 @@ import java.time.Instant;
 import java.util.*;
 
 public class KMeansImplementation {
-    private final List<AccessPoint> APs;
+    private final List<GeneratedAccessPoint> APs;
     private final FetchTimeSeries fetcher;
     private final int numIterations;
 
     private Map<Integer, Set<String>> assignments;
     private final int numClusters;
 
-    public KMeansImplementation(int numIterations, int numClusters, AccessPoint[] APs, Random rng, FetchTimeSeries fetcher){
+    public KMeansImplementation(int numIterations, int numClusters, GeneratedAccessPoint[] APs, Random rng, FetchTimeSeries fetcher){
         this.numIterations = numIterations;
         this.APs = Arrays.asList(APs);
         this.fetcher = fetcher;
@@ -57,7 +57,7 @@ public class KMeansImplementation {
             }
 
             // Loop through all data-points, assigning them to the closest cluster.
-            for(AccessPoint AP : APs){
+            for(GeneratedAccessPoint AP : APs){
                 TimeSeries series = fetcher.fetch(AP.getAPname());
                 int bestCluster = -1;
 

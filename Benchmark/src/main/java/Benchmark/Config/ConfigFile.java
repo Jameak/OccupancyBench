@@ -152,14 +152,31 @@ public class ConfigFile {
 
     /**
      * Type: Double
-     * The scaling applied to the generated data. A value of 1.0 resembles the amount of data generated in the ITU system.
-     * Changing the scaling affects the number of floors and access-points that are generated, as well as the total number
-     * of clients distributed among them.
+     * The scaling applied to the number of floors to generate.
+     * A value of 1.0 generates the same number of floors as in the loaded seed data.
      *
      * Also used during ingest-generation.
      */
-    private static final String GENERATOR_SCALE                   = "generator.data.scale";
-    private static final String GENERATOR_SCALE_DEFAULT           = "1.0";
+    private static final String GENERATOR_SCALE_FLOORS                   = "generator.data.scalefactor.floor";
+    private static final String GENERATOR_SCALE_FLOORS_DEFAULT           = "1.0";
+    /**
+     * Type: Double
+     * The scaling applied to the number of access points to generate per floor.
+     * A value of 1.0 generates the same number of access points per floor as in the loaded seed data.
+     *
+     * Also used during ingest-generation.
+     */
+    private static final String GENERATOR_SCALE_SENSORS                   = "generator.data.scalefactor.sensors";
+    private static final String GENERATOR_SCALE_SENSORS_DEFAULT           = "1.0";
+    /**
+     * Type: Double
+     * The scaling applied to the number of connected clients for each sensor.
+     * A value of 1.0 generates the same number of clients connected to the system as a whole as in the loaded seed data.
+     *
+     * Also used during ingest-generation.
+     */
+    private static final String GENERATOR_SCALE_CONNECTED_CLIENTS         = "generator.data.scalefactor.connectedclients";
+    private static final String GENERATOR_SCALE_CONNECTED_CLIENTS_DEFAULT = "1.0";
     /**
      * Type: A single accepted value. Accepted values are: NANOSECOND, MICROSECOND, MILLISECOND, SECOND, MINUTE
      * The granularity of the time-stamps inserted into the target database.
@@ -239,7 +256,9 @@ public class ConfigFile {
      */
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET   = "generator.output.filepath";
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT = "TARGET FILE PATH";
-    private final double    generatorScale;
+    private final double    generatorScaleFloors;
+    private final double    generatorScaleSensors;
+    private final double    generatorScaleConnectedClients;
     private final Granularity generatorGranularity;
     private final int       generatorJitter;
     private final int       generatorSeedSamplerate;
@@ -937,7 +956,9 @@ public class ConfigFile {
         prop.setProperty(GENERATOR_INPUT_IGNORE_FILE, GENERATOR_INPUT_IGNORE_FILE_DEFAULT);
         prop.setProperty(GENERATOR_INPUT_COMBINED_FILE, GENERATOR_INPUT_COMBINED_FILE_DEFAULT);
         prop.setProperty(GENERATOR_INPUT_SEPARATOR, GENERATOR_INPUT_SEPARATOR_DEFAULT);
-        prop.setProperty(GENERATOR_SCALE, GENERATOR_SCALE_DEFAULT);
+        prop.setProperty(GENERATOR_SCALE_FLOORS, GENERATOR_SCALE_FLOORS_DEFAULT);
+        prop.setProperty(GENERATOR_SCALE_SENSORS, GENERATOR_SCALE_SENSORS_DEFAULT);
+        prop.setProperty(GENERATOR_SCALE_CONNECTED_CLIENTS, GENERATOR_SCALE_CONNECTED_CLIENTS_DEFAULT);
         prop.setProperty(GENERATOR_GRANULARITY, GENERATOR_GRANULARITY_DEFAULT);
         prop.setProperty(GENERATOR_JITTER, GENERATOR_JITTER_DEFAULT);
         prop.setProperty(GENERATOR_SEED_SAMPLE_RATE, GENERATOR_SEED_SAMPLE_RATE_DEFAULT);
@@ -1058,7 +1079,9 @@ public class ConfigFile {
         // Generator settings
         generatorGranularity           = Granularity.valueOf( prop.getProperty(GENERATOR_GRANULARITY).toUpperCase().trim());
         generatorJitter                = Integer.parseInt(    prop.getProperty(GENERATOR_JITTER).trim());
-        generatorScale                 = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE).trim());
+        generatorScaleFloors           = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE_FLOORS).trim());
+        generatorScaleSensors          = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE_SENSORS).trim());
+        generatorScaleConnectedClients = Double.parseDouble(  prop.getProperty(GENERATOR_SCALE_CONNECTED_CLIENTS).trim());
         generatorSeedSamplerate        = Integer.parseInt(    prop.getProperty(GENERATOR_SEED_SAMPLE_RATE).trim());
         generatorGenerationSamplerate  = Integer.parseInt(    prop.getProperty(GENERATOR_GENERATION_SAMPLE_RATE).trim());
         generatorStartDate             = LocalDate.parse(     prop.getProperty(GENERATOR_START_DATE).trim());
@@ -1185,7 +1208,9 @@ public class ConfigFile {
         }
 
         if(generatorEnabled || ingestEnabled){
-            if(!(generatorScale > 0.0)) return GENERATOR_SCALE + ": Scale must be > 0.0";
+            if(!(generatorScaleFloors > 0.0))           return GENERATOR_SCALE_FLOORS + ": Floor scale factor must be > 0.0";
+            if(!(generatorScaleSensors > 0.0))          return GENERATOR_SCALE_SENSORS + ": Sensor scale factor must be > 0.0";
+            if(!(generatorScaleConnectedClients > 0.0)) return GENERATOR_SCALE_CONNECTED_CLIENTS + ": Connected clients scale factor must be > 0.0";
             if(!(generatorSeedSamplerate > 0)) return GENERATOR_SEED_SAMPLE_RATE + ": Seed sample rate must be > 0";
             if(!(generatorGenerationSamplerate > 0)) return GENERATOR_GENERATION_SAMPLE_RATE + ": Generation sample rate must be > 0";
             if(!(generatorJitter >= 0)) return GENERATOR_JITTER + ": Generation jitter must be >= 0";
@@ -1319,7 +1344,9 @@ public class ConfigFile {
 
         settings.put(GENERATOR_GRANULARITY, generatorGranularity);
         settings.put(GENERATOR_JITTER, generatorJitter);
-        settings.put(GENERATOR_SCALE, generatorScale);
+        settings.put(GENERATOR_SCALE_FLOORS, generatorScaleFloors);
+        settings.put(GENERATOR_SCALE_SENSORS, generatorScaleSensors);
+        settings.put(GENERATOR_SCALE_CONNECTED_CLIENTS, generatorScaleConnectedClients);
         settings.put(GENERATOR_SEED_SAMPLE_RATE, generatorSeedSamplerate);
         settings.put(GENERATOR_GENERATION_SAMPLE_RATE, generatorGenerationSamplerate);
         settings.put(GENERATOR_START_DATE, generatorStartDate);
@@ -1424,8 +1451,16 @@ public class ConfigFile {
         return ingestEnabled;
     }
 
-    public double getGeneratorScale() {
-        return generatorScale;
+    public double getGeneratorScaleFactorFloors() {
+        return generatorScaleFloors;
+    }
+
+    public double getGeneratorScaleFactorSensors() {
+        return generatorScaleSensors;
+    }
+
+    public double getGeneratorScaleFactorConnectedClients() {
+        return generatorScaleConnectedClients;
     }
 
     public int getSeed() {

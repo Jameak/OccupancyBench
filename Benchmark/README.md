@@ -40,11 +40,13 @@ generator.input.separator     = ;
 
 generator.data.generationsamplerate  = 60
 generator.data.seedsamplerate        = 60
-generator.data.scale                 = 1.0
 generator.data.jitter                = 5
 generator.data.startdate             = 2019-01-01
 generator.data.enddate               = 2019-04-01
 generator.data.granularity           = nanosecond
+generator.data.scalefactor.floor     = 1.0
+generator.data.scalefactor.sensors   = 1.0
+generator.data.scalefactor.connectedclients = 1.0
 generator.output.targets             = influx
 generator.output.filepath            = TARGET FILE PATH
 

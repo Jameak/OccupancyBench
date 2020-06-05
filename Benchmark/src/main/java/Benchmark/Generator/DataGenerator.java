@@ -39,7 +39,7 @@ public class DataGenerator {
                                 ITarget outputTarget, ConfigFile config) throws IOException, SQLException {
         int generatorSampleRate = config.getGeneratorGenerationSamplerate();
         int seedSampleRate = config.getGeneratorSeedSamplerate();
-        double scale = config.getGeneratorScale();
+        double clientsScaleFactor = config.getGeneratorScaleFactorConnectedClients();
         int jitterMax = config.getGeneratorJitter();
 
         assert generatorSampleRate == seedSampleRate || // Intervals match
@@ -56,14 +56,14 @@ public class DataGenerator {
 
         LocalDate nextDate = startDate;
         while(!nextDate.isAfter(endDate)){ // If we run out of data to generate from, then go back to the beginning.
-            nextDate = GenerateEntries(nextDate, endDate, startSecond, generatorSampleRate, seedSampleRate, APs, sortedEntryKeys, data, rng, scale, outputTarget, jitterMax, config.getSchema(), config.DEBUG_synchronizeRngState());
+            nextDate = GenerateEntries(nextDate, endDate, startSecond, generatorSampleRate, seedSampleRate, APs, sortedEntryKeys, data, rng, clientsScaleFactor, outputTarget, jitterMax, config.getSchema(), config.DEBUG_synchronizeRngState());
             if(nextDate.isEqual(endDate) || outputTarget.shouldStopEarly()) break;
         }
     }
 
     private static LocalDate GenerateEntries(LocalDate startDate, LocalDate endDate, int startSecond, int generatorSampleRate,
                                              int seedSampleRate, GeneratedAccessPoint[] APs, LocalDate[] sortedEntryKeys,
-                                             SeedEntries data, Random rng, double scale, ITarget outputTarget,
+                                             SeedEntries data, Random rng, double clientsScaleFactor, ITarget outputTarget,
                                              int jitterMax, SchemaFormats schema, boolean DEBUG_sync_rng_state)
                                              throws IOException, SQLException {
         boolean generateFasterThanLoadedData = generatorSampleRate < seedSampleRate;
@@ -92,7 +92,7 @@ public class DataGenerator {
                     skippedEntries = 0;
                 }
 
-                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, scale, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
+                GenerateBasedOnEntry(startTime, APs, entryOnDay, rng, nextDate, clientsScaleFactor, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
 
                 if (generateFasterThanLoadedData) {
                     Entry nextEntry = null;
@@ -116,7 +116,7 @@ public class DataGenerator {
                         for (int j = 0; j < numAdditionalEntriesToInclude; j++) {
                             startTime = startTime.plusSeconds(generatorSampleRate);
                             Entry fakeEntry = CreateFakeEntry(entryOnDay, nextEntry, j, numAdditionalEntriesToInclude);
-                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, scale, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
+                            GenerateBasedOnEntry(startTime, APs, fakeEntry, rng, nextDate, clientsScaleFactor, outputTarget, jitterMax, schema, DEBUG_sync_rng_state);
                         }
                     } else {
                         startTime = startTime.plusSeconds(generatorSampleRate * numAdditionalEntriesToInclude);
@@ -133,7 +133,7 @@ public class DataGenerator {
     }
 
     private static void GenerateBasedOnEntry(LocalTime startTime, GeneratedAccessPoint[] APs, Entry entryOnDay, Random rng,
-                                             LocalDate nextDate, double scale, ITarget outputTarget, int jitterMax,
+                                             LocalDate nextDate, double clientsScaleFactor, ITarget outputTarget, int jitterMax,
                                              SchemaFormats schema, boolean DEBUG_sync_rng_state) throws IOException, SQLException {
         LocalTime readingTime = startTime;
         switch (schema){
@@ -151,9 +151,9 @@ public class DataGenerator {
 
                     int numClients;
                     if(jitterMax == 0){
-                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability));
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * clientsScaleFactor * probability));
                     } else {
-                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * clientsScaleFactor * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
                     }
                     GeneratedRowEntry genEntry = new GeneratedRowEntry(nextDate, readingTime, AP.getAPname(), numClients);
                     outputTarget.add(genEntry);
@@ -186,9 +186,9 @@ public class DataGenerator {
 
                     int numClients;
                     if(jitterMax == 0){
-                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability));
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * clientsScaleFactor * probability));
                     } else {
-                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * scale * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
+                        numClients = (int) (Math.ceil(entryOnDay.getTotal() * clientsScaleFactor * probability) + Math.ceil(rng.nextInt(jitterMax) * probability));
                     }
                     entries.put(AP.getAPname(), numClients);
                 }

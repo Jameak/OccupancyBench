@@ -24,9 +24,9 @@ public class FloorGenerator {
     /**
      * Generate floors (and the access-points on each floor) with the given scale using the given Random-instance.
      */
-    public static GeneratedFloor[] GenerateFloors(FloorMetadata[] floorMetadata, double scale, Random rng){
-        assert scale > 0.0;
-        int numberOfFloors = (int)Math.ceil(floorMetadata.length * scale);
+    public static GeneratedFloor[] GenerateFloors(FloorMetadata[] floorMetadata, double floorScaleFactor, double sensorScaleFactor, Random rng){
+        assert floorScaleFactor > 0.0;
+        int numberOfFloors = (int)Math.ceil(floorMetadata.length * floorScaleFactor);
 
         GeneratedFloor[] generatedFloors = new GeneratedFloor[numberOfFloors];
 
@@ -41,13 +41,15 @@ public class FloorGenerator {
         int currFloorNumber = 0;
         for(FloorMetadata floorData : nonRepeatableFloor){
             if(currFloorNumber >= numberOfFloors) break;
-            generatedFloors[currFloorNumber] = GenerateFloor(currFloorNumber, floorData, rng, usedAPnames);
+
+            generatedFloors[currFloorNumber] = GenerateFloor(currFloorNumber, floorData, rng, usedAPnames, sensorScaleFactor);
             currFloorNumber++;
         }
         while(currFloorNumber < numberOfFloors){
             for(FloorMetadata floorData : repeatableFloors){
                 if(currFloorNumber >= numberOfFloors) break;
-                generatedFloors[currFloorNumber] = GenerateFloor(currFloorNumber, floorData, rng, usedAPnames);
+
+                generatedFloors[currFloorNumber] = GenerateFloor(currFloorNumber, floorData, rng, usedAPnames, sensorScaleFactor);
                 currFloorNumber++;
             }
         }
@@ -55,13 +57,21 @@ public class FloorGenerator {
         return generatedFloors;
     }
 
-    private static GeneratedFloor GenerateFloor(int floorNumber, FloorMetadata floorData, Random rng, Set<String> usedNames){
-        GeneratedAccessPoint[] apsOnFloor = new GeneratedAccessPoint[floorData.accessPointsOnFloor.size()];
-        int i = 0;
-        for(String seedName : floorData.accessPointsOnFloor){
-            String newName = GenerateAPName(rng, usedNames);
-            apsOnFloor[i] = new GeneratedAccessPoint(newName, seedName);
-            i++;
+    private static GeneratedFloor GenerateFloor(int floorNumber, FloorMetadata floorData, Random rng,
+                                                Set<String> usedNames, double sensorScaleFactor){
+        assert sensorScaleFactor > 0.0;
+        int apsToGenerate = (int)Math.ceil(floorData.accessPointsOnFloor.size() * sensorScaleFactor);
+        int generatedAPs = 0;
+
+        GeneratedAccessPoint[] apsOnFloor = new GeneratedAccessPoint[apsToGenerate];
+        while(generatedAPs < apsToGenerate){
+            for(String seedName : floorData.accessPointsOnFloor){
+                if(generatedAPs >= apsToGenerate) break;
+
+                String newName = GenerateAPName(rng, usedNames);
+                apsOnFloor[generatedAPs] = new GeneratedAccessPoint(newName, seedName);
+                generatedAPs++;
+            }
         }
         return new GeneratedFloor(floorNumber, apsOnFloor);
     }

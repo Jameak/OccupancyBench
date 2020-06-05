@@ -161,7 +161,7 @@ public class InfluxPrecomputationInsights {
 
     private static String GetTablePrefix(ConfigFile config){
         String tablePrefix = "Int" + config.getGeneratorGenerationSamplerate() + "_";
-        tablePrefix += ("Scale" + config.getGeneratorScale()).replace(".", "_").replace(",", "_") + "_";
+        tablePrefix += ("Scale" + config.getGeneratorScaleFactorFloors()).replace(".", "_").replace(",", "_") + "_";
         return tablePrefix;
     }
 

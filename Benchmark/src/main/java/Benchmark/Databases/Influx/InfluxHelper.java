@@ -31,16 +31,9 @@ public class InfluxHelper {
     }
 
     /**
-     * Drops the specified database.
+     * Drops the specified table (measurement).
      */
-    public static void dropDatabase(InfluxDB db, String dbName){
-        db.query(new Query("DROP DATABASE " + dbName));
-    }
-
-    /**
-     * Creates the specified database.
-     */
-    public static void createDatabase(InfluxDB db, String dbName){
-        db.query(new Query("CREATE DATABASE " + dbName));
+    public static void dropTable(InfluxDB db, String tableName){
+        db.query(new Query("DROP MEASUREMENT " + tableName));
     }
 }

@@ -25,8 +25,8 @@ public abstract class AbstractInfluxTarget implements ITarget {
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
 
         if(recreate){
-            InfluxHelper.dropDatabase(influxDB, config.getInfluxDBName());
-            InfluxHelper.createDatabase(influxDB, config.getInfluxDBName());
+            InfluxHelper.dropTable(influxDB, config.getInfluxTable());
+            // InfluxDB creates its table (measurement) just inserting into it. We cant create it explicitly.
         }
 
         influxDB.setDatabase(config.getInfluxDBName());

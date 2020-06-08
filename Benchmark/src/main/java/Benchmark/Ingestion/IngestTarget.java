@@ -1,4 +1,4 @@
-package Benchmark.Generator.Ingest;
+package Benchmark.Ingestion;
 
 import Benchmark.*;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;

@@ -8,28 +8,19 @@ import Benchmark.Databases.DatabaseQueriesFactory;
 import Benchmark.Generator.*;
 import Benchmark.Generator.GeneratedData.GeneratedAccessPoint;
 import Benchmark.Generator.GeneratedData.GeneratedFloor;
-import Benchmark.Generator.Ingest.IngestRunnable;
+import Benchmark.Ingestion.IngestOrchestrator;
+import Benchmark.Queries.QueryOrchestrator;
 import Benchmark.SeedLoader.LoaderFacade;
 import Benchmark.Generator.Targets.*;
 import Benchmark.SeedLoader.SeedData;
-import Benchmark.SeedLoader.Seeddata.SeedEntries;
 import Benchmark.Queries.IQueries;
-import Benchmark.Queries.QueryRunnable;
 
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /**
  * The entry-point of the benchmark program.
@@ -93,15 +84,6 @@ public class Entrypoint {
         }
     }
 
-    // --- Ingestion ---
-    private ExecutorService threadPoolIngest;
-    private Future[] ingestTasks;
-    private IngestRunnable[] ingestRunnables;
-    private ITarget[] ingestTargets;
-
-    // --- Querying ---
-    private ExecutorService threadPoolQueries;
-
     private PartitionLockstepChannel DEBUG_partitionLockstepChannel;
 
     public void run(ConfigFile config) throws Exception{
@@ -121,8 +103,14 @@ public class Entrypoint {
         GeneratedFloor[] generatedFloors;
         if(config.isGeneratorEnabled()){
             generatedFloors = generateFloorData(config, rng, parsedData);
+
+            if(config.doSerialization()){
+                Logger.LOG("Serializing floor and rng.");
+                Serializer.serializeFloor(generatedFloors, config.getSerializationPath());
+                Serializer.serializeRandom(rng, config.getSerializationPath());
+            }
         } else {
-            assert config.doSerialization();
+            assert config.doSerialization() : "If the generator isn't enabled then we must get our metadata from previously serialized data.";
             // Load the data from previous run
             Logger.LOG("Deserializing floor.");
             generatedFloors = Serializer.deserializeFloor(config.getSerializationPath());
@@ -143,26 +131,32 @@ public class Entrypoint {
             DEBUG_partitionLockstepChannel = new PartitionLockstepChannel(config);
         }
 
+        IngestOrchestrator ingestOrchestrator = null;
         if(config.isIngestionEnabled()){
+            assert parsedData != null;
             Logger.LOG("Starting ingestion.");
-            startIngestion(config, generatedFloors, parsedData.seedEntries, dateComm, ingestRngSource, !config.doDateCommunicationByQueryingDatabase());
+            ingestOrchestrator = new IngestOrchestrator(config);
+            ingestOrchestrator.prepareIngestion(generatedFloors, parsedData.seedEntries, dateComm, ingestRngSource,
+                    !config.doDateCommunicationByQueryingDatabase(), DEBUG_partitionLockstepChannel);
+            ingestOrchestrator.startIngestion();
             Logger.LOG("Ingestion started.");
         }
 
-        Future[] queryTasks = null;
+        QueryOrchestrator queryOrchestrator = null;
         if(config.isQueryingEnabled()){
             Logger.LOG("Starting queries.");
-            queryTasks = startQueries(config, dateComm, queryRngSource, generatedFloors);
+            queryOrchestrator = new QueryOrchestrator(config, () -> instantiateQueries(config));
+            queryOrchestrator.prepareQuerying(generatedFloors, queryRngSource, dateComm);
+            queryOrchestrator.startQuerying();
             Logger.LOG("Queries started.");
         }
 
         if(config.isQueryingEnabled()){
             // First, wait for queries to finish, since they have a specified duration
-            assert queryTasks != null;
-            for(Future queryTask : queryTasks){
-                queryTask.get();
-            }
+            assert queryOrchestrator != null;
+            queryOrchestrator.waitUntilQuerythreadsFinish();
         } else if(config.isIngestionEnabled()) {
+            assert ingestOrchestrator != null;
             // If we aren't running the queries, but are running ingestion, then we need some other way to determine
             //   how long to run ingestion for. Otherwise they'll just stop immediately.
             boolean timeDuration = config.getIngestionStandaloneDuration() > 0;
@@ -170,13 +164,7 @@ public class Entrypoint {
             CoarseTimer timer = new CoarseTimer();
             timer.start();
             while(!timeDuration || timer.elapsedSeconds() < config.getIngestionStandaloneDuration()){
-                boolean allDone = true;
-                for (IngestRunnable ingestRunnable : ingestRunnables) {
-                    if (!ingestRunnable.isDone()) {
-                        allDone = false;
-                        break;
-                    }
-                }
+                boolean allDone = ingestOrchestrator.hasAllIngestThreadsFinished();
                 if(allDone){
                     Logger.LOG("All ingest-threads reached configured end-date (" + config.getIngestEndDate().toString() + "). Ending ingestion.");
                     break;
@@ -198,10 +186,14 @@ public class Entrypoint {
         }
 
         if(config.isIngestionEnabled()){
-            stopIngestion();
+            assert ingestOrchestrator != null;
+            ingestOrchestrator.shutdownIngestion();
         }
 
-        if(config.isQueryingEnabled()) threadPoolQueries.shutdown();
+        if(config.isQueryingEnabled()) {
+            assert queryOrchestrator != null;
+            queryOrchestrator.shutdownQuerying();
+        }
 
         if(config.doLoggingToCSV()){
             CSVLogger.GeneralLogger.createOrGetInstance().setDone();
@@ -210,88 +202,6 @@ public class Entrypoint {
         }
 
         Logger.LOG("Done.");
-    }
-
-    private Future[] startQueries(ConfigFile config, DateCommunication dateComm, Random queryRngSource, GeneratedFloor[] generatedFloors) {
-        assert config.getQueriesThreadCount() > 0;
-        threadPoolQueries = Executors.newFixedThreadPool(config.getQueriesThreadCount());
-
-        IQueries queryInstance = null;
-        if(config.useSharedQueriesInstance()) queryInstance = instantiateQueries(config);
-
-        Future[] queryTasks = new Future[config.getQueriesThreadCount()];
-        for(int i = 0; i < config.getQueriesThreadCount(); i++){
-            Random queryRngForThisThread = new Random(queryRngSource.nextInt());
-            if(!config.useSharedQueriesInstance()) queryInstance = instantiateQueries(config);
-
-            QueryRunnable queryRunnable = new QueryRunnable(config, queryRngForThisThread, dateComm, generatedFloors, queryInstance, "Query " + i, i);
-            queryTasks[i] = threadPoolQueries.submit(queryRunnable);
-        }
-        return queryTasks;
-    }
-
-    private void startIngestion(ConfigFile config, GeneratedFloor[] generatedFloors, SeedEntries seedEntries, DateCommunication dateComm, Random ingestRngSource, boolean doDirectComm) throws IOException, SQLException {
-        assert config.getIngestThreadCount() > 0;
-        threadPoolIngest = Executors.newFixedThreadPool(config.getIngestThreadCount());
-        ingestTasks = new Future[config.getIngestThreadCount()];
-        ingestRunnables = new IngestRunnable[config.getIngestThreadCount()];
-        GeneratedAccessPoint[] allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
-
-        ingestTargets = new ITarget[config.useSharedIngestInstance() ? 1 : config.getIngestThreadCount()];
-        if(config.useSharedIngestInstance()) ingestTargets[0] = DatabaseTargetFactory.createDatabaseTarget(config.getIngestTarget(), config, config.recreateIngestTarget(), allAPs);
-
-        GeneratedAccessPoint[][] APpartitions = evenlyPartitionAPs(allAPs, config.getIngestThreadCount());
-        boolean firstCreatedTarget = true;
-        //TODO: Might need some functionality to ensure that the ingest-threads are kept similar in speeds.
-        //      Otherwise one ingest thread might end up several hours/days in front of the others which then makes
-        //      any queries for 'recent' data too easy. Or I could make queries for 'recent' data be the recency of
-        //      the slowest thread (currently it follows the fastest one).
-        for(int i = 0; i < config.getIngestThreadCount(); i++) {
-            Random ingestRngForThread = new Random(ingestRngSource.nextInt());
-            ITarget ingestTarget;
-            if (config.useSharedIngestInstance()) {
-                ingestTarget = ingestTargets[0];
-            } else {
-                // Only recreate the ingest-target during the first initialization. Avoids churn on the database/target.
-                //   Probably doesn't really matter since we create all the instances before ingest begins.
-                boolean recreate = false;
-                if (firstCreatedTarget) {
-                    recreate = config.recreateIngestTarget();
-                    firstCreatedTarget = false;
-                }
-                ingestTarget = DatabaseTargetFactory.createDatabaseTarget(config.getIngestTarget(), config, recreate, allAPs);
-
-                if(config.DEBUG_isPartitionLockstepEnabled()) ingestTarget = new MultiTarget(ingestTarget, new PartitionLockstepIngestionController(config, DEBUG_partitionLockstepChannel));
-
-                ingestTargets[i] = ingestTarget;
-            }
-
-            // If ingestion runs alongside querying then we stop ingestion when we're done querying.
-            // However, if querying isn't running then we might want to stop ingestion at some specific date.
-            LocalDate ingestEndDate = config.isQueryingEnabled() ? LocalDate.MAX : config.getIngestEndDate();
-            ingestRunnables[i] = new IngestRunnable(config, APpartitions[i], seedEntries, ingestRngForThread, ingestTarget, dateComm, i, ingestEndDate, doDirectComm);
-        }
-
-        for(int i = 0; i < ingestTasks.length; i++){
-            ingestTasks[i] = threadPoolIngest.submit(ingestRunnables[i]);
-        }
-    }
-
-    private void stopIngestion() throws Exception {
-        // Once it's time to stop ingestion, first tell ingestion to stop gracefully.
-        for(IngestRunnable ingestRunnable : ingestRunnables){
-            ingestRunnable.stop();
-        }
-
-        // Then Wait for ingestion to shutdown gracefully
-        for (Future ingestTask : ingestTasks) {
-            ingestTask.get();
-        }
-
-        for(ITarget ingestTarget : ingestTargets){
-            ingestTarget.close();
-        }
-        threadPoolIngest.shutdown();
     }
 
     private SeedData parseMapData(ConfigFile config) throws IOException {
@@ -337,30 +247,7 @@ public class Entrypoint {
             InfluxPrecomputationInsights.ComputeTotals(config.getGeneratorGenerationSamplerate(), generatedFloors, config);
         }
 
-        if(config.doSerialization()){
-            Logger.LOG("Serializing floor and rng.");
-            Serializer.serializeFloor(generatedFloors, config.getSerializationPath());
-            Serializer.serializeRandom(rng, config.getSerializationPath());
-        }
-
         return generatedFloors;
-    }
-
-    private GeneratedAccessPoint[][] evenlyPartitionAPs(GeneratedAccessPoint[] allAPs, int partitions){
-        List<List<GeneratedAccessPoint>> results = new ArrayList<>(partitions);
-        for(int i = 0; i < partitions; i++){
-            results.add(new ArrayList<>());
-        }
-        for(int i = 0; i < allAPs.length; i++){
-            results.get(i % partitions).add(allAPs[i]);
-        }
-
-        GeneratedAccessPoint[][] out = new GeneratedAccessPoint[partitions][];
-        for(int i = 0; i < partitions; i++){
-            out[i] = results.get(i).toArray(new GeneratedAccessPoint[0]);
-        }
-
-        return out;
     }
 
     private IQueries instantiateQueries(ConfigFile config){

@@ -1,4 +1,4 @@
-package Benchmark.Generator.Ingest;
+package Benchmark.Ingestion;
 
 import Benchmark.CSVLogger;
 import Benchmark.Config.ConfigFile;

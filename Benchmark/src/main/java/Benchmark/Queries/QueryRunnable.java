@@ -36,7 +36,7 @@ public class QueryRunnable implements Runnable {
     private final CSVLogger.IndividualQueryLogger individualLogger;
 
     private final boolean saveQueryResults;
-    private List<QueryResult> queryResults = new ArrayList<>();
+    private final List<QueryResult> queryResults = new ArrayList<>();
     private int queryId = 0;
 
     private final PreciseTimer timerQuery_TotalClients;
@@ -134,11 +134,7 @@ public class QueryRunnable implements Runnable {
         this.generalMinTimeInterval = config.getQueriesIntervalMin();
         this.generalMaxTimeInterval = config.getQueriesIntervalMax();
 
-        List<GeneratedAccessPoint> APs = new ArrayList<>();
-        for(GeneratedFloor floor : generatedFloors){
-            APs.addAll(Arrays.asList(floor.getAPs()));
-        }
-        allAPs = APs.toArray(new GeneratedAccessPoint[0]);
+        allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
     }
 
     private QueryType selectQuery(Random rng){

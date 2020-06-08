@@ -487,7 +487,7 @@ public class ConfigFile {
      * Type: Integer
      * The desired number of entries for each ingestion-thread to generate per second.
      * The desired number of entries are spread out over each second with a variable delay to reach the desired speed.
-     * A value <= 0 will not limit the ingestion-speed.
+     * A value <= 0 will not throttle the ingestion-speed.
      */
     private static final String INGEST_SPEED               = "ingest.speed";
     private static final String INGEST_SPEED_DEFAULT       = "-1";

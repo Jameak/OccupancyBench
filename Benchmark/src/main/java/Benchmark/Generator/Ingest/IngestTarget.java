@@ -2,11 +2,12 @@ package Benchmark.Generator.Ingest;
 
 import Benchmark.*;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
+import Benchmark.Generator.Targets.ITarget;
 
 /**
  * During ingestion, this class monitors and controls the ingest-process.
  */
-public class IngestControl {
+public class IngestTarget implements ITarget {
     private final CoarseTimer totalTimer;
     private final CoarseTimer reportTimer;
     private final CoarseTimer speedTimer;
@@ -16,7 +17,7 @@ public class IngestControl {
     private int reportCounter;
     private int speedCounter;
     private boolean timersStarted;
-    private boolean limitSpeed;
+    private final boolean shouldThrottleIngestion;
     private final boolean reportIntermediateStats;
     private final int reportFrequencyMillis;
     private final DateCommunication dateComm;
@@ -26,11 +27,12 @@ public class IngestControl {
 
     private final boolean doCsvLogging;
     private final CSVLogger.IngestLogger csvLogger;
+    private volatile boolean stop;
 
-    public IngestControl(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName,
-                         boolean doDirectComm, boolean doCsvLogging, CSVLogger.IngestLogger csvLogger){
+    public IngestTarget(int desiredIngestSpeed, int reportFrequency, DateCommunication dateComm, String threadName,
+                        boolean doDirectComm, boolean doCsvLogging, CSVLogger.IngestLogger csvLogger){
         this.desiredIngestSpeedPer100Millis = desiredIngestSpeed / 10;
-        this.limitSpeed = desiredIngestSpeed > 0;
+        this.shouldThrottleIngestion = desiredIngestSpeed > 0;
         this.reportFrequencyMillis = reportFrequency * 1000;
         this.reportIntermediateStats = reportFrequency > 0;
         this.dateComm = dateComm;
@@ -47,11 +49,12 @@ public class IngestControl {
     public void printFinalStats(){
         double time = totalTimer.elapsedMilliseconds();
         double timeSec = time / 1000;
-        Logger.LOG(String.format("%s: DONE: %d entries were added in %.2f seconds. Avg. speed was %.0f / sec.",
-                threadName, totalCounter, timeSec, totalCounter / timeSec));
-        if(doCsvLogging) CSVLogger.GeneralLogger.createOrGetInstance().write(threadName,
-                String.format("%d entries were added in %.2f seconds. Avg. speed was %.0f / sec.",
-                        totalCounter, timeSec, totalCounter / timeSec));
+
+        String message = String.format("%d entries were added in %.2f seconds. Avg. speed was %.0f / sec.",
+                totalCounter, timeSec, totalCounter / timeSec);
+
+        Logger.LOG(String.format("%s: DONE: %s", threadName, message));
+        if(doCsvLogging) CSVLogger.GeneralLogger.createOrGetInstance().write(threadName, message);
     }
 
     public void add(IGeneratedEntry entry) {
@@ -83,9 +86,17 @@ public class IngestControl {
             }
         }
 
-        if(limitSpeed){
+        if(shouldThrottleIngestion){
+            // Since the 'add' method is a part of the tight ingestion-loop, we can spread our throttle-delays out over
+            //   multiple insertions so that we do e.g. "1 insert, wait 2ms, 1 insert, wait 2ms, etc" to insert
+            //   ~500 rows in 1 second.
+            //   The alternative would be to simply start a timer, insert 500 rows as fast as possible and then
+            //   sleeping for the remaining time.
+            // This delay-estimation isn't the best and will take some time to stabilize, especially on big batch-sizes,
+            //   but has been tested at batch-sizes varying from 100-100000 with desired throttling speeds of 10-40000.
             speedCounter++;
             double elapsedMillis = speedTimer.elapsedMilliseconds();
+            // Recalculate our delay every 100 milliseconds (so we can calculate how much we ended up insertion over the last 100 and revise our delay-estimate.
             if(elapsedMillis > 100){
                 if(speedCounter > desiredIngestSpeedPer100Millis){
                     sleepDuration += (speedCounter - desiredIngestSpeedPer100Millis)*2 + 5000;
@@ -106,5 +117,19 @@ public class IngestControl {
                 }
             }
         }
+    }
+
+    public void setStop(){
+        stop = true;
+    }
+
+    @Override
+    public boolean shouldStopEarly() {
+        return stop;
+    }
+
+    @Override
+    public void close() {
+        // Nothing to clean-up
     }
 }

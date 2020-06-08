@@ -125,10 +125,10 @@ public class Entrypoint {
             assert config.doSerialization();
             // Load the data from previous run
             Logger.LOG("Deserializing floor.");
-            generatedFloors = deserializeFloor(config);
+            generatedFloors = Serializer.deserializeFloor(config.getSerializationPath());
             Logger.LOG(String.format("Deserialized metadata for %s floors and %s APs", generatedFloors.length, GeneratedFloor.allAPsOnFloors(generatedFloors).length));
             Logger.LOG("Deserializing rng.");
-            rng = deserializeRandom(config);
+            rng = Serializer.deserializeRandom(config.getSerializationPath());
         }
 
         dateComm.setInitialDate(config.getGeneratorEndDate(), LocalTime.of(0,0,0));
@@ -339,39 +339,11 @@ public class Entrypoint {
 
         if(config.doSerialization()){
             Logger.LOG("Serializing floor and rng.");
-            serializeData(generatedFloors, rng, config);
+            Serializer.serializeFloor(generatedFloors, config.getSerializationPath());
+            Serializer.serializeRandom(rng, config.getSerializationPath());
         }
 
         return generatedFloors;
-    }
-
-    private void serializeData(GeneratedFloor[] generatedFloors, Random rng, ConfigFile config) throws IOException{
-        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.getSerializationPath(), "floors.ser").toString());
-            ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
-            outStream.writeObject(generatedFloors);
-        }
-        try(FileOutputStream outFile = new FileOutputStream(Paths.get(config.getSerializationPath(), "random.ser").toString());
-            ObjectOutputStream outStream = new ObjectOutputStream(outFile)){
-            outStream.writeObject(rng);
-        }
-    }
-
-    private GeneratedFloor[] deserializeFloor(ConfigFile config) throws IOException, ClassNotFoundException{
-        GeneratedFloor[] data;
-        try(FileInputStream inFile = new FileInputStream(Paths.get(config.getSerializationPath(), "floors.ser").toString());
-            ObjectInputStream inStream = new ObjectInputStream(inFile)){
-            data = (GeneratedFloor[]) inStream.readObject();
-        }
-        return data;
-    }
-
-    private Random deserializeRandom(ConfigFile config) throws IOException, ClassNotFoundException{
-        Random rng;
-        try(FileInputStream inFile = new FileInputStream(Paths.get(config.getSerializationPath(), "random.ser").toString());
-            ObjectInputStream inStream = new ObjectInputStream(inFile)){
-            rng = (Random) inStream.readObject();
-        }
-        return rng;
     }
 
     private GeneratedAccessPoint[][] evenlyPartitionAPs(GeneratedAccessPoint[] allAPs, int partitions){

@@ -8,7 +8,7 @@ idMapFileName = "idMap.csv"
 username = ""
 password = ""
 serverUrl = ""
-with open("sensitiveInfo.txt", 'r') as info:
+with open("secrets.txt", 'r') as info:
     lines = info.readlines()
     username = lines[0].replace("\n","")
     password = lines[1].replace("\n","")
@@ -31,7 +31,7 @@ if os.path.isfile(idMapFileName):
 if not os.path.isdir("map"):
     os.mkdir("map")
 
-def getProbabilityMap(timestamp, output):
+def extractSeedData(timestamp, output):
     global lastId
     query = "SELECT AP,clients FROM occtest1 WHERE time < '" + timestamp + "' + 30s AND time > '" + timestamp + "' - 30s"
     command = "curl --silent -G -u " + username + ":" + password + " '" + serverUrl + "/query' --data-urlencode 'db=occupancy' --data-urlencode \"q=" + query + "\""
@@ -90,7 +90,7 @@ def downloadDay(day):
             #Example format (RFC3339): "2019-09-11T09:30:00Z"
             timestamp = day + "T" + str(hour).zfill(2) + ":" + str(minute).zfill(2) + ":00Z"
             print("Getting map for " + timestamp)
-            getProbabilityMap(timestamp, output)
+            extractSeedData(timestamp, output)
     with open(os.path.join("map", day + '.csv'), 'w+') as probabilityMap:
         for entry in output:
             probabilityMap.write(entry)
@@ -102,7 +102,7 @@ def downloadDay(day):
 #downloadMonth(2018, 11, 30)
 #downloadMonth(2018, 12, 31)
 #downloadMonth(2019,  1, 31)
-downloadMonth(2019,  2, 28)
+#downloadMonth(2019,  2, 28)
 #downloadMonth(2019,  3, 31)
 #downloadMonth(2019,  4, 30)
 #downloadMonth(2019,  5, 31)

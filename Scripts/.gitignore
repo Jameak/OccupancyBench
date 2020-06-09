@@ -1,4 +1,4 @@
-sensitiveInfo.txt
+secrets.txt
 *.json
 *.csv
 map/

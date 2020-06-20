@@ -4,6 +4,7 @@ import Benchmark.Config.ConfigFile;
 import Benchmark.Config.Granularity;
 import Benchmark.Generator.Targets.ITarget;
 import org.influxdb.InfluxDB;
+import org.influxdb.dto.Query;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
@@ -23,13 +24,13 @@ public abstract class AbstractInfluxTarget implements ITarget {
         this.measurementName = config.getInfluxTable();
         this.granularity = config.getGeneratorGranularity();
         this.influxDB = InfluxHelper.openConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword());
+        influxDB.setDatabase(config.getInfluxDBName());
 
         if(recreate){
             InfluxHelper.dropTable(influxDB, config.getInfluxTable());
             // InfluxDB creates its table (measurement) just inserting into it. We cant create it explicitly.
         }
 
-        influxDB.setDatabase(config.getInfluxDBName());
         influxDB.enableBatch(config.getInfluxBatchsize(), config.getInfluxFlushtime(), TimeUnit.MILLISECONDS, Executors.defaultThreadFactory(), (points, throwable) -> {
             errorsOccurred = true;
         });

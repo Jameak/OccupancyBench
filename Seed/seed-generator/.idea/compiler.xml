@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Annotation profile for seed-generator" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <option name="project" value="maqu/seed-generator" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/info/picocli/picocli-codegen/4.3.2/picocli-codegen-4.3.2.jar" />
+          <entry name="$MAVEN_REPOSITORY$/info/picocli/picocli/4.3.2/picocli-4.3.2.jar" />
+        </processorPath>
+        <module name="seed-generator" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="seed-generator" target="8" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="seed-generator" options="-Aproject=maqu/seed-generator" />
+    </option>
+  </component>
+</project>

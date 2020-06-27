@@ -9,7 +9,7 @@ As of writing this, all of these seed metadata files must be present during seed
 The sample data files included in this folder was generated using the seed-generator program with the following arguments: 
 `java -jar path/to/seed-generator-1.0-SNAPSHOT.jar -f 4 -s 35 --separator=',' --time-start=2020-01-01 --time-end=2020-01-04 --gen-special=true --create-idmap=true`
 
-The generated metadata-files were included as-is, while the generated data-entry files were reduced in size from 200.000+ lines to a representative sample of less than 500 lines.
+The generated metadata-files were included as-is, while the generated data-entry files were truncated from 200.000+ lines to a representative sample of less than 500 lines. Because these entry-files were truncated you will need to regenerate the seed data before using it. 
 
 ## File overview
 ### floors.csv

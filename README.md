@@ -31,9 +31,9 @@ To get started with the benchmark:
 1. Follow the [build instructions](Benchmark/README.md) to compile the benchmark.
 2. Extract seed data from your system and create the metadata-seed files as described in the [sample seed readme](Seed/seed-sample/README.md). If you do not have your own seed data, follow the [build instructions](Seed/seed-generator/README.md) to compile the sample seed generator program and generate seed data.
 3. Install your target databases and configure them as desired. Create database-users that can authenticate with a password and create a database for the benchmark to use.
-  - If you're targeting InfluxDB, you need to enable the http-endpoint and http-auth.
-  - If you're targeting TimescaleDB and want to run the database and the benchmark on different hosts, you need to configure the database to allow remote connections.
-  - If you're targeting Apache Kudu  and want to run the database and the benchmark on different hosts, you may need to extend the default list of trusted subnets since Kudu does not use username/password auth.
+   * If you're targeting InfluxDB, you need to enable the http-endpoint and http-auth.
+   * If you're targeting TimescaleDB and want to run the database and the benchmark on different hosts, you need to configure the database to allow remote connections.
+   * If you're targeting Apache Kudu  and want to run the database and the benchmark on different hosts, you may need to extend the default list of trusted subnets since Kudu does not use username/password auth.
 4. Generate the default benchmark configuration file and fill it with your database details and specify data- & output-paths.
 
 ## Why create this benchmark?

@@ -11,3 +11,7 @@ Note that to get comparable query-results, make sure that the configuration of b
 ### extractSeedData.py
 Extracts seed data from an InfluxDB database into the format expected by the benchmark. This was specifically written to extract the data from the ITU occupancy database and may not be useful for anyone else looking to extract seed data from their own systems. However, it is included as a potential starting point for such implementations.
 
+### kudu-compose.py
+Generates a docker-compose file for Apache Kudu with one master-server and a configurable number of tablet-servers. During my thesis I used this script for some preliminary experiments about what impact a variable number of tablet-servers had on performance when running Kudu on a single host. 
+
+Due to limitations with the docker-compose file format, Kudus port-allocation behavior, and my benchmark setup I were unable to write a docker-compose file that could be scaled with the docker-compose scale-argument so I used this script to generate a valid config for me.

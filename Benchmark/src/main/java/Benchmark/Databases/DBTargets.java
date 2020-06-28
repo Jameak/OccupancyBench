@@ -16,7 +16,7 @@ public enum DBTargets{
     INFLUX,
     /**
      * Writing generated data to TimescaleDB and querying it afterward is supported by the benchmark.
-     * The benchmark was tested with Timescale v1.4.0 running on PostgreSQL 11.4
+     * The benchmark was tested with Timescale v1.6.0 running on PostgreSQL 11.7
      */
     TIMESCALE,
     /**

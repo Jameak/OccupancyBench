@@ -214,10 +214,10 @@ public abstract class AbstractKuduQueries implements IQueries {
 
         // Step3: Do the averaging in-application.
         for(String name : parsed_q3.keySet()){
-            // If we're handling an Avg Occupancy call from the row-schema, then APs mey be missing from our result due to 2 reasons:
+            // If we're handling an Avg Occupancy call from the row-schema, then APs may be missing from our result due to 2 reasons:
             // #1: That particular AP has no entry for the queried time interval, such as if that particular AP crashed.
             // #2: There were no entries at all for the queried time interval, either because the seed-system was down or
-            //    because the queried interval is too small.
+            //     because the queried interval is too small.
             // For a column-based schema, #1 cannot happen because all APs are always present. However, the column-schema
             // is still susceptible to #2
             if(!(parsed_q1.containsKey(name) && parsed_q2.containsKey(name))){

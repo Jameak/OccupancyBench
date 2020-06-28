@@ -46,7 +46,7 @@ public class PartitionLockstepIngestionController implements ITarget {
                 throw new IllegalStateException("This debug option is hardcoded to expect a 7-day partition-interval since that's the default for the other databases.");
             }
             if(!(config.getKuduPartitionType() == KuduPartitionType.RANGE || config.getKuduPartitionType() == KuduPartitionType.HASH_AND_RANGE)){
-                throw new IllegalStateException("Kudu partitioning is not setup to use range-partitioning, so partition lockstepping makes little sense");
+                throw new IllegalStateException("Kudu partitioning is not setup to use range-partitioning, so partition lockstepping makes no sense");
             }
         }
 

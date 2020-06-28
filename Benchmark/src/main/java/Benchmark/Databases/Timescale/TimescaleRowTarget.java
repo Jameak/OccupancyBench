@@ -41,7 +41,7 @@ public class TimescaleRowTarget extends AbstractTimescaleTarget {
         if(inserts == batchSize){
             inserts = 0;
             int[] counts = stmt.executeBatch();
-            noErrors(counts);
+            checkForErrors(counts);
         }
     }
 }

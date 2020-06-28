@@ -29,7 +29,9 @@ public interface IQueries {
 
     /**
      * Query the database for the newest available timestamp and return it.
-     * This allows the database to make decisions regarding staleness of data.
+     * This allows the database to make decisions regarding staleness of data by returning
+     * a timestamp that is older than our newest inserted row.
+     * @param previousNewestTime The timestamp returned from the last call to this method.
      */
     LocalDateTime getNewestTimestamp(LocalDateTime previousNewestTime) throws IOException, SQLException;
 
@@ -64,5 +66,18 @@ public interface IQueries {
      */
     List<AvgOccupancy> computeAvgOccupancy(LocalDateTime start, LocalDateTime end, int windowSizeInMin) throws IOException, SQLException;
 
+    /**
+     * An implementation of the K-Means algorithm.
+     *
+     * The existing implementations have implemented a modified version of K-Means that has a more
+     * interesting data access-pattern than the typical "scan everything, then do computations locally"
+     * access-pattern. The existing implementations grab data for a single access point, do computations
+     * on that, and then grab data for the next access point.
+     * The existing implementations run the following number of queries against the database:
+     *     (number of access points) times (number of K-Means iterations)
+     *
+     * Additionally, this means that we only need to store the data for a single access point in RAM at a time,
+     * which overcomes the potential issue of available RAM on the benchmark-host.
+     */
     List<KMeans> computeKMeans(LocalDateTime start, LocalDateTime end, int numClusters, int numIterations) throws IOException, SQLException;
 }

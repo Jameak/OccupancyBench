@@ -39,7 +39,6 @@ public class InfluxColumnQueries extends AbstractInfluxQueries {
         this.allAPs = GeneratedFloor.allAPsOnFloors(generatedFloors);
 
         influxDB.setDatabase(config.getInfluxDBName());
-        //NOTE: We cannot enable batching of these queries, because then we cant calculate how much time each query uses.
 
         precomputedTotalClientsPart = QueryHelper.buildColumnSchemaTotalClientsQueryPrecomputation(allAPs);
         precomputedFloorTotalPart = QueryHelper.buildColumnSchemaFloorTotalQueryPrecomputation(generatedFloors);

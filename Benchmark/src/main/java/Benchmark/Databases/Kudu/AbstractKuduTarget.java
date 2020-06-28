@@ -78,7 +78,7 @@ public abstract class AbstractKuduTarget implements ITarget {
         long timestamp = TimeUnit.MICROSECONDS.convert(granularTime, granularity.toTimeUnit());
         if(timestamp > lastDateWithPartition && !hasWarnedAboutPartitionDate){
             hasWarnedAboutPartitionDate = true;
-            Logger.LOG("Kudu target implementation has exceeded the pre-created range partitions. All further inserts will be put in the last, unbounded partition.");
+            Logger.LOG("Warning: Kudu target implementation has exceeded the pre-created range partitions. All further inserts will be put in the last, unbounded partition.");
         }
         return timestamp;
     }

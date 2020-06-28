@@ -11,6 +11,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
+/**
+ * Handles runnables, tasks and threads for querying.
+ */
 public class QueryOrchestrator {
     private final ConfigFile config;
     private final Supplier<IQueries> querySupplier;

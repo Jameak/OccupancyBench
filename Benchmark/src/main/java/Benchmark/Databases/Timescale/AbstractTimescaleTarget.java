@@ -4,6 +4,7 @@ import Benchmark.Config.ConfigFile;
 import Benchmark.Config.Granularity;
 import Benchmark.Generator.GeneratedData.IGeneratedEntry;
 import Benchmark.Generator.Targets.ITarget;
+import Benchmark.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -21,7 +22,7 @@ public abstract class AbstractTimescaleTarget implements ITarget {
     protected boolean error;
 
     public AbstractTimescaleTarget(ConfigFile config) throws SQLException {
-        // Note: Postgres doesn't seem to support nano-second timestamps, so set granularity to milliseconds if nanoseconds is set.
+        // NOTE: Postgres doesn't support nano-second timestamps, so set granularity to milliseconds if nanoseconds is set.
         //       This is mentioned in the config documentation for granularity as well.
         this.granularity = config.getGeneratorGranularity() == Granularity.NANOSECOND || config.getGeneratorGranularity() == Granularity.MICROSECOND
                 ? Granularity.MILLISECOND : config.getGeneratorGranularity();
@@ -49,13 +50,13 @@ public abstract class AbstractTimescaleTarget implements ITarget {
         return error;
     }
 
-    protected void noErrors(int[] counts){
+    protected void checkForErrors(int[] counts){
         for (int count : counts) {
             // With "reWriteBatchedInserts" disabled, the return-value is the number of affected lines, which should be 1.
             // With "reWriteBatchedInserts" enabled, the return-code of a successful "executeBatch" is -2 aka SUCCESS_NO_INFO.
             if (!(count == -2 || count == 1)) {
                 error = true;
-                assert false : "Error in timescale batch insert. Count was: " + count;
+                Logger.LOG("TIMESCALE: Error during timescale batch insert. Count was " + count);
             }
         }
     }

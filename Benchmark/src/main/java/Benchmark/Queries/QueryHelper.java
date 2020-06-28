@@ -67,7 +67,7 @@ public class QueryHelper {
             if (i != 0) {
                 builder.append(",");
             }
-            // Influx uses 'MEAN' and TimescaleDB uses 'AVG'
+            // Influx uses 'MEAN' and TimescaleDB uses 'AVG' so the operator to use is given as an argument.
             builder.append(avgOperator);
             builder.append("(\"");
             GeneratedAccessPoint AP = APs[i];

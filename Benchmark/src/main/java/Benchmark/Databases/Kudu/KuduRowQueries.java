@@ -181,7 +181,7 @@ public class KuduRowQueries extends AbstractKuduQueries {
                 }
             }
 
-            //Results from Kudu aren't guaranteed to be ordered by the time-entry.
+            //Results from Kudu aren't guaranteed to be ordered by the time-entry so we sort them.
             Instant[] timestamps = queryResults.keySet().toArray(new Instant[0]);
             Arrays.sort(timestamps);
             int[] values = new int[timestamps.length];

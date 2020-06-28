@@ -22,6 +22,10 @@ public class Logger {
         }
     }
 
+    /**
+     * Use this to take the print-lock to write several log-messages in a row
+     * while avoiding interleaving them with log-messages from other threads.
+     */
     public interface LogMessage{
         void doLog();
     }

@@ -21,6 +21,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+/**
+ * Handles runnables, tasks and threads for ingestion.
+ */
 public class IngestOrchestrator {
     private final ConfigFile config;
     private final ExecutorService threadPoolIngest;

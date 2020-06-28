@@ -1,5 +1,9 @@
 package Benchmark;
 
+/**
+ * Timer with nanosecond granularity.
+ * See {@code System.nanoTime()} for time limitations.
+ */
 public class PreciseTimer {
     private long start;
 

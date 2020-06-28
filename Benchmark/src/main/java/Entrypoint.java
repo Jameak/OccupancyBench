@@ -26,7 +26,9 @@ import java.util.Set;
  * The entry-point of the benchmark program.
  */
 public class Entrypoint {
-    public static void main(String[] args) {
+    //TODO: Replace the argument handling here with a proper CLI argument library.
+    //      (such as pico-cli used in the seed data generator)
+    public static void main(String[] args) throws Exception {
         if(args == null || args.length < 1){
             System.out.println("No arguments provided.");
             System.out.println("Either provide path to a config file or pass --default-config to generate a default config-file in the current working directory.");
@@ -55,8 +57,7 @@ public class Entrypoint {
             for(String arg : args){
                 System.out.println("    " + arg);
             }
-            e.printStackTrace();
-            return;
+            throw e;
         }
 
         Set<String> unknownKeys = config.getUnknownKeysInInput();
@@ -77,16 +78,12 @@ public class Entrypoint {
             System.out.println(config.toString());
         }
 
-        try {
-            new Entrypoint().run(config);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        new Entrypoint().run(config);
     }
 
     private PartitionLockstepChannel DEBUG_partitionLockstepChannel;
 
-    public void run(ConfigFile config) throws Exception{
+    public void run(ConfigFile config) throws Exception {
         assert config.isValidConfig();
         Random rng = new Random(config.getSeed());
         DateCommunication dateComm = new DateCommunication();
@@ -152,7 +149,7 @@ public class Entrypoint {
         }
 
         if(config.isQueryingEnabled()){
-            // First, wait for queries to finish, since they have a specified duration
+            // Wait for queries to finish, since they have a specified duration
             assert queryOrchestrator != null;
             queryOrchestrator.waitUntilQuerythreadsFinish();
         } else if(config.isIngestionEnabled()) {

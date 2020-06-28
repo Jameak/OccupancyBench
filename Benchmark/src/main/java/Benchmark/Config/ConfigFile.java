@@ -37,6 +37,7 @@ public class ConfigFile {
     /**
      * Type: A single accepted value. Accepted values are: ROW, COLUMN
      * The schema-format to use for data generation and querying.
+     * @see SchemaFormats for documentation about the schemas.
      */
     private static final String SCHEMA = "benchmark.schema";
     private static final String SCHEMA_DEFAULT = SchemaFormats.ROW.toString();
@@ -121,19 +122,35 @@ public class ConfigFile {
     private static final String GENERATOR_INPUT_IDMAP_FILE_DEFAULT = "FILE PATH";
     /**
      * Type: String
-     * The path to the folder containing the probability files for each day as created by the python script.
-     * This folder should ONLY contain the probability files and nothing else.
+     * The path to the folder containing the entry files for each day as created by the python script.
+     * This folder should ONLY contain the entry files and nothing else.
      *
      * Also used during ingest-generation.
      */
     private static final String GENERATOR_INPUT_PROBABILITY_FOLDER         = "generator.input.datafolder";
     private static final String GENERATOR_INPUT_PROBABILITY_FOLDER_DEFAULT = "FOLDER PATH";
+    /**
+     * Type: String
+     * Path to the 'floors.csv' seed file.
+     */
     private static final String GENERATOR_INPUT_FLOOR_INFO_FILE = "generator.input.floorinfofile";
     private static final String GENERATOR_INPUT_FLOOR_INFO_FILE_DEFAULT =  "FILE PATH";
+    /**
+     * Type: String
+     * Path to the 'floormap.csv' seed file.
+     */
     private static final String GENERATOR_INPUT_FLOOR_AP_FILE = "generator.input.floormapfile";
     private static final String GENERATOR_INPUT_FLOOR_AP_FILE_DEFAULT = "FILE PATH";
+    /**
+     * Type: String
+     * Path to the 'ignored.csv' seed file.
+     */
     private static final String GENERATOR_INPUT_IGNORE_FILE = "generator.input.ignorefile";
     private static final String GENERATOR_INPUT_IGNORE_FILE_DEFAULT = "FILE PATH";
+    /**
+     * Type: String
+     * Path to the 'combined.csv' seed file.
+     */
     private static final String GENERATOR_INPUT_COMBINED_FILE = "generator.input.combinedfile";
     private static final String GENERATOR_INPUT_COMBINED_FILE_DEFAULT = "FILE PATH";
     /**
@@ -304,7 +321,7 @@ public class ConfigFile {
      * A batch-write is issued if either the batch-size or flush-time is reached
      */
     private static final String INFLUX_BATCHSIZE = "influx.batch.size";
-    private static final String INFLUX_BATCHSIZE_DEFAULT = "10000";
+    private static final String INFLUX_BATCHSIZE_DEFAULT = "1000";
     /**
      * Type: Integer
      * The max number of milliseconds between batch-writes.
@@ -356,7 +373,7 @@ public class ConfigFile {
      * The number of inserts to batch together during generation/ingestion.
      */
     private static final String TIMESCALE_BATCHSIZE     = "timescale.batchsize";
-    private static final String TIMESCALE_BATCHSIZE_DEFAULT = "10000";
+    private static final String TIMESCALE_BATCHSIZE_DEFAULT = "1000";
     /**
      * Type: Boolean
      * Controls whether the property "reWriteBatchedInserts" is included in the Timescale connection string.
@@ -418,7 +435,7 @@ public class ConfigFile {
     //       is apparently not wired together with data-sizes, so e.g. a value of 1000 does not mean that a batch size of 1000 will fit
     //       (it might only fit 50, or might fit 5000... I'm unsure)
     private static final String KUDU_MUTATION_BUFFER_SPACE = "kudu.mutationbufferspace";
-    private static final String KUDU_MUTATION_BUFFER_SPACE_DEFAULT = "1000";
+    private static final String KUDU_MUTATION_BUFFER_SPACE_DEFAULT = "2000";
     /**
      * Type: A single accepted value. Accepted values are: NONE, HASH, RANGE, HASH_AND_RANGE
      *
@@ -840,7 +857,7 @@ public class ConfigFile {
      * benchmark operation) then comparability doesn't really matter and this can be turned off.
      */
     private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS = "debug.truncatequerytimestamps";
-    private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT = "false";
+    private static final String DEBUG_TRUNCATE_QUERY_TIMESTAMPS_DEFAULT = "true";
     /**
      * Type: Boolean
      * Governs whether to report debug information from the query-runner about each individual query as its running.
@@ -859,7 +876,7 @@ public class ConfigFile {
      * This proxies the normal query-implementation and will make the normal query-statistics unreliable due to the
      * synchronization with ingestion.
      *
-     * This debug option has only been implemented for the following config settings:
+     * This debug option has only been implemented for the following config setup:
      * - Querying is enabled.
      * - Ingestion is enabled.
      * - Querying uses 1 thread.

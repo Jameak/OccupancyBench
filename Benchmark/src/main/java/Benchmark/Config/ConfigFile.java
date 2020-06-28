@@ -35,12 +35,12 @@ public class ConfigFile {
     private final int seed;
 
     /**
-     * Type: A single accepted value. Accepted values are: ROW, COLUMN
+     * Type: A single accepted value. Accepted values are: NARROW, WIDE
      * The schema-format to use for data generation and querying.
      * @see SchemaFormats for documentation about the schemas.
      */
     private static final String SCHEMA = "benchmark.schema";
-    private static final String SCHEMA_DEFAULT = SchemaFormats.ROW.toString();
+    private static final String SCHEMA_DEFAULT = SchemaFormats.NARROW.toString();
     private final SchemaFormats schema;
 
     /**
@@ -382,7 +382,7 @@ public class ConfigFile {
     private static final String TIMESCALE_REWRITE_BATCH_DEFAULT = "true";
     /**
      * Type: Boolean
-     * If enabled, a secondary index on (AP, time) is created when using the ROW-schema.
+     * If enabled, a secondary index on (AP, time) is created when using the NARROW-schema.
      */
     private static final String TIMESCALE_CREATE_SECONDARY_INDEX = "timescale.createsecondaryindex";
     private static final String TIMESCALE_CREATE_SECONDARY_INDEX_DEFAULT = "false";
@@ -443,8 +443,8 @@ public class ConfigFile {
      * Read the Kudu-documentation for how hash- and range-partitioning interacts and its effect on the
      * number of partitions before using HASH_AND_RANGE.
      *
-     * For the row-schema, all partitioning values are accepted.
-     * For the column-schema, only RANGE is accepted since this schema doesn't have a column for which
+     * For the NARROW-schema, all partitioning values are accepted.
+     * For the WIDE-schema, only RANGE is accepted since this schema doesn't have a column for which
      *   a suitable hash-column exists.
      */
     private static final String KUDU_PARTITION_TYPE = "kudu.partitioning.type";
@@ -831,7 +831,7 @@ public class ConfigFile {
     private static final String DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT = "TARGET FOLDER PATH";
     /**
      * Type: Boolean
-     * Governs whether to synchronize the rng state for data generation across both ROW and COLUMN schemes.
+     * Governs whether to synchronize the rng state for data generation across both NARROW and WIDE schemes.
      * The effect of this ensures that the exact same data is generated for both, making them directly comparable at
      * the cost of slightly more generation overhead.
      */
@@ -841,18 +841,18 @@ public class ConfigFile {
      * Type: Boolean
      * Governs whether to truncate the timestamps used in queries to minutes.
      *
-     * This is useful for comparing query-results between row- and column-schemas. Specifically, this ensures that
-     * if we have the following entries in the row- and column-databases:
-     * ROW DB:    TIME (HH:MM:SS) | AP   | CLIENTS
+     * This is useful for comparing query-results between the NARROW and WIDE schemas. Specifically, this ensures that
+     * if we have the following entries:
+     * NARROW DB: TIME (HH:MM:SS) | AP   | CLIENTS
      *            10:00:01        | AP-1 | 5
      *            10:00:02        | AP-2 | 10
      *            10:00:03        | AP-3 | 15
-     * COLUMN DB: TIME (HH:MM:SS) | AP-1 | AP-2 | AP-3
+     * WIDE DB:   TIME (HH:MM:SS) | AP-1 | AP-2 | AP-3
      *            10:00:03        | 5    | 10   | 15
      * then a randomly generated query-timerange of "start: 10:00:02" and "end: 10:10:00" will be truncated to querying
-     * "start: 10:00:00" which ensures that the query grabs the entirety of the row-entries instead of only some of them.
+     * "start: 10:00:00" which ensures that the query grabs the entirety of the narrow-entries instead of only some of them.
      *
-     * For row- vs column-schema queries to be comparable we need to always grab either all entries or none, which
+     * For narrow- vs wide-schema queries to be comparable we need to always grab either all entries or none, which
      * enabling this setting ensures that we do. If we dont care about them being comparable (such as during normal
      * benchmark operation) then comparability doesn't really matter and this can be turned off.
      */
@@ -1239,7 +1239,7 @@ public class ConfigFile {
         // ---- Ingest ----
         if(ingestEnabled){
             if(!(ingestThreads > 0)) return INGEST_THREADS + ": Ingest threads must be > 0";
-            if(ingestThreads > 1 && schema == SchemaFormats.COLUMN) return INGEST_THREADS + ": Column-format does not support multiple ingest threads. (to simplify the implementation)";
+            if(ingestThreads > 1 && schema == SchemaFormats.WIDE) return INGEST_THREADS + ": Wide schema-format does not support multiple ingest threads.";
 
             if(generatorEnabled && !ingestTargetRecreate){
                 if(!(ingestStartDate.isAfter(generatorStartDate) || ingestStartDate.isEqual(generatorStartDate))) return INGEST_START_DATE + ": Ingest start date " + ingestStartDate + " must be equal/after start date " + generatorStartDate + "(" + GENERATOR_START_DATE + ")";

@@ -27,7 +27,7 @@ public class DatabaseTargetFactory {
      */
     public static ITarget createDatabaseTarget(DBTargets target, ConfigFile config, boolean recreate, GeneratedAccessPoint[] allAPs) throws IOException, SQLException {
         switch (config.getSchema()){
-            case ROW:
+            case NARROW:
                 switch (target){
                     case INFLUX:
                         return new InfluxRowTarget(config, recreate);
@@ -40,7 +40,7 @@ public class DatabaseTargetFactory {
                 }
 
                 throw new IllegalStateException("Target " + target + " with schema " + config.getSchema() + " has no supported target-implementations.");
-            case COLUMN:
+            case WIDE:
                 assert allAPs.length > 0 : "Column-schema must know the APs up front.";
 
                 switch (target){

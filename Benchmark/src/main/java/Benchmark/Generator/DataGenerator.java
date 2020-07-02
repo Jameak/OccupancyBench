@@ -137,7 +137,7 @@ public class DataGenerator {
                                              SchemaFormats schema, boolean DEBUG_sync_rng_state) throws IOException, SQLException {
         LocalTime readingTime = startTime;
         switch (schema){
-            case ROW:
+            case NARROW:
                 for (GeneratedAccessPoint AP : APs) {
                     String apSeedName = AP.getOriginalName();
                     if (!entryOnDay.hasData())
@@ -159,7 +159,7 @@ public class DataGenerator {
                     outputTarget.add(genEntry);
                 }
                 break;
-            case COLUMN:
+            case WIDE:
                 HashMap<String, Integer> entries = new HashMap<>();
 
                 if (!DEBUG_sync_rng_state){

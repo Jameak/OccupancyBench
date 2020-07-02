@@ -250,7 +250,7 @@ public class Entrypoint {
     private IQueries instantiateQueries(ConfigFile config){
         if(config.DEBUG_isPartitionLockstepEnabled()){
             if(config.DEBUG_partitionLockstepExplainAnalyzeTimescale() && config.getQueriesTarget() == DBTargets.TIMESCALE){
-                if(config.getSchema() == SchemaFormats.COLUMN){
+                if(config.getSchema() == SchemaFormats.WIDE){
                     return new PartitionLockstepTimescaleDetailedColumnQueries(DEBUG_partitionLockstepChannel);
                 } else {
                     throw new IllegalStateException("Debug option detailed partition-lockstep not implemented for this timescale schema: " + config.getSchema());

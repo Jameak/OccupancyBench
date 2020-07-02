@@ -34,7 +34,7 @@ public class InfluxPrecomputationInsights {
         InfluxDB writeDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, false);
         InfluxDB readDB = SetupConnection(config.getInfluxUrl(), config.getInfluxUsername(), config.getInfluxPassword(), config, true);
 
-        if(config.getSchema() != SchemaFormats.ROW){
+        if(config.getSchema() != SchemaFormats.NARROW){
             throw new IllegalStateException("This debug setting only works with the row-format");
         }
 

@@ -19,7 +19,7 @@ public class DatabaseQueriesFactory {
      */
     public static IQueries createQueriesInstance(ConfigFile config){
         switch (config.getSchema()){
-            case ROW:
+            case NARROW:
                 switch (config.getQueriesTarget()){
                     case INFLUX:
                         return new InfluxRowQueries();
@@ -32,7 +32,7 @@ public class DatabaseQueriesFactory {
                     default:
                         throw new IllegalStateException("Unknown query target: " + config.getQueriesTarget());
                 }
-            case COLUMN:
+            case WIDE:
                 switch (config.getQueriesTarget()){
                     case INFLUX:
                         return new InfluxColumnQueries();

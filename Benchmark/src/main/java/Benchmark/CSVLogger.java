@@ -89,7 +89,7 @@ public abstract class CSVLogger {
         }
 
         Path csvPath = Paths.get(config.getCSVLogPath());
-        Path outPath = csvPath.resolve(config.getCsvFolderPrefix() + config.hashCode() + "");
+        Path outPath = csvPath.resolve(config.getCsvFolderPrefix() + config.hashCode());
 
         boolean madeDir = outPath.toFile().exists() || outPath.toFile().mkdirs();
         if(madeDir){

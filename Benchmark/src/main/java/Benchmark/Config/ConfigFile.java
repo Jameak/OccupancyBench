@@ -56,7 +56,7 @@ public class ConfigFile {
      * The path to the folder where CSV files should be written.
      */
     private static final String LOG_TO_CSV_PATH         = "benchmark.output.csv.path";
-    private static final String LOG_TO_CSV_PATH_DEFAULT = "FOLDER PATH";
+    private static final String LOG_TO_CSV_PATH_DEFAULT = "./bench-out";
     /**
      * Type: String
      * A prefix to include in the name of the folder that gets created at the csv.path target, to make it easier
@@ -95,7 +95,7 @@ public class ConfigFile {
      * Path of the folder to de-/serialize data into/from.
      */
     private static final String SERIALIZE_PATH    = "serialization.path";
-    private static final String SERIALIZE_PATH_DEFAULT = "FOLDER PATH";
+    private static final String SERIALIZE_PATH_DEFAULT = "./bench-out";
     private final boolean   serialize;
     private final String    serializePath;
 
@@ -214,7 +214,7 @@ public class ConfigFile {
      * Also used during ingest-generation.
      */
     private static final String GENERATOR_GRANULARITY             = "generator.data.granularity";
-    private static final String GENERATOR_GRANULARITY_DEFAULT     = Granularity.NANOSECOND.toString();
+    private static final String GENERATOR_GRANULARITY_DEFAULT     = Granularity.MILLISECOND.toString();
     /**
      * Type: Integer
      * A random number from 0 to this value will be multiplied with the probability of each AP and added to the
@@ -259,7 +259,7 @@ public class ConfigFile {
      * The end date for initial data generation. Exclusive.
      */
     private static final String GENERATOR_END_DATE                = "generator.data.enddate";
-    private static final String GENERATOR_END_DATE_DEFAULT        = "2019-04-01";
+    private static final String GENERATOR_END_DATE_DEFAULT        = "2019-02-01";
     /**
      * Type: Comma-separated string of accepted values. Accepted values are: CSV, INFLUX, TIMESCALE, KUDU
      * The outputs to add generated data to. If multiple targets are specified, all targets receive data as it is generated.
@@ -272,7 +272,7 @@ public class ConfigFile {
      * data is written to.
      */
     private static final String GENERATOR_OUTPUT_TO_DISK_TARGET   = "generator.output.filepath";
-    private static final String GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT = "TARGET FILE PATH";
+    private static final String GENERATOR_OUTPUT_TO_DISK_TARGET_DEFAULT = "./bench-out/generator-out.csv";
     private final double    generatorScaleFloors;
     private final double    generatorScaleSensors;
     private final double    generatorScaleConnectedClients;
@@ -321,7 +321,7 @@ public class ConfigFile {
      * A batch-write is issued if either the batch-size or flush-time is reached
      */
     private static final String INFLUX_BATCHSIZE = "influx.batch.size";
-    private static final String INFLUX_BATCHSIZE_DEFAULT = "1000";
+    private static final String INFLUX_BATCHSIZE_DEFAULT = "3000";
     /**
      * Type: Integer
      * The max number of milliseconds between batch-writes.
@@ -373,7 +373,7 @@ public class ConfigFile {
      * The number of inserts to batch together during generation/ingestion.
      */
     private static final String TIMESCALE_BATCHSIZE     = "timescale.batchsize";
-    private static final String TIMESCALE_BATCHSIZE_DEFAULT = "1000";
+    private static final String TIMESCALE_BATCHSIZE_DEFAULT = "3000";
     /**
      * Type: Boolean
      * Controls whether the property "reWriteBatchedInserts" is included in the Timescale connection string.
@@ -421,7 +421,7 @@ public class ConfigFile {
      * The number of inserts to batch together during generation/ingestion before a flush is issued.
      */
     private static final String KUDU_BATCH_SIZE = "kudu.batchsize";
-    private static final String KUDU_BATCH_SIZE_DEFAULT = "1000";
+    private static final String KUDU_BATCH_SIZE_DEFAULT = "3000";
     /**
      * Type: Integer
      * A value defining the size of the 'mutation buffer space' for the Kudu library.
@@ -435,7 +435,7 @@ public class ConfigFile {
     //       is apparently not wired together with data-sizes, so e.g. a value of 1000 does not mean that a batch size of 1000 will fit
     //       (it might only fit 50, or might fit 5000... I'm unsure)
     private static final String KUDU_MUTATION_BUFFER_SPACE = "kudu.mutationbufferspace";
-    private static final String KUDU_MUTATION_BUFFER_SPACE_DEFAULT = "2000";
+    private static final String KUDU_MUTATION_BUFFER_SPACE_DEFAULT = "6000";
     /**
      * Type: A single accepted value. Accepted values are: NONE, HASH, RANGE, HASH_AND_RANGE
      *
@@ -499,7 +499,7 @@ public class ConfigFile {
      * The first date to generate data for.
      */
     private static final String INGEST_START_DATE          = "ingest.startdate";
-    private static final String INGEST_START_DATE_DEFAULT  = "2019-04-01";
+    private static final String INGEST_START_DATE_DEFAULT  = "2019-02-01";
     /**
      * Type: Integer
      * The desired number of entries for each ingestion-thread to generate per second.
@@ -615,7 +615,7 @@ public class ConfigFile {
      * collect statistics.
      */
     private static final String QUERIES_WARMUP                   = "queries.duration.warmup";
-    private static final String QUERIES_WARMUP_DEFAULT           = "5";
+    private static final String QUERIES_WARMUP_DEFAULT           = "-1";
     /**
      * Type: Integer
      * The number of queries to run before stopping. Only considered if {@code QUERIES_DURATION} is <= 0.
@@ -631,7 +631,7 @@ public class ConfigFile {
      * A value of <= 0 will make querying not report any intermediate values.
      */
     private static final String QUERIES_REPORT_FREQUENCY         = "queries.reporting.summaryfrequency";
-    private static final String QUERIES_REPORT_FREQUENCY_DEFAULT = "20";
+    private static final String QUERIES_REPORT_FREQUENCY_DEFAULT = "-1";
 
     /**
      * Type: LocalDate (YYYY-MM-DD)
@@ -733,7 +733,7 @@ public class ConfigFile {
      * biased towards old values.
      */
     private static final String QUERIES_INTERVAL_MAX             = "queries.interval.max";
-    private static final String QUERIES_INTERVAL_MAX_DEFAULT     = "7776000"; // 90 days in seconds
+    private static final String QUERIES_INTERVAL_MAX_DEFAULT     = "604800"; // 7 days in seconds
     /**
      * Type: Integer
      * The minimal length of a time-span to query for when running the K-Means query, in seconds.
@@ -828,7 +828,7 @@ public class ConfigFile {
      * The path to write the query results to.
      */
     private static final String DEBUG_SAVE_QUERY_RESULTS_PATH = "debug.savequeryresults.path";
-    private static final String DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT = "TARGET FOLDER PATH";
+    private static final String DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT = "./bench-out";
     /**
      * Type: Boolean
      * Governs whether to synchronize the rng state for data generation across both NARROW and WIDE schemes.
@@ -1190,6 +1190,11 @@ public class ConfigFile {
     }
 
     private String validateConfig(){
+        // If the output paths for these settings is the default path, then create them if they dont exist to simplify benchmark setup.
+        if(logToCSV && logToCSVPath.equals(LOG_TO_CSV_PATH_DEFAULT)) Paths.get(LOG_TO_CSV_PATH_DEFAULT).toFile().mkdirs();
+        if(serialize && serializePath.equals(SERIALIZE_PATH_DEFAULT)) Paths.get(SERIALIZE_PATH_DEFAULT).toFile().mkdirs();
+        if(debugSaveQueryResults && debugSaveQueryResultsPath.equals(DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT)) Paths.get(DEBUG_SAVE_QUERY_RESULTS_PATH_DEFAULT).toFile().mkdirs();
+
         if(logToCSV){
             if(!Paths.get(logToCSVPath).toFile().exists()) return LOG_TO_CSV_PATH + ": CSV folder path doesn't exist: " + Paths.get(logToCSVPath).toFile().getAbsolutePath();
         }
@@ -1209,7 +1214,7 @@ public class ConfigFile {
             if(!Paths.get(generatorInputIdmapFilePath).toFile().exists()) return GENERATOR_INPUT_IDMAP_FILE + ": Path doesn't exist: " + Paths.get(generatorInputIdmapFilePath).toFile().getAbsolutePath();
             if(!Paths.get(generatorInputPropabilityFolder).toFile().exists()) return GENERATOR_INPUT_PROBABILITY_FOLDER + ": Folder path doesn't exist: " + Paths.get(generatorInputPropabilityFolder).toFile().getAbsolutePath();
 
-            //TODO: These files are only actually required for the generator being enabled, but API-wise when loading
+            //TODO: These files are only actually required for when the generator is enabled, but API-wise when loading
             //      seed data, it's simpler to load everything at once instead of differentiating between when we load
             //      just for ingestion vs for generation so for now just require them to exist.
             if(!Paths.get(generatorInputFloorInfoFilePath).toFile().exists()) return GENERATOR_INPUT_FLOOR_INFO_FILE + ": Path doesn't exist: " + Paths.get(generatorInputFloorInfoFilePath).toFile().getAbsolutePath();

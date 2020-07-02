@@ -16,10 +16,10 @@ java -jar target/benchmark-1.0-SNAPSHOT.jar --default-config
 
 When loading the config file the benchmark checks that the given configuration is valid. If this is not the case, the benchmark will quit with a message describing why the config is invalid.
 
-_With 90+ individual configuration options some invalid setups may have slipped through the crags of this config validation. Hopefully the benchmark will crash in this case rather than continue running in an invalid state but to be entirely certain you may want to enable assertions for the first full run of any config file._
+_With 90+ individual configuration options some invalid setups may have slipped through the cracks of this config validation. Hopefully the benchmark will crash in this case rather than continue running in an invalid state but to be entirely certain you may want to enable assertions for the first full run of any config file._
 
 ## Sample benchmark setups
-**Self-contained run:** Configure generation, insert and querying as desired and run the benchmark.
+**Self-contained run:** Configure generation, ingestion, and querying as desired and run the benchmark.
 
 **Multiple query-variations on a static dataset:** If you want to run multiple different query-variations on the same static dataset, you may want to avoid reinserting all your data between runs. To do this, you'll need 2+ configuration files. Config file #1 needs to do data-insertion and serialize the generated metadata. The query-configs (config #2+) can then deserialize the previously generated metadata and avoid repopulating the database.
 

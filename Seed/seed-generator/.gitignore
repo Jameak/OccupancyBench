@@ -6,6 +6,7 @@ floors.csv
 idmap.csv
 ignored.csv
 entries/
+*.iml
 
 # Created by https://www.gitignore.io/api/maven,intellij
 # Edit at https://www.gitignore.io/?templates=maven,intellij

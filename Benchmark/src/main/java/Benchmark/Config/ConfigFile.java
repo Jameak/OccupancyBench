@@ -911,9 +911,11 @@ public class ConfigFile {
     private boolean validated;
     private String validationError = "NO ERROR";
 
+    /**
+     * Load the specified config files. Files are loaded in the order they are given.
+     * If duplicate properties exist, the value of the last-loaded file will overwrite the previous value.
+     */
     public static ConfigFile load(String... filePaths) throws IOException {
-        assert filePaths.length != 0 : "Why are you loading 0 config files?";
-
         Set<String> encounteredPropNames = new HashSet<>();
         Properties combinedProp = new Properties(defaultProp());
         for(String filePath : filePaths){
@@ -945,6 +947,11 @@ public class ConfigFile {
         return config;
     }
 
+    /**
+     * Retrieve the default config file.
+     * Due to invalid default config settings (such as placeholder paths)
+     * the default config file does not pass config validation.
+     */
     public static ConfigFile defaultConfig(){
         return new ConfigFile(defaultProp());
     }
@@ -1287,12 +1294,19 @@ public class ConfigFile {
         return null;
     }
 
+    /**
+     * Write the config file to the specified output file using the properties save-functionality.
+     * TODO: Sort this output? The properties.store function produces a jumbled file...
+     */
     public void save(String filePath) throws IOException {
         try(OutputStream output = new FileOutputStream(filePath)){
             prop.store(output, "Config file for Benchmark");
         }
     }
 
+    /**
+     * Returns a list of keys in the loaded file that aren't recognized as valid config keys.
+     */
     public Set<String> getUnknownKeysInInput(){
         Set<String> settingsInFile = prop.stringPropertyNames();
         Set<String> knownSettings = getSettings().keySet();
@@ -1343,6 +1357,9 @@ public class ConfigFile {
         return sb.toString();
     }
 
+    /**
+     * Get a full list of the (valid) configuration key/value pairs that this config has.
+     */
     public SortedMap<String, Object> getSettings(){
         SortedMap<String, Object> settings = new TreeMap<>();
         settings.put(SEED, seed);

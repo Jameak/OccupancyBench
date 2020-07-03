@@ -1,6 +1,6 @@
 # Script overview
 ### comparequeries.py
-For use during development of new database query-implementations to check that the results returned from the database implementations match when executed with the same query-arguments. Due to schema- and datastructure-differences there are slight differences in the query-output of some implementations. This script tries to consider these when comparing the output, but this wasn't implemented for cross-schema K-Means query-result comparisons due to time-considerations during my thesis.
+For use during development of new database query-implementations. Can be used to check that the results returned from different database query-implementations match when executed with identical query-arguments. Due to schema- and datastructure-differences there are slight differences in the query-output of some implementations. This script tries to consider these when comparing the output, but this wasn't implemented for cross-schema K-Means query-result comparisons due to time-considerations during my thesis.
 
 To create the files used by this script, run the benchmark with the `debug.savequeryresults` option enabled.
 
